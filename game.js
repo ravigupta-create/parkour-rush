@@ -65,9 +65,49 @@ const DIFFICULTIES = {
         jumpBuffer: 14,
         dashDuration: 12,
         dashCooldown: 20,
-        spikeInset: 8,       // pixels to shrink spike hitbox
+        spikeInset: 8,
         wallSlideMax: 1.5,
-        timerMultiplier: 1,  // grade thresholds stay same
+        timerMultiplier: 1,
+        // Level geometry modifiers
+        platWidthBonus: 3,   // extra tiles added to platform widths
+        gapShrink: 2,        // tiles to shrink gaps between platforms
+        spikeRemoveChance: 0.5, // chance to remove each spike group
+        runSpeed: 5,
+        // Visual theme: calm blue sky
+        theme: {
+            bgTop: '#0a1628',
+            bgMid: '#0c1e3a',
+            bgBot: '#0e264c',
+            starColor: '#aaccff',
+            platBody: '#3a5a9a',
+            platTop: '#66aaff',
+            platTopGlow: 'rgba(102, 170, 255, 0.6)',
+            platGlow: 'rgba(60, 120, 220, 0.25)',
+            platSide: '#4a7acc',
+            platBottom: '#1a3a6a',
+            platTexture: '#4a6aaa',
+            platGrid: '#2a4a7a',
+            wallBody: '#2a7a5a',
+            wallEdge: '#44ddaa',
+            wallGlow: 'rgba(68, 221, 170, 0.4)',
+            wallCap: '#3a9a6a',
+            wallRivet: '#55bb88',
+            wallGridStroke: '#1a5a3a',
+            movBody: '#4a4a9a',
+            movTop: '#8888ff',
+            movTopGlow: 'rgba(136, 136, 255, 0.5)',
+            movSide: '#6a6acc',
+            movTrail: [100, 100, 200],
+            movPath: 'rgba(136, 136, 255, 0.3)',
+            fallBody: '#6a7a50',
+            fallTop: '#aacc66',
+            fallTopGlow: 'rgba(170, 204, 102, 0.5)',
+            fallSide: '#7a8a60',
+            playerBody: '#44aaff',
+            playerHead: '#55bbff',
+            playerArms: '#3399ee',
+            playerLegs: '#2288dd',
+        },
     },
     medium: {
         label: 'MEDIUM',
@@ -82,6 +122,45 @@ const DIFFICULTIES = {
         spikeInset: 4,
         wallSlideMax: 2,
         timerMultiplier: 1,
+        platWidthBonus: 0,
+        gapShrink: 0,
+        spikeRemoveChance: 0,
+        runSpeed: 5,
+        // Visual theme: neon purple (original look but brighter)
+        theme: {
+            bgTop: '#020208',
+            bgMid: '#050510',
+            bgBot: '#08040f',
+            starColor: '#ffffff',
+            platBody: '#5050a0',
+            platTop: '#99aaff',
+            platTopGlow: 'rgba(153, 170, 255, 0.6)',
+            platGlow: 'rgba(100, 100, 255, 0.25)',
+            platSide: '#7070cc',
+            platBottom: '#2a2a5a',
+            platTexture: '#6060aa',
+            platGrid: '#3a3a70',
+            wallBody: '#3a7a3a',
+            wallEdge: '#77ee77',
+            wallGlow: 'rgba(119, 238, 119, 0.45)',
+            wallCap: '#4a9a4a',
+            wallRivet: '#66cc66',
+            wallGridStroke: '#2a5a2a',
+            movBody: '#6050a0',
+            movTop: '#cc99ff',
+            movTopGlow: 'rgba(204, 153, 255, 0.5)',
+            movSide: '#8070bb',
+            movTrail: [140, 100, 200],
+            movPath: 'rgba(200, 150, 255, 0.3)',
+            fallBody: '#8a7040',
+            fallTop: '#eebb55',
+            fallTopGlow: 'rgba(238, 187, 85, 0.5)',
+            fallSide: '#9a8050',
+            playerBody: '#00e5ff',
+            playerHead: '#33eeff',
+            playerArms: '#00ccdd',
+            playerLegs: '#00aabb',
+        },
     },
     hard: {
         label: 'HARD',
@@ -96,6 +175,45 @@ const DIFFICULTIES = {
         spikeInset: 2,
         wallSlideMax: 2.5,
         timerMultiplier: 1,
+        platWidthBonus: -1,   // narrower platforms
+        gapShrink: -1,        // wider gaps
+        spikeRemoveChance: 0,
+        runSpeed: 5,
+        // Visual theme: fiery orange/red
+        theme: {
+            bgTop: '#0f0502',
+            bgMid: '#140804',
+            bgBot: '#1a0a05',
+            starColor: '#ffaa66',
+            platBody: '#8a4020',
+            platTop: '#ff8844',
+            platTopGlow: 'rgba(255, 136, 68, 0.6)',
+            platGlow: 'rgba(220, 100, 40, 0.25)',
+            platSide: '#bb6030',
+            platBottom: '#4a2010',
+            platTexture: '#9a5030',
+            platGrid: '#6a3020',
+            wallBody: '#7a5a1a',
+            wallEdge: '#ffcc33',
+            wallGlow: 'rgba(255, 204, 51, 0.45)',
+            wallCap: '#9a7a2a',
+            wallRivet: '#ddaa22',
+            wallGridStroke: '#5a4010',
+            movBody: '#8a3040',
+            movTop: '#ff6688',
+            movTopGlow: 'rgba(255, 102, 136, 0.5)',
+            movSide: '#aa4a5a',
+            movTrail: [200, 80, 100],
+            movPath: 'rgba(255, 100, 130, 0.3)',
+            fallBody: '#6a3a20',
+            fallTop: '#ff8833',
+            fallTopGlow: 'rgba(255, 136, 51, 0.5)',
+            fallSide: '#8a5030',
+            playerBody: '#ff6622',
+            playerHead: '#ff8844',
+            playerArms: '#ee5511',
+            playerLegs: '#dd4400',
+        },
     },
     extreme: {
         label: 'EXTREME',
@@ -110,8 +228,50 @@ const DIFFICULTIES = {
         spikeInset: 0,
         wallSlideMax: 3,
         timerMultiplier: 1,
+        platWidthBonus: -2,    // much narrower platforms
+        gapShrink: -2,         // much wider gaps
+        spikeRemoveChance: 0,
+        runSpeed: 5,
+        // Visual theme: blood red / black
+        theme: {
+            bgTop: '#0a0002',
+            bgMid: '#100004',
+            bgBot: '#150006',
+            starColor: '#ff4444',
+            platBody: '#6a1020',
+            platTop: '#ff2244',
+            platTopGlow: 'rgba(255, 34, 68, 0.7)',
+            platGlow: 'rgba(255, 30, 60, 0.3)',
+            platSide: '#aa2030',
+            platBottom: '#3a0810',
+            platTexture: '#7a1828',
+            platGrid: '#5a1020',
+            wallBody: '#5a2a6a',
+            wallEdge: '#cc44ff',
+            wallGlow: 'rgba(204, 68, 255, 0.5)',
+            wallCap: '#7a3a8a',
+            wallRivet: '#aa33dd',
+            wallGridStroke: '#3a1a4a',
+            movBody: '#6a1040',
+            movTop: '#ff3366',
+            movTopGlow: 'rgba(255, 51, 102, 0.5)',
+            movSide: '#8a2050',
+            movTrail: [200, 40, 80],
+            movPath: 'rgba(255, 50, 100, 0.3)',
+            fallBody: '#5a1a10',
+            fallTop: '#ff3322',
+            fallTopGlow: 'rgba(255, 51, 34, 0.6)',
+            fallSide: '#7a2a18',
+            playerBody: '#ff1133',
+            playerHead: '#ff3355',
+            playerArms: '#dd0022',
+            playerLegs: '#bb0011',
+        },
     }
 };
+
+// Helper to get current theme colors
+function getTheme() { return getDiff().theme; }
 
 let difficulty = 'medium';
 function getDiff() { return DIFFICULTIES[difficulty]; }
@@ -1815,6 +1975,88 @@ function getGrade(level, time) {
     return 'none';
 }
 
+// ---------- DIFFICULTY GEOMETRY MODIFIER ----------
+function applyDifficultyGeometry() {
+    const diff = getDiff();
+    const wb = diff.platWidthBonus || 0;
+    const gs = diff.gapShrink || 0;
+    const removeChance = diff.spikeRemoveChance || 0;
+
+    if (wb === 0 && gs === 0 && removeChance === 0) return;
+
+    // Widen or narrow platforms
+    if (wb !== 0) {
+        for (const p of platforms) {
+            const addW = wb * TILE;
+            // Center the width change — grow/shrink from both sides
+            p.x -= Math.floor(addW / 2);
+            p.w += addW;
+            // Clamp minimum width
+            if (p.w < TILE) {
+                p.w = TILE;
+            }
+        }
+        // Also adjust moving and falling platforms
+        for (const mp of movingPlatforms) {
+            const addW = Math.floor(wb * TILE * 0.5); // half effect on special plats
+            mp.x -= Math.floor(addW / 2);
+            mp.w += addW;
+            mp.startX -= Math.floor(addW / 2);
+            if (mp.w < TILE) mp.w = TILE;
+        }
+        for (const fp of fallingPlatforms) {
+            const addW = Math.floor(wb * TILE * 0.5);
+            fp.x -= Math.floor(addW / 2);
+            fp.w += addW;
+            if (fp.w < TILE) fp.w = TILE;
+        }
+    }
+
+    // Shrink or grow gaps — move platforms closer/farther apart
+    if (gs !== 0 && platforms.length > 1) {
+        // Sort platforms by x position
+        const sorted = [...platforms].sort((a, b) => a.x - b.x);
+        for (let i = 1; i < sorted.length; i++) {
+            const shift = gs * TILE;
+            sorted[i].x -= shift * i; // cumulative shift
+        }
+        // Also shift goal if it exists
+        if (goalZone) {
+            goalZone.x -= gs * TILE * (sorted.length - 1);
+        }
+    }
+
+    // Remove some spike groups on easy
+    if (removeChance > 0) {
+        // Use a seeded approach based on level so it's consistent
+        const seed = currentLevel * 1000;
+        spikes = spikes.filter((s, i) => {
+            const pseudoRand = ((seed + i * 7919) % 100) / 100;
+            return pseudoRand >= removeChance;
+        });
+    }
+
+    // On hard/extreme: make moving platforms faster
+    if (difficulty === 'hard') {
+        for (const mp of movingPlatforms) {
+            mp.speed *= 1.3;
+        }
+    } else if (difficulty === 'extreme') {
+        for (const mp of movingPlatforms) {
+            mp.speed *= 1.6;
+        }
+        // Falling platforms trigger faster
+        // (handled in updateFallingPlatforms via fallTimer threshold)
+    }
+
+    // On easy: slow down moving platforms, longer falling platform timer
+    if (difficulty === 'easy') {
+        for (const mp of movingPlatforms) {
+            mp.speed *= 0.7;
+        }
+    }
+}
+
 // ---------- LEVEL LOADING ----------
 function loadLevel(index) {
     platforms = [];
@@ -1834,6 +2076,9 @@ function loadLevel(index) {
 
     currentLevel = index;
     LEVELS[index]();
+
+    // Apply difficulty-based geometry modifications
+    applyDifficultyGeometry();
 
     // Reset falling platforms state
     for (const fp of fallingPlatforms) {
@@ -2294,14 +2539,16 @@ function updateMovingPlatforms(dt) {
 
 // ---------- FALLING PLATFORMS ----------
 function updateFallingPlatforms(dt) {
+    // Fall delay varies by difficulty: easy=50, medium=30, hard=20, extreme=12
+    const fallDelay = difficulty === 'easy' ? 50 : difficulty === 'hard' ? 20 : difficulty === 'extreme' ? 12 : 30;
     for (const fp of fallingPlatforms) {
         if (fp.fallen) continue;
         if (fp.triggered) {
             fp.fallTimer += dt;
-            if (fp.fallTimer < 30) {
+            if (fp.fallTimer < fallDelay) {
                 fp.x = fp.x + (Math.random() - 0.5) * 2;
             } else {
-                if (fp.fallTimer >= 30 && fp.fallTimer < 31) {
+                if (fp.fallTimer >= fallDelay && fp.fallTimer < fallDelay + 1) {
                     // Spawn debris particles when first starting to fall
                     spawnParticles(fp.x + fp.w / 2, fp.y + fp.h / 2, 6, '#7a5a3a', 3, 1);
                 }
@@ -2459,15 +2706,15 @@ function updateCamera(dt) {
 
 // ---------- RENDERING ----------
 function drawBackground() {
-    // Very dark background — maximum contrast with platforms
+    const th = getTheme();
     const grad = ctx.createLinearGradient(0, 0, 0, canvasH);
-    grad.addColorStop(0, '#020208');
-    grad.addColorStop(0.5, '#050510');
-    grad.addColorStop(1, '#08040f');
+    grad.addColorStop(0, th.bgTop);
+    grad.addColorStop(0.5, th.bgMid);
+    grad.addColorStop(1, th.bgBot);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    // Stars with parallax and twinkle
+    // Stars with parallax and twinkle — colored by theme
     if (bgGenerated) {
         const t = Date.now();
         for (const s of bgStars) {
@@ -2475,7 +2722,7 @@ function drawBackground() {
             const sy = ((s.y - camera.y * s.parallax * 0.5) % (canvasH + 200) + canvasH + 200) % (canvasH + 200) - 100;
             const twinkle = s.brightness * (0.6 + 0.4 * Math.sin(t * s.twinkleSpeed));
             ctx.globalAlpha = twinkle;
-            ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = th.starColor;
             ctx.fillRect(sx, sy, s.size, s.size);
         }
         ctx.globalAlpha = 1;
@@ -2483,44 +2730,48 @@ function drawBackground() {
 }
 
 function drawPlatforms() {
+    const th = getTheme();
     for (const p of platforms) {
         const sx = p.x - camera.x;
         const sy = p.y - camera.y;
         if (sx + p.w < 0 || sx > canvasW || sy + p.h < 0 || sy > canvasH) continue;
 
-        // Outer glow — makes platforms pop from dark background
-        ctx.fillStyle = 'rgba(80, 80, 200, 0.12)';
+        // BIG outer glow halo — impossible to miss
+        ctx.fillStyle = th.platGlow;
+        ctx.fillRect(sx - 8, sy - 8, p.w + 16, p.h + 16);
+        // Second tighter glow
+        ctx.fillStyle = th.platGlow;
         ctx.fillRect(sx - 4, sy - 4, p.w + 8, p.h + 8);
 
-        // Main body — bright solid fill
-        ctx.fillStyle = '#4a4a80';
+        // Main body
+        ctx.fillStyle = th.platBody;
         ctx.fillRect(sx, sy, p.w, p.h);
 
-        // Thick bright top edge — very visible landing surface
-        ctx.fillStyle = '#8888ff';
-        ctx.fillRect(sx, sy, p.w, 4);
-        // Extra glow above top edge
-        ctx.fillStyle = 'rgba(136, 136, 255, 0.4)';
-        ctx.fillRect(sx, sy - 3, p.w, 3);
+        // THICK bright top edge — 6px, the main visual anchor
+        ctx.fillStyle = th.platTop;
+        ctx.fillRect(sx, sy, p.w, 6);
+        // Glow above top edge — 5px tall
+        ctx.fillStyle = th.platTopGlow;
+        ctx.fillRect(sx - 2, sy - 5, p.w + 4, 5);
 
         // Bottom darker edge
-        ctx.fillStyle = '#252550';
+        ctx.fillStyle = th.platBottom;
         ctx.fillRect(sx, sy + p.h - 4, p.w, 4);
 
-        // Bright side borders
-        ctx.fillStyle = '#6060b0';
-        ctx.fillRect(sx, sy, 3, p.h);
-        ctx.fillRect(sx + p.w - 3, sy, 3, p.h);
+        // Bright side borders — 4px thick
+        ctx.fillStyle = th.platSide;
+        ctx.fillRect(sx, sy, 4, p.h);
+        ctx.fillRect(sx + p.w - 4, sy, 4, p.h);
 
-        // Surface texture — subtle lighter tiles
-        ctx.fillStyle = '#555590';
+        // Surface texture dots
+        ctx.fillStyle = th.platTexture;
         for (let rx = TILE / 2; rx < p.w; rx += TILE) {
-            ctx.fillRect(sx + rx - 2, sy + 7, 4, 4);
+            ctx.fillRect(sx + rx - 2, sy + 9, 4, 4);
             if (p.h > TILE) ctx.fillRect(sx + rx - 2, sy + p.h - 11, 4, 4);
         }
 
         // Grid lines
-        ctx.strokeStyle = '#353568';
+        ctx.strokeStyle = th.platGrid;
         ctx.lineWidth = 1;
         for (let gx = TILE; gx < p.w; gx += TILE) {
             ctx.beginPath();
@@ -2538,39 +2789,40 @@ function drawPlatforms() {
 }
 
 function drawWalls() {
+    const th = getTheme();
     for (const w of walls) {
         const sx = w.x - camera.x;
         const sy = w.y - camera.y;
         if (sx + w.w < 0 || sx > canvasW || sy + w.h < 0 || sy > canvasH) continue;
 
-        // Outer glow
-        ctx.fillStyle = 'rgba(60, 180, 60, 0.1)';
-        ctx.fillRect(sx - 4, sy - 2, w.w + 8, w.h + 4);
+        // Big outer glow
+        ctx.fillStyle = th.wallGlow;
+        ctx.fillRect(sx - 6, sy - 3, w.w + 12, w.h + 6);
 
-        // Main body — bright green
-        ctx.fillStyle = '#3a6a3a';
+        // Main body
+        ctx.fillStyle = th.wallBody;
         ctx.fillRect(sx, sy, w.w, w.h);
 
-        // Thick bright side edges — neon green
-        ctx.fillStyle = '#66dd66';
-        ctx.fillRect(sx, sy, 4, w.h);
-        ctx.fillRect(sx + w.w - 4, sy, 4, w.h);
+        // Thick bright side edges — 5px + glow
+        ctx.fillStyle = th.wallEdge;
+        ctx.fillRect(sx, sy, 5, w.h);
+        ctx.fillRect(sx + w.w - 5, sy, 5, w.h);
         // Side glow
-        ctx.fillStyle = 'rgba(102, 221, 102, 0.35)';
-        ctx.fillRect(sx - 3, sy, 3, w.h);
-        ctx.fillRect(sx + w.w, sy, 3, w.h);
+        ctx.fillStyle = th.wallGlow;
+        ctx.fillRect(sx - 4, sy, 4, w.h);
+        ctx.fillRect(sx + w.w, sy, 4, w.h);
 
         // Top/bottom caps
-        ctx.fillStyle = '#4a8a4a';
-        ctx.fillRect(sx, sy, w.w, 3);
-        ctx.fillRect(sx, sy + w.h - 3, w.w, 3);
+        ctx.fillStyle = th.wallCap;
+        ctx.fillRect(sx, sy, w.w, 4);
+        ctx.fillRect(sx, sy + w.h - 4, w.w, 4);
 
         // Rivets
-        ctx.fillStyle = '#5aaa5a';
+        ctx.fillStyle = th.wallRivet;
         for (let ry = TILE / 2; ry < w.h; ry += TILE) {
-            ctx.fillRect(sx + w.w / 2 - 2, sy + ry - 2, 4, 4);
+            ctx.fillRect(sx + w.w / 2 - 3, sy + ry - 3, 6, 6);
         }
-        ctx.strokeStyle = '#2a4a2a';
+        ctx.strokeStyle = th.wallGridStroke;
         ctx.lineWidth = 1;
         for (let gy = TILE; gy < w.h; gy += TILE) {
             ctx.beginPath();
@@ -2582,33 +2834,34 @@ function drawWalls() {
 }
 
 function drawSpikes() {
-    const pulseAlpha = Math.sin(Date.now() * 0.005) * 0.15 + 0.25;
+    const pulseAlpha = Math.sin(Date.now() * 0.005) * 0.2 + 0.35;
     for (const s of spikes) {
         const sx = s.x - camera.x;
         const sy = s.y - camera.y;
         if (sx + s.w < 0 || sx > canvasW || sy + s.h < 0 || sy > canvasH) continue;
 
-        // Pulsing glow behind spikes
-        ctx.fillStyle = `rgba(255, 50, 50, ${pulseAlpha * 0.3})`;
-        ctx.fillRect(sx, sy - 2, s.w, s.h + 4);
+        // Strong pulsing glow behind spikes
+        ctx.fillStyle = `rgba(255, 40, 40, ${pulseAlpha * 0.5})`;
+        ctx.fillRect(sx - 2, sy - 4, s.w + 4, s.h + 8);
 
         // Spike triangles
         const spikeW = 12;
         for (let i = 0; i < s.w; i += spikeW) {
-            ctx.fillStyle = '#ff4444';
+            ctx.fillStyle = '#ff3333';
             ctx.beginPath();
             ctx.moveTo(sx + i, sy + s.h);
             ctx.lineTo(sx + i + spikeW / 2, sy + 2);
             ctx.lineTo(sx + i + spikeW, sy + s.h);
             ctx.fill();
-            // White tip
+            // Bright white tip
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(sx + i + spikeW / 2 - 1, sy + 2, 2, 3);
+            ctx.fillRect(sx + i + spikeW / 2 - 2, sy + 1, 4, 4);
         }
     }
 }
 
 function drawMovingPlatforms() {
+    const th = getTheme();
     for (const mp of movingPlatforms) {
         const sx = mp.x - camera.x;
         const sy = mp.y - camera.y;
@@ -2617,31 +2870,31 @@ function drawMovingPlatforms() {
         // Glow trail
         for (let t = 0; t < mp.trail.length; t++) {
             const tr = mp.trail[t];
-            const alpha = (t + 1) / (mp.trail.length + 1) * 0.15;
-            ctx.fillStyle = `rgba(122, 90, 170, ${alpha})`;
+            const alpha = (t + 1) / (mp.trail.length + 1) * 0.2;
+            ctx.fillStyle = `rgba(${th.movTrail[0]}, ${th.movTrail[1]}, ${th.movTrail[2]}, ${alpha})`;
             ctx.fillRect(tr.x - camera.x, tr.y - camera.y, mp.w, mp.h);
         }
 
-        // Outer glow
-        ctx.fillStyle = 'rgba(140, 100, 220, 0.12)';
-        ctx.fillRect(sx - 4, sy - 4, mp.w + 8, mp.h + 8);
+        // Big outer glow
+        ctx.fillStyle = th.movTopGlow;
+        ctx.fillRect(sx - 6, sy - 6, mp.w + 12, mp.h + 12);
 
-        ctx.fillStyle = '#5a4a8a';
+        ctx.fillStyle = th.movBody;
         ctx.fillRect(sx, sy, mp.w, mp.h);
-        // Bright purple top edge
-        ctx.fillStyle = '#bb88ff';
-        ctx.fillRect(sx, sy, mp.w, 4);
-        ctx.fillStyle = 'rgba(187, 136, 255, 0.4)';
-        ctx.fillRect(sx, sy - 3, mp.w, 3);
-        // Side edges
-        ctx.fillStyle = '#7a6aaa';
-        ctx.fillRect(sx, sy, 3, mp.h);
-        ctx.fillRect(sx + mp.w - 3, sy, 3, mp.h);
+        // Bright top edge — 6px
+        ctx.fillStyle = th.movTop;
+        ctx.fillRect(sx, sy, mp.w, 6);
+        ctx.fillStyle = th.movTopGlow;
+        ctx.fillRect(sx - 2, sy - 4, mp.w + 4, 4);
+        // Side edges — 4px
+        ctx.fillStyle = th.movSide;
+        ctx.fillRect(sx, sy, 4, mp.h);
+        ctx.fillRect(sx + mp.w - 4, sy, 4, mp.h);
 
         // Path guide
         ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = 'rgba(170, 122, 255, 0.25)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = th.movPath;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         if (mp.dx) {
             ctx.moveTo(mp.startX + mp.w / 2 - camera.x - mp.range, mp.startY + mp.h / 2 - camera.y);
@@ -2657,35 +2910,36 @@ function drawMovingPlatforms() {
 }
 
 function drawFallingPlatforms() {
+    const th = getTheme();
     for (const fp of fallingPlatforms) {
         if (fp.fallen) continue;
         const sx = fp.x - camera.x;
         const sy = fp.y - camera.y;
         if (sx + fp.w < 0 || sx > canvasW || sy + fp.h < 0 || sy > canvasH) continue;
 
-        // Outer glow
-        ctx.fillStyle = 'rgba(180, 120, 50, 0.1)';
-        ctx.fillRect(sx - 4, sy - 4, fp.w + 8, fp.h + 8);
+        // Big outer glow
+        ctx.fillStyle = th.fallTopGlow;
+        ctx.fillRect(sx - 6, sy - 6, fp.w + 12, fp.h + 12);
 
         if (fp.triggered && fp.fallTimer < 30) {
-            ctx.fillStyle = fp.fallTimer % 6 < 3 ? '#9a5540' : '#7a4030';
+            ctx.fillStyle = fp.fallTimer % 6 < 3 ? '#bb5540' : '#995530';
         } else {
-            ctx.fillStyle = '#7a6040';
+            ctx.fillStyle = th.fallBody;
         }
         ctx.fillRect(sx, sy, fp.w, fp.h);
-        // Bright orange top edge
-        ctx.fillStyle = '#ddaa55';
-        ctx.fillRect(sx, sy, fp.w, 4);
-        ctx.fillStyle = 'rgba(221, 170, 85, 0.4)';
-        ctx.fillRect(sx, sy - 3, fp.w, 3);
-        // Side edges
-        ctx.fillStyle = '#8a7050';
-        ctx.fillRect(sx, sy, 3, fp.h);
-        ctx.fillRect(sx + fp.w - 3, sy, 3, fp.h);
+        // Bright top edge — 6px
+        ctx.fillStyle = th.fallTop;
+        ctx.fillRect(sx, sy, fp.w, 6);
+        ctx.fillStyle = th.fallTopGlow;
+        ctx.fillRect(sx - 2, sy - 4, fp.w + 4, 4);
+        // Side edges — 4px
+        ctx.fillStyle = th.fallSide;
+        ctx.fillRect(sx, sy, 4, fp.h);
+        ctx.fillRect(sx + fp.w - 4, sy, 4, fp.h);
 
         // Progressive crack lines
-        ctx.strokeStyle = '#3a2a1a';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(sx + fp.w * 0.3, sy);
         ctx.lineTo(sx + fp.w * 0.5, sy + fp.h);
@@ -2710,10 +2964,19 @@ function drawBoostPads() {
         const sy = bp.y - camera.y;
         if (sx + bp.w < 0 || sx > canvasW) continue;
 
+        // Outer glow for boost pads too
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+        ctx.fillRect(sx - 4, sy - 4, bp.w + 8, bp.h + 8);
+
         ctx.globalAlpha = pulse;
         ctx.fillStyle = '#ffd700';
         ctx.fillRect(sx, sy, bp.w, bp.h);
         ctx.globalAlpha = 1;
+
+        // Bright border
+        ctx.strokeStyle = '#ffee44';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx, sy, bp.w, bp.h);
 
         // Arrow
         ctx.fillStyle = '#0a0a0f';
@@ -2913,23 +3176,24 @@ function drawReplayPlayer() {
     const currentH = state === 'sliding' ? PLAYER_H_SLIDE : PLAYER_H;
     const centerX = sx + PLAYER_W / 2;
     const bottomY = sy + currentH;
+    const th = getTheme();
 
     ctx.save();
     ctx.translate(centerX, bottomY);
     ctx.scale(facing, 1);
 
     if (state === 'sliding') {
-        ctx.fillStyle = '#00b8d4';
+        ctx.fillStyle = th.playerArms;
         ctx.fillRect(-10, -PLAYER_H_SLIDE, 20, PLAYER_H_SLIDE);
-        ctx.fillStyle = '#00e5ff';
+        ctx.fillStyle = th.playerHead;
         ctx.fillRect(-4, -PLAYER_H_SLIDE, 8, 6);
         ctx.fillStyle = '#fff';
         ctx.fillRect(1, -PLAYER_H_SLIDE + 2, 2, 2);
     } else {
-        let bodyColor = '#00e5ff';
+        let bodyColor = th.playerBody;
         if (state === 'dashing') bodyColor = '#ff4081';
-        else if (state === 'jumping' || state === 'falling') bodyColor = '#33ecff';
-        else if (state === 'wall_sliding') bodyColor = '#00cc99';
+        else if (state === 'jumping' || state === 'falling') bodyColor = th.playerHead;
+        else if (state === 'wall_sliding') bodyColor = th.playerArms;
 
         // Head
         ctx.fillStyle = bodyColor;
@@ -3071,23 +3335,20 @@ function drawPlayer() {
     ctx.translate(centerX, bottomY);
     ctx.scale(p.facing * scaleX, scaleY);
 
-    // Draw character based on state
+    // Draw character based on state — themed
+    const th = getTheme();
     if (state === 'sliding') {
-        // Sliding: body low and horizontal
-        ctx.fillStyle = '#00b8d4';
+        ctx.fillStyle = th.playerArms;
         ctx.fillRect(-10, -PLAYER_H_SLIDE, 20, PLAYER_H_SLIDE);
-        // Head
-        ctx.fillStyle = '#00e5ff';
+        ctx.fillStyle = th.playerHead;
         ctx.fillRect(-4, -PLAYER_H_SLIDE, 8, 6);
-        // Eye
         ctx.fillStyle = '#fff';
         ctx.fillRect(1, -PLAYER_H_SLIDE + 2, 2, 2);
     } else {
-        // Body color based on state
-        let bodyColor = '#00e5ff';
+        let bodyColor = th.playerBody;
         if (state === 'dashing') bodyColor = '#ff4081';
-        else if (state === 'jumping' || state === 'falling') bodyColor = '#33ecff';
-        else if (state === 'wall_sliding') bodyColor = '#00cc99';
+        else if (state === 'jumping' || state === 'falling') bodyColor = th.playerHead;
+        else if (state === 'wall_sliding') bodyColor = th.playerArms;
 
         // Head (8x8)
         ctx.fillStyle = bodyColor;
