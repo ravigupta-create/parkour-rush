@@ -1786,11 +1786,11 @@ function updateCamera(dt) {
 
 // ---------- RENDERING ----------
 function drawBackground() {
-    // Dark gradient sky — deep navy to near-black
+    // Very dark background — maximum contrast with platforms
     const grad = ctx.createLinearGradient(0, 0, 0, canvasH);
-    grad.addColorStop(0, '#05050f');
-    grad.addColorStop(0.5, '#0a0a1a');
-    grad.addColorStop(1, '#0f0818');
+    grad.addColorStop(0, '#020208');
+    grad.addColorStop(0.5, '#050510');
+    grad.addColorStop(1, '#08040f');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvasW, canvasH);
 
@@ -1815,30 +1815,39 @@ function drawPlatforms() {
         const sy = p.y - camera.y;
         if (sx + p.w < 0 || sx > canvasW || sy + p.h < 0 || sy > canvasH) continue;
 
-        // Main body — bright enough to see clearly
-        ctx.fillStyle = '#3d3d6b';
+        // Outer glow — makes platforms pop from dark background
+        ctx.fillStyle = 'rgba(80, 80, 200, 0.12)';
+        ctx.fillRect(sx - 4, sy - 4, p.w + 8, p.h + 8);
+
+        // Main body — bright solid fill
+        ctx.fillStyle = '#4a4a80';
         ctx.fillRect(sx, sy, p.w, p.h);
-        // Bright top edge — neon highlight so you can see where to land
-        ctx.fillStyle = '#6a6aff';
-        ctx.fillRect(sx, sy, p.w, 3);
-        // Glowing top line
-        ctx.fillStyle = 'rgba(106, 106, 255, 0.3)';
-        ctx.fillRect(sx, sy - 2, p.w, 2);
-        // Bottom shadow
-        ctx.fillStyle = '#1e1e40';
+
+        // Thick bright top edge — very visible landing surface
+        ctx.fillStyle = '#8888ff';
+        ctx.fillRect(sx, sy, p.w, 4);
+        // Extra glow above top edge
+        ctx.fillStyle = 'rgba(136, 136, 255, 0.4)';
+        ctx.fillRect(sx, sy - 3, p.w, 3);
+
+        // Bottom darker edge
+        ctx.fillStyle = '#252550';
         ctx.fillRect(sx, sy + p.h - 4, p.w, 4);
-        // Side edges
-        ctx.fillStyle = '#4e4e8a';
-        ctx.fillRect(sx, sy, 2, p.h);
-        ctx.fillRect(sx + p.w - 2, sy, 2, p.h);
-        // Rivets
-        ctx.fillStyle = '#5555aa';
+
+        // Bright side borders
+        ctx.fillStyle = '#6060b0';
+        ctx.fillRect(sx, sy, 3, p.h);
+        ctx.fillRect(sx + p.w - 3, sy, 3, p.h);
+
+        // Surface texture — subtle lighter tiles
+        ctx.fillStyle = '#555590';
         for (let rx = TILE / 2; rx < p.w; rx += TILE) {
-            ctx.fillRect(sx + rx - 2, sy + 6, 4, 4);
-            if (p.h > TILE) ctx.fillRect(sx + rx - 2, sy + p.h - 10, 4, 4);
+            ctx.fillRect(sx + rx - 2, sy + 7, 4, 4);
+            if (p.h > TILE) ctx.fillRect(sx + rx - 2, sy + p.h - 11, 4, 4);
         }
+
         // Grid lines
-        ctx.strokeStyle = '#2b2b55';
+        ctx.strokeStyle = '#353568';
         ctx.lineWidth = 1;
         for (let gx = TILE; gx < p.w; gx += TILE) {
             ctx.beginPath();
@@ -1861,27 +1870,34 @@ function drawWalls() {
         const sy = w.y - camera.y;
         if (sx + w.w < 0 || sx > canvasW || sy + w.h < 0 || sy > canvasH) continue;
 
-        // Main body — bright green-tinted
-        ctx.fillStyle = '#3a5a3a';
+        // Outer glow
+        ctx.fillStyle = 'rgba(60, 180, 60, 0.1)';
+        ctx.fillRect(sx - 4, sy - 2, w.w + 8, w.h + 4);
+
+        // Main body — bright green
+        ctx.fillStyle = '#3a6a3a';
         ctx.fillRect(sx, sy, w.w, w.h);
-        // Bright side edges — neon green highlights
-        ctx.fillStyle = '#55cc55';
-        ctx.fillRect(sx, sy, 3, w.h);
-        ctx.fillRect(sx + w.w - 3, sy, 3, w.h);
-        // Glow on edges
-        ctx.fillStyle = 'rgba(85, 204, 85, 0.2)';
-        ctx.fillRect(sx - 2, sy, 2, w.h);
-        ctx.fillRect(sx + w.w, sy, 2, w.h);
+
+        // Thick bright side edges — neon green
+        ctx.fillStyle = '#66dd66';
+        ctx.fillRect(sx, sy, 4, w.h);
+        ctx.fillRect(sx + w.w - 4, sy, 4, w.h);
+        // Side glow
+        ctx.fillStyle = 'rgba(102, 221, 102, 0.35)';
+        ctx.fillRect(sx - 3, sy, 3, w.h);
+        ctx.fillRect(sx + w.w, sy, 3, w.h);
+
         // Top/bottom caps
-        ctx.fillStyle = '#4a7a4a';
-        ctx.fillRect(sx, sy, w.w, 2);
-        ctx.fillRect(sx, sy + w.h - 2, w.w, 2);
+        ctx.fillStyle = '#4a8a4a';
+        ctx.fillRect(sx, sy, w.w, 3);
+        ctx.fillRect(sx, sy + w.h - 3, w.w, 3);
+
         // Rivets
-        ctx.fillStyle = '#5a8a5a';
+        ctx.fillStyle = '#5aaa5a';
         for (let ry = TILE / 2; ry < w.h; ry += TILE) {
             ctx.fillRect(sx + w.w / 2 - 2, sy + ry - 2, 4, 4);
         }
-        ctx.strokeStyle = '#2a3a2a';
+        ctx.strokeStyle = '#2a4a2a';
         ctx.lineWidth = 1;
         for (let gy = TILE; gy < w.h; gy += TILE) {
             ctx.beginPath();
@@ -1933,17 +1949,21 @@ function drawMovingPlatforms() {
             ctx.fillRect(tr.x - camera.x, tr.y - camera.y, mp.w, mp.h);
         }
 
+        // Outer glow
+        ctx.fillStyle = 'rgba(140, 100, 220, 0.12)';
+        ctx.fillRect(sx - 4, sy - 4, mp.w + 8, mp.h + 8);
+
         ctx.fillStyle = '#5a4a8a';
         ctx.fillRect(sx, sy, mp.w, mp.h);
         // Bright purple top edge
-        ctx.fillStyle = '#aa7aff';
-        ctx.fillRect(sx, sy, mp.w, 3);
-        ctx.fillStyle = 'rgba(170, 122, 255, 0.25)';
-        ctx.fillRect(sx, sy - 2, mp.w, 2);
+        ctx.fillStyle = '#bb88ff';
+        ctx.fillRect(sx, sy, mp.w, 4);
+        ctx.fillStyle = 'rgba(187, 136, 255, 0.4)';
+        ctx.fillRect(sx, sy - 3, mp.w, 3);
         // Side edges
-        ctx.fillStyle = '#6a5a9a';
-        ctx.fillRect(sx, sy, 2, mp.h);
-        ctx.fillRect(sx + mp.w - 2, sy, 2, mp.h);
+        ctx.fillStyle = '#7a6aaa';
+        ctx.fillRect(sx, sy, 3, mp.h);
+        ctx.fillRect(sx + mp.w - 3, sy, 3, mp.h);
 
         // Path guide
         ctx.setLineDash([4, 4]);
@@ -1970,17 +1990,25 @@ function drawFallingPlatforms() {
         const sy = fp.y - camera.y;
         if (sx + fp.w < 0 || sx > canvasW || sy + fp.h < 0 || sy > canvasH) continue;
 
+        // Outer glow
+        ctx.fillStyle = 'rgba(180, 120, 50, 0.1)';
+        ctx.fillRect(sx - 4, sy - 4, fp.w + 8, fp.h + 8);
+
         if (fp.triggered && fp.fallTimer < 30) {
-            ctx.fillStyle = fp.fallTimer % 6 < 3 ? '#8a4a3a' : '#6a3a2a';
+            ctx.fillStyle = fp.fallTimer % 6 < 3 ? '#9a5540' : '#7a4030';
         } else {
-            ctx.fillStyle = '#6a5035';
+            ctx.fillStyle = '#7a6040';
         }
         ctx.fillRect(sx, sy, fp.w, fp.h);
         // Bright orange top edge
-        ctx.fillStyle = '#cc8844';
-        ctx.fillRect(sx, sy, fp.w, 3);
-        ctx.fillStyle = 'rgba(204, 136, 68, 0.25)';
-        ctx.fillRect(sx, sy - 2, fp.w, 2);
+        ctx.fillStyle = '#ddaa55';
+        ctx.fillRect(sx, sy, fp.w, 4);
+        ctx.fillStyle = 'rgba(221, 170, 85, 0.4)';
+        ctx.fillRect(sx, sy - 3, fp.w, 3);
+        // Side edges
+        ctx.fillStyle = '#8a7050';
+        ctx.fillRect(sx, sy, 3, fp.h);
+        ctx.fillRect(sx + fp.w - 3, sy, 3, fp.h);
 
         // Progressive crack lines
         ctx.strokeStyle = '#3a2a1a';
