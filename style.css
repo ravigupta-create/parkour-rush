@@ -1,0 +1,332 @@
+/* ============================================
+   PARKOUR RUSH - Styles
+   ============================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* --- Screens --- */
+.screen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.screen.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- Menu --- */
+.menu-container, .level-container, .controls-container {
+    text-align: center;
+}
+
+.game-title {
+    font-size: 4rem;
+    color: #00e5ff;
+    text-shadow: 0 0 20px #00e5ff55, 0 0 60px #00e5ff22;
+    letter-spacing: 0.3em;
+    margin-bottom: 0;
+}
+
+.game-title span {
+    color: #ff4081;
+    text-shadow: 0 0 20px #ff408155, 0 0 60px #ff408122;
+}
+
+.subtitle {
+    color: #666;
+    font-size: 1rem;
+    margin: 8px 0 40px;
+    letter-spacing: 0.5em;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+}
+
+.menu-btn {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    border: 1px solid #333;
+    padding: 12px 40px;
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    cursor: pointer;
+    min-width: 220px;
+    letter-spacing: 0.15em;
+    transition: all 0.15s;
+}
+
+.menu-btn:hover {
+    background: #252545;
+    border-color: #00e5ff;
+    color: #00e5ff;
+    box-shadow: 0 0 15px #00e5ff22;
+}
+
+.menu-btn.primary {
+    background: #00e5ff;
+    color: #0a0a0f;
+    border-color: #00e5ff;
+    font-weight: bold;
+}
+
+.menu-btn.primary:hover {
+    background: #33ecff;
+    box-shadow: 0 0 20px #00e5ff44;
+}
+
+.menu-footer {
+    margin-top: 30px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.small-btn {
+    background: none;
+    border: 1px solid #444;
+    color: #888;
+    padding: 6px 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+}
+
+.small-btn:hover {
+    border-color: #00e5ff;
+    color: #00e5ff;
+}
+
+/* --- Level Select --- */
+.level-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 80px);
+    gap: 10px;
+    justify-content: center;
+    margin: 24px 0;
+}
+
+.level-tile {
+    width: 80px;
+    height: 80px;
+    background: #1a1a2e;
+    border: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    transition: all 0.15s;
+}
+
+.level-tile:hover {
+    border-color: #00e5ff;
+    box-shadow: 0 0 15px #00e5ff22;
+}
+
+.level-tile.locked {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.level-tile.completed {
+    border-color: #4caf50;
+}
+
+.level-tile .level-num {
+    font-size: 1.5rem;
+    color: #00e5ff;
+}
+
+.level-tile .level-best {
+    font-size: 0.6rem;
+    color: #888;
+    margin-top: 4px;
+}
+
+/* --- Controls Screen --- */
+.control-list {
+    text-align: left;
+    max-width: 400px;
+    margin: 24px auto;
+}
+
+.control-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #1a1a2e;
+    font-size: 0.9rem;
+}
+
+.key {
+    background: #1a1a2e;
+    border: 1px solid #333;
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    color: #00e5ff;
+}
+
+/* --- HUD --- */
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 20px;
+    font-size: 1rem;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#hud-level {
+    color: #00e5ff;
+}
+
+#hud-timer {
+    color: #fff;
+    font-size: 1.4rem;
+}
+
+#hud-best {
+    color: #888;
+}
+
+/* --- Overlays --- */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(10, 10, 15, 0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    z-index: 20;
+}
+
+.overlay h2 {
+    font-size: 2.5rem;
+    color: #00e5ff;
+    margin-bottom: 12px;
+    letter-spacing: 0.2em;
+}
+
+.overlay p {
+    font-size: 1.1rem;
+    color: #ccc;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.gold {
+    color: #ffd700 !important;
+    font-weight: bold;
+    font-size: 1.3rem !important;
+}
+
+/* --- Canvas --- */
+#gameCanvas, #editorCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #0a0a0f;
+}
+
+/* --- Editor --- */
+#editor-screen.active {
+    display: flex;
+    flex-direction: row;
+}
+
+#editor-toolbar {
+    width: 200px;
+    background: #111122;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+}
+
+#editor-toolbar h3 {
+    color: #00e5ff;
+    letter-spacing: 0.2em;
+    margin-bottom: 8px;
+}
+
+.tool-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tool-btn {
+    background: #1a1a2e;
+    color: #ccc;
+    border: 1px solid #333;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-align: left;
+}
+
+.tool-btn:hover {
+    border-color: #00e5ff;
+}
+
+.tool-btn.active {
+    background: #00e5ff;
+    color: #0a0a0f;
+    border-color: #00e5ff;
+}
+
+.editor-actions {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.editor-actions .menu-btn {
+    min-width: unset;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+}
+
+/* --- Responsive --- */
+@media (max-width: 600px) {
+    .game-title { font-size: 2.2rem; }
+    .level-grid { grid-template-columns: repeat(5, 60px); }
+    .level-tile { width: 60px; height: 60px; }
+}

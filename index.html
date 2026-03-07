@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parkour Rush</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Main Menu -->
+    <div id="menu-screen" class="screen active">
+        <div class="menu-container">
+            <h1 class="game-title">PARKOUR<span>RUSH</span></h1>
+            <p class="subtitle">Speed. Flow. Precision.</p>
+            <div class="menu-buttons">
+                <button id="btn-play" class="menu-btn primary">PLAY</button>
+                <button id="btn-levels" class="menu-btn">LEVEL SELECT</button>
+                <button id="btn-editor" class="menu-btn">LEVEL EDITOR</button>
+                <button id="btn-controls" class="menu-btn">CONTROLS</button>
+            </div>
+            <div class="menu-footer">
+                <button id="btn-fullscreen" class="small-btn">FULLSCREEN</button>
+                <button id="btn-sound-toggle" class="small-btn">SOUND: ON</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Level Select -->
+    <div id="level-screen" class="screen">
+        <div class="level-container">
+            <h2>SELECT LEVEL</h2>
+            <div id="level-grid" class="level-grid"></div>
+            <button id="btn-back-menu" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Controls Screen -->
+    <div id="controls-screen" class="screen">
+        <div class="controls-container">
+            <h2>CONTROLS</h2>
+            <div class="control-list">
+                <div class="control-item"><span class="key">A / D</span> or <span class="key">&larr; / &rarr;</span> Move</div>
+                <div class="control-item"><span class="key">W</span> or <span class="key">SPACE</span> Jump / Wall Jump</div>
+                <div class="control-item"><span class="key">SHIFT</span> Dash (midair)</div>
+                <div class="control-item"><span class="key">S</span> or <span class="key">&darr;</span> Slide (while running)</div>
+                <div class="control-item"><span class="key">E</span> Climb Ledge (at edge)</div>
+                <div class="control-item"><span class="key">R</span> Restart Level</div>
+                <div class="control-item"><span class="key">ESC</span> Pause / Menu</div>
+            </div>
+            <button id="btn-back-controls" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+        <canvas id="gameCanvas"></canvas>
+        <div id="hud">
+            <div id="hud-level">Level 1</div>
+            <div id="hud-timer">0.00s</div>
+            <div id="hud-best">Best: --</div>
+        </div>
+        <div id="pause-overlay" class="overlay hidden">
+            <h2>PAUSED</h2>
+            <button id="btn-resume" class="menu-btn primary">RESUME</button>
+            <button id="btn-restart" class="menu-btn">RESTART</button>
+            <button id="btn-quit" class="menu-btn">QUIT</button>
+        </div>
+        <div id="complete-overlay" class="overlay hidden">
+            <h2>LEVEL COMPLETE!</h2>
+            <p id="complete-time"></p>
+            <p id="complete-best"></p>
+            <p id="complete-new-record" class="hidden gold">NEW RECORD!</p>
+            <button id="btn-next" class="menu-btn primary">NEXT LEVEL</button>
+            <button id="btn-replay" class="menu-btn">REPLAY</button>
+            <button id="btn-quit2" class="menu-btn">MENU</button>
+        </div>
+        <div id="death-overlay" class="overlay hidden">
+            <h2>WIPEOUT!</h2>
+            <button id="btn-retry" class="menu-btn primary">RETRY</button>
+            <button id="btn-quit3" class="menu-btn">MENU</button>
+        </div>
+    </div>
+
+    <!-- Level Editor -->
+    <div id="editor-screen" class="screen">
+        <canvas id="editorCanvas"></canvas>
+        <div id="editor-toolbar">
+            <h3>EDITOR</h3>
+            <div class="tool-group">
+                <button class="tool-btn active" data-tool="platform">Platform</button>
+                <button class="tool-btn" data-tool="spike">Spike</button>
+                <button class="tool-btn" data-tool="moving">Moving</button>
+                <button class="tool-btn" data-tool="falling">Falling</button>
+                <button class="tool-btn" data-tool="boost">Boost Pad</button>
+                <button class="tool-btn" data-tool="wall">Wall</button>
+                <button class="tool-btn" data-tool="spawn">Spawn</button>
+                <button class="tool-btn" data-tool="goal">Goal</button>
+                <button class="tool-btn" data-tool="erase">Eraser</button>
+            </div>
+            <div class="editor-actions">
+                <button id="btn-test-level" class="menu-btn primary">TEST</button>
+                <button id="btn-save-level" class="menu-btn">SAVE</button>
+                <button id="btn-load-level" class="menu-btn">LOAD</button>
+                <button id="btn-clear-level" class="menu-btn">CLEAR</button>
+                <button id="btn-back-editor" class="menu-btn">BACK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
