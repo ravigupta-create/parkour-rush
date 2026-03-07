@@ -21,6 +21,7 @@
             <div class="menu-buttons">
                 <button id="btn-play" class="menu-btn primary">PLAY</button>
                 <button id="btn-levels" class="menu-btn">LEVEL SELECT</button>
+                <button id="btn-best-runs" class="menu-btn">BEST RUNS</button>
                 <button id="btn-editor" class="menu-btn">LEVEL EDITOR</button>
                 <button id="btn-controls" class="menu-btn">CONTROLS</button>
             </div>
@@ -133,6 +134,15 @@
         </div>
     </div>
 
+    <!-- Best Runs Level Select -->
+    <div id="bestrun-screen" class="screen">
+        <div class="bestrun-container">
+            <h2>BEST RUNS</h2>
+            <div id="bestrun-grid" class="level-grid"></div>
+            <button id="btn-back-bestrun" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
     <!-- Game Screen -->
     <div id="game-screen" class="screen">
         <canvas id="gameCanvas"></canvas>
@@ -175,6 +185,16 @@
             <h2>WIPEOUT!</h2>
             <button id="btn-retry" class="menu-btn primary">RETRY</button>
             <button id="btn-quit3" class="menu-btn">MENU</button>
+        </div>
+        <div id="replay-overlay" class="overlay hidden">
+            <h2 id="replay-title">BEST RUN</h2>
+            <p id="replay-info"></p>
+            <button id="btn-back-replay" class="menu-btn">BACK TO LIST</button>
+        </div>
+        <div id="replay-hud" class="hidden">
+            <div id="replay-hud-info">BEST RUN</div>
+            <div id="replay-hud-user">COMPUTER</div>
+            <div id="replay-hud-timer">0.00s</div>
         </div>
     </div>
 

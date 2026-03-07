@@ -176,6 +176,16 @@ let ghostFrame = 0;
 let ghostRecordFrame = 0;
 let ghostEnabled = true;
 
+// Best runs system
+let bestRuns = {};
+let replayData = [];
+let replayFrame = 0;
+let replayTimer = 0;
+let replayLevelIndex = 0;
+let replayPlayerState = 'idle';
+let replayPlayerFacing = 1;
+let replayDistTraveled = 0;
+
 // R key double-tap tracking
 let lastRPressTime = 0;
 
@@ -1212,6 +1222,589 @@ const LEVELS = [
     },
 ];
 
+// ---------- BEST RUNS: COMPUTER PATH GENERATION ----------
+function buildReplayPath(waypoints, totalFrames) {
+    const path = [];
+    for (let f = 0; f < totalFrames; f++) {
+        let seg = 0;
+        for (let i = 0; i < waypoints.length - 1; i++) {
+            if (f >= waypoints[i].frame && f < waypoints[i + 1].frame) {
+                seg = i;
+                break;
+            }
+            if (i === waypoints.length - 2) seg = i;
+        }
+        const a = waypoints[seg];
+        const b = waypoints[seg + 1] || waypoints[waypoints.length - 1];
+        const segLen = b.frame - a.frame;
+        const t = segLen > 0 ? Math.min(1, (f - a.frame) / segLen) : 1;
+        path.push({
+            x: a.x + (b.x - a.x) * t,
+            y: a.y + (b.y - a.y) * t,
+            state: t < 0.5 ? a.state : b.state
+        });
+    }
+    return path;
+}
+
+function generateComputerRun(levelIndex) {
+    // Define waypoints for each level: {x, y, state, frame}
+    // frame = which frame to reach this point (at ~20fps recording rate, 3 frames per sample)
+    // So 1 second = ~20 frames of replay data
+    const T = TILE;
+    const levelWaypoints = {
+        // Level 1: Tutorial Run (~4.5s = 90 frames)
+        0: {
+            time: 4.5,
+            frames: 90,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 8*T, y: 16*T, state: 'running', frame: 10 },
+                { x: 14*T, y: 16*T, state: 'running', frame: 18 },
+                { x: 15.5*T, y: 14*T, state: 'jumping', frame: 22 },
+                { x: 17*T, y: 16*T, state: 'falling', frame: 26 },
+                { x: 22*T, y: 16*T, state: 'running', frame: 32 },
+                { x: 24*T, y: 14*T, state: 'jumping', frame: 36 },
+                { x: 25*T, y: 16*T, state: 'falling', frame: 40 },
+                { x: 30*T, y: 16*T, state: 'running', frame: 46 },
+                { x: 32*T, y: 13*T, state: 'jumping', frame: 50 },
+                { x: 35*T, y: 14*T, state: 'falling', frame: 54 },
+                { x: 38*T, y: 15*T, state: 'jumping', frame: 58 },
+                { x: 40*T, y: 16*T, state: 'falling', frame: 62 },
+                { x: 47*T, y: 16*T, state: 'running', frame: 72 },
+                { x: 50*T, y: 16*T, state: 'running', frame: 76 },
+                { x: 58*T, y: 16*T, state: 'running', frame: 88 },
+                { x: 58*T, y: 16*T, state: 'idle', frame: 90 },
+            ]
+        },
+        // Level 2: Wall Jump Intro (~6s = 120 frames)
+        1: {
+            time: 6.0,
+            frames: 120,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 8*T, y: 16*T, state: 'running', frame: 12 },
+                { x: 13*T, y: 14*T, state: 'jumping', frame: 18 },
+                { x: 14*T, y: 12*T, state: 'wall_sliding', frame: 22 },
+                { x: 17*T, y: 10*T, state: 'jumping', frame: 28 },
+                { x: 14*T, y: 8*T, state: 'wall_sliding', frame: 34 },
+                { x: 17*T-PLAYER_W, y: 10*T, state: 'jumping', frame: 38 },
+                { x: 20*T, y: 16*T, state: 'falling', frame: 46 },
+                { x: 25*T, y: 16*T, state: 'running', frame: 52 },
+                { x: 34*T, y: 16*T, state: 'running', frame: 62 },
+                { x: 38*T, y: 14*T, state: 'jumping', frame: 68 },
+                { x: 42*T, y: 10*T, state: 'jumping', frame: 76 },
+                { x: 45*T, y: 4*T, state: 'falling', frame: 86 },
+                { x: 48*T, y: 4*T, state: 'running', frame: 100 },
+                { x: 48*T, y: 4*T, state: 'idle', frame: 120 },
+            ]
+        },
+        // Level 3: Dash Training (~7s = 140 frames)
+        2: {
+            time: 7.0,
+            frames: 140,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 8*T, y: 16*T, state: 'running', frame: 12 },
+                { x: 10*T, y: 13*T, state: 'jumping', frame: 16 },
+                { x: 13*T, y: 14*T, state: 'dashing', frame: 20 },
+                { x: 17*T, y: 16*T, state: 'falling', frame: 26 },
+                { x: 20*T, y: 16*T, state: 'running', frame: 30 },
+                { x: 21*T, y: 13*T, state: 'jumping', frame: 34 },
+                { x: 24*T, y: 14*T, state: 'dashing', frame: 38 },
+                { x: 28*T, y: 16*T, state: 'falling', frame: 44 },
+                { x: 31*T, y: 16*T, state: 'running', frame: 48 },
+                { x: 32*T, y: 13*T, state: 'jumping', frame: 52 },
+                { x: 35*T, y: 14*T, state: 'dashing', frame: 56 },
+                { x: 39*T, y: 16*T, state: 'falling', frame: 62 },
+                { x: 42*T, y: 16*T, state: 'running', frame: 66 },
+                { x: 44*T, y: 12*T, state: 'jumping', frame: 72 },
+                { x: 48*T, y: 13*T, state: 'dashing', frame: 78 },
+                { x: 50*T, y: 14*T, state: 'falling', frame: 84 },
+                { x: 55*T, y: 15*T, state: 'jumping', frame: 92 },
+                { x: 60*T, y: 16*T, state: 'falling', frame: 100 },
+                { x: 65*T, y: 16*T, state: 'running', frame: 110 },
+                { x: 70*T, y: 16*T, state: 'running', frame: 130 },
+                { x: 70*T, y: 16*T, state: 'idle', frame: 140 },
+            ]
+        },
+        // Level 4: Slide & Spikes (~6s = 120 frames)
+        3: {
+            time: 6.0,
+            frames: 120,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 6*T, y: 16*T, state: 'running', frame: 8 },
+                { x: 8*T, y: 14*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 14 },
+                { x: 16*T, y: 14*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 26 },
+                { x: 18*T, y: 16*T, state: 'running', frame: 30 },
+                { x: 20*T, y: 14*T, state: 'jumping', frame: 34 },
+                { x: 22*T, y: 13*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 40 },
+                { x: 30*T, y: 13*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 52 },
+                { x: 31*T, y: 16*T, state: 'running', frame: 56 },
+                { x: 34*T, y: 16*T, state: 'running', frame: 60 },
+                { x: 40*T, y: 15*T, state: 'jumping', frame: 68 },
+                { x: 44*T, y: 16*T, state: 'falling', frame: 76 },
+                { x: 49*T, y: 16*T, state: 'running', frame: 84 },
+                { x: 55*T, y: 16*T, state: 'running', frame: 92 },
+                { x: 60*T, y: 16*T, state: 'running', frame: 102 },
+                { x: 65*T, y: 16*T, state: 'running', frame: 115 },
+                { x: 65*T, y: 16*T, state: 'idle', frame: 120 },
+            ]
+        },
+        // Level 5: Moving Platforms (~9s = 180 frames)
+        4: {
+            time: 9.0,
+            frames: 180,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 6*T, y: 16*T, state: 'running', frame: 8 },
+                { x: 8*T, y: 13*T, state: 'jumping', frame: 14 },
+                { x: 12*T, y: 14*T, state: 'falling', frame: 22 },
+                { x: 14*T, y: 12*T, state: 'jumping', frame: 30 },
+                { x: 18*T, y: 11*T, state: 'jumping', frame: 42 },
+                { x: 22*T, y: 12*T, state: 'falling', frame: 52 },
+                { x: 26*T, y: 11*T, state: 'jumping', frame: 64 },
+                { x: 30*T, y: 10*T, state: 'jumping', frame: 76 },
+                { x: 35*T, y: 10*T, state: 'falling', frame: 88 },
+                { x: 38*T, y: 9*T, state: 'jumping', frame: 100 },
+                { x: 42*T, y: 8*T, state: 'jumping', frame: 112 },
+                { x: 45*T, y: 8*T, state: 'falling', frame: 124 },
+                { x: 50*T, y: 7*T, state: 'jumping', frame: 138 },
+                { x: 55*T, y: 8*T, state: 'jumping', frame: 150 },
+                { x: 60*T, y: 8*T, state: 'falling', frame: 160 },
+                { x: 63*T, y: 7*T, state: 'running', frame: 170 },
+                { x: 65*T, y: 7*T, state: 'idle', frame: 180 },
+            ]
+        },
+        // Level 6: Falling Floor (~8s = 160 frames)
+        5: {
+            time: 8.0,
+            frames: 160,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 5*T, y: 16*T, state: 'running', frame: 6 },
+                { x: 7*T, y: 14*T, state: 'jumping', frame: 12 },
+                { x: 8*T, y: 16*T, state: 'falling', frame: 16 },
+                { x: 10*T, y: 16*T, state: 'running', frame: 20 },
+                { x: 12*T, y: 14*T, state: 'jumping', frame: 26 },
+                { x: 13*T, y: 16*T, state: 'falling', frame: 30 },
+                { x: 16*T, y: 14*T, state: 'jumping', frame: 38 },
+                { x: 18*T, y: 16*T, state: 'falling', frame: 42 },
+                { x: 21*T, y: 14*T, state: 'jumping', frame: 50 },
+                { x: 23*T, y: 14*T, state: 'falling', frame: 56 },
+                { x: 25*T, y: 12*T, state: 'jumping', frame: 64 },
+                { x: 28*T, y: 12*T, state: 'falling', frame: 72 },
+                { x: 30*T, y: 11*T, state: 'jumping', frame: 80 },
+                { x: 33*T, y: 14*T, state: 'falling', frame: 88 },
+                { x: 36*T, y: 14*T, state: 'jumping', frame: 96 },
+                { x: 38*T, y: 16*T, state: 'falling', frame: 102 },
+                { x: 40*T, y: 14*T, state: 'jumping', frame: 110 },
+                { x: 43*T, y: 16*T, state: 'falling', frame: 118 },
+                { x: 46*T, y: 15*T, state: 'jumping', frame: 126 },
+                { x: 50*T, y: 16*T, state: 'falling', frame: 134 },
+                { x: 53*T, y: 16*T, state: 'running', frame: 144 },
+                { x: 55*T, y: 16*T, state: 'running', frame: 155 },
+                { x: 55*T, y: 16*T, state: 'idle', frame: 160 },
+            ]
+        },
+        // Level 7: Wall Climb Challenge (~12s = 240 frames)
+        6: {
+            time: 12.0,
+            frames: 240,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 6*T, y: 16*T, state: 'running', frame: 8 },
+                { x: 9*T, y: 14*T, state: 'jumping', frame: 14 },
+                { x: 10*T, y: 12*T, state: 'wall_sliding', frame: 20 },
+                { x: 13*T-PLAYER_W, y: 10*T, state: 'jumping', frame: 28 },
+                { x: 10*T, y: 8*T, state: 'wall_sliding', frame: 34 },
+                { x: 13*T-PLAYER_W, y: 6*T, state: 'jumping', frame: 40 },
+                { x: 15*T, y: 16*T, state: 'falling', frame: 52 },
+                { x: 17*T, y: 16*T, state: 'running', frame: 58 },
+                { x: 20*T, y: 14*T, state: 'jumping', frame: 64 },
+                { x: 25*T, y: 12*T, state: 'wall_sliding', frame: 72 },
+                { x: 28*T-PLAYER_W, y: 10*T, state: 'jumping', frame: 80 },
+                { x: 25*T, y: 8*T, state: 'wall_sliding', frame: 86 },
+                { x: 28*T-PLAYER_W, y: 6*T, state: 'jumping', frame: 92 },
+                { x: 30*T, y: 16*T, state: 'falling', frame: 104 },
+                { x: 32*T, y: 16*T, state: 'running', frame: 110 },
+                { x: 35*T, y: 14*T, state: 'jumping', frame: 116 },
+                { x: 40*T, y: 12*T, state: 'wall_sliding', frame: 124 },
+                { x: 43*T-PLAYER_W, y: 10*T, state: 'jumping', frame: 132 },
+                { x: 40*T, y: 8*T, state: 'wall_sliding', frame: 138 },
+                { x: 43*T-PLAYER_W, y: 6*T, state: 'jumping', frame: 144 },
+                { x: 45*T, y: 5*T, state: 'falling', frame: 154 },
+                { x: 50*T, y: 4*T, state: 'jumping', frame: 168 },
+                { x: 52*T, y: 4*T, state: 'wall_sliding', frame: 178 },
+                { x: 55*T, y: 2*T, state: 'jumping', frame: 190 },
+                { x: 56*T, y: 2*T, state: 'running', frame: 210 },
+                { x: 58*T, y: 2*T, state: 'running', frame: 230 },
+                { x: 58*T, y: 2*T, state: 'idle', frame: 240 },
+            ]
+        },
+        // Level 8: Boost Rush (~10s = 200 frames)
+        7: {
+            time: 10.0,
+            frames: 200,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 3*T, y: 16*T, state: 'running', frame: 4 },
+                { x: 8*T, y: 16*T, state: 'running', frame: 12 },
+                { x: 12*T, y: 14*T, state: 'jumping', frame: 18 },
+                { x: 15*T, y: 16*T, state: 'falling', frame: 24 },
+                { x: 16*T, y: 16*T, state: 'running', frame: 28 },
+                { x: 20*T, y: 16*T, state: 'running', frame: 34 },
+                { x: 23*T, y: 12*T, state: 'jumping', frame: 42 },
+                { x: 26*T, y: 14*T, state: 'falling', frame: 48 },
+                { x: 29*T, y: 13*T, state: 'jumping', frame: 56 },
+                { x: 33*T, y: 15*T, state: 'dashing', frame: 64 },
+                { x: 35*T, y: 16*T, state: 'falling', frame: 70 },
+                { x: 36*T, y: 16*T, state: 'running', frame: 74 },
+                { x: 40*T, y: 16*T, state: 'running', frame: 82 },
+                { x: 43*T, y: 11*T, state: 'jumping', frame: 90 },
+                { x: 46*T, y: 12*T, state: 'falling', frame: 98 },
+                { x: 49*T, y: 13*T, state: 'jumping', frame: 106 },
+                { x: 55*T, y: 16*T, state: 'falling', frame: 114 },
+                { x: 56*T, y: 16*T, state: 'running', frame: 118 },
+                { x: 62*T, y: 16*T, state: 'running', frame: 130 },
+                { x: 65*T, y: 12*T, state: 'jumping', frame: 138 },
+                { x: 68*T, y: 14*T, state: 'falling', frame: 146 },
+                { x: 72*T, y: 14*T, state: 'jumping', frame: 154 },
+                { x: 76*T, y: 16*T, state: 'dashing', frame: 162 },
+                { x: 78*T, y: 16*T, state: 'falling', frame: 168 },
+                { x: 79*T, y: 16*T, state: 'running', frame: 172 },
+                { x: 84*T, y: 16*T, state: 'running', frame: 182 },
+                { x: 88*T, y: 16*T, state: 'running', frame: 192 },
+                { x: 90*T, y: 16*T, state: 'idle', frame: 200 },
+            ]
+        },
+        // Level 9: The Gauntlet (~15s = 300 frames)
+        8: {
+            time: 15.0,
+            frames: 300,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 5*T, y: 16*T, state: 'running', frame: 6 },
+                { x: 8*T, y: 14*T, state: 'jumping', frame: 12 },
+                { x: 10*T, y: 12*T, state: 'wall_sliding', frame: 18 },
+                { x: 13*T-PLAYER_W, y: 10*T, state: 'jumping', frame: 26 },
+                { x: 10*T, y: 9*T, state: 'wall_sliding', frame: 32 },
+                { x: 15*T, y: 12*T, state: 'jumping', frame: 40 },
+                { x: 20*T, y: 16*T, state: 'falling', frame: 52 },
+                { x: 21*T, y: 16*T, state: 'running', frame: 56 },
+                { x: 23*T, y: 14*T, state: 'jumping', frame: 64 },
+                { x: 25*T, y: 14*T, state: 'running', frame: 72 },
+                { x: 30*T, y: 12*T, state: 'jumping', frame: 84 },
+                { x: 35*T, y: 12*T, state: 'falling', frame: 96 },
+                { x: 37*T, y: 12*T, state: 'running', frame: 102 },
+                { x: 40*T, y: 10*T, state: 'jumping', frame: 112 },
+                { x: 45*T, y: 10*T, state: 'wall_sliding', frame: 122 },
+                { x: 48*T-PLAYER_W, y: 8*T, state: 'jumping', frame: 132 },
+                { x: 45*T, y: 7*T, state: 'wall_sliding', frame: 140 },
+                { x: 50*T, y: 10*T, state: 'jumping', frame: 150 },
+                { x: 55*T, y: 16*T, state: 'falling', frame: 164 },
+                { x: 58*T, y: 16*T, state: 'running', frame: 172 },
+                { x: 60*T, y: 12*T, state: 'jumping', frame: 182 },
+                { x: 63*T, y: 12*T, state: 'falling', frame: 192 },
+                { x: 66*T, y: 14*T, state: 'jumping', frame: 200 },
+                { x: 70*T, y: 16*T, state: 'falling', frame: 210 },
+                { x: 72*T, y: 14*T, state: 'jumping', frame: 218 },
+                { x: 76*T, y: 12*T, state: 'jumping', frame: 228 },
+                { x: 78*T, y: 10*T, state: 'jumping', frame: 238 },
+                { x: 80*T, y: 8*T, state: 'wall_sliding', frame: 248 },
+                { x: 83*T-PLAYER_W, y: 6*T, state: 'jumping', frame: 258 },
+                { x: 80*T, y: 5*T, state: 'wall_sliding', frame: 266 },
+                { x: 85*T, y: 4*T, state: 'jumping', frame: 276 },
+                { x: 90*T, y: 4*T, state: 'falling', frame: 286 },
+                { x: 95*T, y: 4*T, state: 'running', frame: 296 },
+                { x: 95*T, y: 4*T, state: 'idle', frame: 300 },
+            ]
+        },
+        // Level 10: Parkour Master (~20s = 400 frames)
+        9: {
+            time: 20.0,
+            frames: 400,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 4*T, y: 16*T, state: 'running', frame: 4 },
+                { x: 7*T, y: 14*T, state: 'jumping', frame: 10 },
+                { x: 8*T, y: 12*T, state: 'wall_sliding', frame: 16 },
+                { x: 12*T-PLAYER_W, y: 10*T, state: 'jumping', frame: 24 },
+                { x: 8*T, y: 8*T, state: 'wall_sliding', frame: 30 },
+                { x: 12*T-PLAYER_W, y: 6*T, state: 'jumping', frame: 36 },
+                { x: 15*T, y: 13*T, state: 'falling', frame: 50 },
+                { x: 20*T, y: 14*T, state: 'jumping', frame: 60 },
+                { x: 25*T, y: 16*T, state: 'falling', frame: 72 },
+                { x: 26*T, y: 16*T, state: 'running', frame: 76 },
+                { x: 29*T, y: 14*T, state: 'jumping', frame: 84 },
+                { x: 30*T, y: 12*T, state: 'wall_sliding', frame: 90 },
+                { x: 34*T-PLAYER_W, y: 10*T, state: 'jumping', frame: 98 },
+                { x: 30*T, y: 8*T, state: 'wall_sliding', frame: 104 },
+                { x: 36*T, y: 10*T, state: 'jumping', frame: 112 },
+                { x: 40*T, y: 14*T, state: 'falling', frame: 124 },
+                { x: 42*T, y: 12*T, state: 'jumping', frame: 134 },
+                { x: 46*T, y: 12*T, state: 'dashing', frame: 142 },
+                { x: 50*T, y: 10*T, state: 'jumping', frame: 154 },
+                { x: 54*T-PLAYER_W, y: 8*T, state: 'wall_sliding', frame: 164 },
+                { x: 50*T, y: 7*T, state: 'jumping', frame: 172 },
+                { x: 55*T, y: 10*T, state: 'falling', frame: 182 },
+                { x: 60*T, y: 16*T, state: 'falling', frame: 196 },
+                { x: 61*T, y: 16*T, state: 'running', frame: 200 },
+                { x: 65*T, y: 10*T, state: 'jumping', frame: 214 },
+                { x: 68*T, y: 10*T, state: 'running', frame: 224 },
+                { x: 70*T, y: 8*T, state: 'jumping', frame: 232 },
+                { x: 74*T-PLAYER_W, y: 8*T, state: 'wall_sliding', frame: 240 },
+                { x: 70*T, y: 6*T, state: 'jumping', frame: 248 },
+                { x: 76*T, y: 10*T, state: 'falling', frame: 260 },
+                { x: 80*T, y: 12*T, state: 'falling', frame: 272 },
+                { x: 82*T, y: 10*T, state: 'jumping', frame: 280 },
+                { x: 86*T, y: 8*T, state: 'jumping', frame: 290 },
+                { x: 90*T, y: 10*T, state: 'jumping', frame: 302 },
+                { x: 94*T-PLAYER_W, y: 8*T, state: 'wall_sliding', frame: 312 },
+                { x: 90*T, y: 6*T, state: 'jumping', frame: 320 },
+                { x: 96*T, y: 8*T, state: 'falling', frame: 332 },
+                { x: 100*T, y: 16*T, state: 'falling', frame: 344 },
+                { x: 101*T, y: 16*T, state: 'running', frame: 348 },
+                { x: 102*T, y: 14*T, state: 'jumping', frame: 354 },
+                { x: 106*T, y: 12*T, state: 'jumping', frame: 364 },
+                { x: 108*T, y: 8*T, state: 'wall_sliding', frame: 374 },
+                { x: 112*T-PLAYER_W, y: 5*T, state: 'jumping', frame: 382 },
+                { x: 115*T, y: 2*T, state: 'falling', frame: 390 },
+                { x: 120*T, y: 2*T, state: 'running', frame: 398 },
+                { x: 120*T, y: 2*T, state: 'idle', frame: 400 },
+            ]
+        },
+        // Level 11: Sky Highway (~12s = 240 frames)
+        10: {
+            time: 12.0,
+            frames: 240,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 2*T, y: 16*T, state: 'running', frame: 4 },
+                { x: 6*T, y: 14*T, state: 'jumping', frame: 12 },
+                { x: 8*T, y: 14*T, state: 'falling', frame: 20 },
+                { x: 12*T, y: 13*T, state: 'jumping', frame: 30 },
+                { x: 16*T, y: 12*T, state: 'jumping', frame: 42 },
+                { x: 20*T, y: 12*T, state: 'falling', frame: 52 },
+                { x: 24*T, y: 11*T, state: 'jumping', frame: 64 },
+                { x: 28*T, y: 10*T, state: 'jumping', frame: 76 },
+                { x: 32*T, y: 10*T, state: 'dashing', frame: 88 },
+                { x: 35*T, y: 10*T, state: 'falling', frame: 96 },
+                { x: 38*T, y: 9*T, state: 'jumping', frame: 108 },
+                { x: 42*T, y: 8*T, state: 'jumping', frame: 120 },
+                { x: 46*T, y: 8*T, state: 'dashing', frame: 130 },
+                { x: 48*T, y: 8*T, state: 'falling', frame: 138 },
+                { x: 50*T, y: 8*T, state: 'running', frame: 148 },
+                { x: 54*T, y: 7*T, state: 'jumping', frame: 158 },
+                { x: 58*T, y: 6*T, state: 'jumping', frame: 168 },
+                { x: 62*T, y: 6*T, state: 'falling', frame: 178 },
+                { x: 65*T, y: 6*T, state: 'jumping', frame: 188 },
+                { x: 70*T, y: 6*T, state: 'jumping', frame: 200 },
+                { x: 72*T, y: 6*T, state: 'falling', frame: 208 },
+                { x: 76*T, y: 6*T, state: 'jumping', frame: 218 },
+                { x: 80*T, y: 6*T, state: 'running', frame: 228 },
+                { x: 85*T, y: 5*T, state: 'running', frame: 238 },
+                { x: 85*T, y: 5*T, state: 'idle', frame: 240 },
+            ]
+        },
+        // Level 12: The Pit (~10s = 200 frames)
+        11: {
+            time: 10.0,
+            frames: 200,
+            waypoints: [
+                { x: 3*T, y: 2*T, state: 'idle', frame: 0 },
+                { x: 6*T, y: 2*T, state: 'running', frame: 6 },
+                { x: 8*T, y: 4*T, state: 'jumping', frame: 12 },
+                { x: 10*T, y: 6*T, state: 'wall_sliding', frame: 20 },
+                { x: 14*T-PLAYER_W, y: 8*T, state: 'jumping', frame: 28 },
+                { x: 10*T, y: 9*T, state: 'wall_sliding', frame: 36 },
+                { x: 15*T, y: 10*T, state: 'jumping', frame: 44 },
+                { x: 18*T, y: 10*T, state: 'wall_sliding', frame: 52 },
+                { x: 22*T-PLAYER_W, y: 12*T, state: 'jumping', frame: 60 },
+                { x: 18*T, y: 13*T, state: 'wall_sliding', frame: 68 },
+                { x: 23*T, y: 14*T, state: 'jumping', frame: 78 },
+                { x: 26*T, y: 8*T, state: 'wall_sliding', frame: 88 },
+                { x: 30*T-PLAYER_W, y: 10*T, state: 'jumping', frame: 98 },
+                { x: 26*T, y: 11*T, state: 'wall_sliding', frame: 108 },
+                { x: 31*T, y: 12*T, state: 'jumping', frame: 118 },
+                { x: 34*T, y: 10*T, state: 'wall_sliding', frame: 128 },
+                { x: 38*T-PLAYER_W, y: 12*T, state: 'jumping', frame: 138 },
+                { x: 34*T, y: 13*T, state: 'wall_sliding', frame: 148 },
+                { x: 39*T, y: 14*T, state: 'jumping', frame: 158 },
+                { x: 40*T, y: 16*T, state: 'falling', frame: 168 },
+                { x: 43*T, y: 16*T, state: 'running', frame: 180 },
+                { x: 45*T, y: 16*T, state: 'running', frame: 195 },
+                { x: 45*T, y: 16*T, state: 'idle', frame: 200 },
+            ]
+        },
+        // Level 13: Mirror Run (~11s = 220 frames)
+        12: {
+            time: 11.0,
+            frames: 220,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 6*T, y: 16*T, state: 'running', frame: 8 },
+                { x: 9*T, y: 16*T, state: 'running', frame: 14 },
+                { x: 10*T, y: 14*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 20 },
+                { x: 16*T, y: 14*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 34 },
+                { x: 20*T, y: 14*T, state: 'jumping', frame: 42 },
+                { x: 22*T, y: 16*T, state: 'falling', frame: 48 },
+                { x: 24*T, y: 16*T, state: 'running', frame: 52 },
+                { x: 25*T, y: 16*T, state: 'running', frame: 56 },
+                { x: 28*T, y: 14*T, state: 'jumping', frame: 64 },
+                { x: 32*T, y: 16*T, state: 'falling', frame: 72 },
+                { x: 32*T, y: 13*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 80 },
+                { x: 42*T, y: 13*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 100 },
+                { x: 44*T, y: 14*T, state: 'jumping', frame: 106 },
+                { x: 46*T, y: 16*T, state: 'falling', frame: 112 },
+                { x: 48*T, y: 16*T, state: 'running', frame: 116 },
+                { x: 49*T, y: 16*T, state: 'running', frame: 120 },
+                { x: 53*T, y: 14*T, state: 'jumping', frame: 130 },
+                { x: 56*T, y: 16*T, state: 'falling', frame: 138 },
+                { x: 56*T, y: 14*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 144 },
+                { x: 62*T, y: 14*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 160 },
+                { x: 64*T, y: 14*T, state: 'jumping', frame: 168 },
+                { x: 66*T, y: 16*T, state: 'falling', frame: 174 },
+                { x: 68*T, y: 16*T, state: 'running', frame: 180 },
+                { x: 74*T, y: 16*T, state: 'running', frame: 200 },
+                { x: 78*T, y: 16*T, state: 'running', frame: 216 },
+                { x: 78*T, y: 16*T, state: 'idle', frame: 220 },
+            ]
+        },
+        // Level 14: Momentum (~13s = 260 frames)
+        13: {
+            time: 13.0,
+            frames: 260,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 2*T, y: 16*T, state: 'running', frame: 4 },
+                { x: 5*T, y: 16*T, state: 'running', frame: 8 },
+                { x: 9*T, y: 13*T, state: 'jumping', frame: 16 },
+                { x: 14*T, y: 16*T, state: 'falling', frame: 26 },
+                { x: 15*T, y: 16*T, state: 'running', frame: 30 },
+                { x: 18*T, y: 12*T, state: 'jumping', frame: 40 },
+                { x: 22*T, y: 13*T, state: 'dashing', frame: 48 },
+                { x: 24*T, y: 14*T, state: 'falling', frame: 54 },
+                { x: 25*T, y: 14*T, state: 'running', frame: 58 },
+                { x: 28*T, y: 11*T, state: 'jumping', frame: 68 },
+                { x: 32*T, y: 12*T, state: 'dashing', frame: 76 },
+                { x: 34*T, y: 12*T, state: 'falling', frame: 82 },
+                { x: 36*T, y: 13*T, state: 'jumping', frame: 90 },
+                { x: 40*T, y: 14*T, state: 'dashing', frame: 100 },
+                { x: 44*T, y: 14*T, state: 'falling', frame: 108 },
+                { x: 46*T, y: 15*T, state: 'jumping', frame: 116 },
+                { x: 50*T, y: 15*T, state: 'dashing', frame: 126 },
+                { x: 54*T, y: 16*T, state: 'falling', frame: 134 },
+                { x: 55*T, y: 16*T, state: 'running', frame: 138 },
+                { x: 58*T, y: 14*T, state: 'jumping', frame: 148 },
+                { x: 62*T, y: 13*T, state: 'dashing', frame: 158 },
+                { x: 66*T, y: 14*T, state: 'falling', frame: 168 },
+                { x: 67*T, y: 14*T, state: 'running', frame: 172 },
+                { x: 70*T, y: 11*T, state: 'jumping', frame: 182 },
+                { x: 74*T, y: 12*T, state: 'dashing', frame: 192 },
+                { x: 76*T, y: 12*T, state: 'falling', frame: 198 },
+                { x: 77*T, y: 12*T, state: 'running', frame: 202 },
+                { x: 82*T, y: 13*T, state: 'jumping', frame: 214 },
+                { x: 86*T, y: 14*T, state: 'falling', frame: 224 },
+                { x: 88*T, y: 14*T, state: 'jumping', frame: 232 },
+                { x: 95*T, y: 12*T, state: 'falling', frame: 248 },
+                { x: 100*T, y: 11*T, state: 'running', frame: 258 },
+                { x: 100*T, y: 11*T, state: 'idle', frame: 260 },
+            ]
+        },
+        // Level 15: Final Rush (~25s = 500 frames)
+        14: {
+            time: 25.0,
+            frames: 500,
+            waypoints: [
+                { x: 2*T, y: 16*T, state: 'idle', frame: 0 },
+                { x: 5*T, y: 16*T, state: 'running', frame: 6 },
+                { x: 8*T, y: 14*T, state: 'jumping', frame: 12 },
+                { x: 10*T, y: 12*T, state: 'wall_sliding', frame: 20 },
+                { x: 13*T-PLAYER_W, y: 10*T, state: 'jumping', frame: 28 },
+                { x: 10*T, y: 8*T, state: 'wall_sliding', frame: 34 },
+                { x: 13*T-PLAYER_W, y: 7*T, state: 'jumping', frame: 40 },
+                { x: 16*T, y: 12*T, state: 'falling', frame: 52 },
+                { x: 20*T, y: 16*T, state: 'falling', frame: 64 },
+                { x: 21*T, y: 16*T, state: 'running', frame: 68 },
+                { x: 24*T, y: 14*T, state: 'jumping', frame: 76 },
+                { x: 25*T, y: 14*T, state: 'running', frame: 82 },
+                { x: 28*T, y: 12*T, state: 'jumping', frame: 92 },
+                { x: 32*T, y: 14*T, state: 'dashing', frame: 102 },
+                { x: 35*T, y: 14*T, state: 'falling', frame: 110 },
+                { x: 37*T, y: 14*T, state: 'running', frame: 116 },
+                { x: 39*T, y: 12*T, state: 'jumping', frame: 124 },
+                { x: 42*T, y: 10*T, state: 'wall_sliding', frame: 134 },
+                { x: 45*T-PLAYER_W, y: 8*T, state: 'jumping', frame: 144 },
+                { x: 42*T, y: 7*T, state: 'wall_sliding', frame: 152 },
+                { x: 47*T, y: 10*T, state: 'jumping', frame: 162 },
+                { x: 50*T, y: 16*T, state: 'falling', frame: 176 },
+                { x: 51*T, y: 16*T, state: 'running', frame: 180 },
+                { x: 54*T, y: 14*T, state: 'jumping', frame: 190 },
+                { x: 55*T, y: 14*T, state: 'running', frame: 196 },
+                { x: 57*T, y: 12*T, state: 'jumping', frame: 206 },
+                { x: 60*T, y: 10*T, state: 'wall_sliding', frame: 216 },
+                { x: 63*T-PLAYER_W, y: 8*T, state: 'jumping', frame: 226 },
+                { x: 60*T, y: 6*T, state: 'wall_sliding', frame: 234 },
+                { x: 65*T, y: 8*T, state: 'jumping', frame: 244 },
+                { x: 70*T, y: 12*T, state: 'falling', frame: 258 },
+                { x: 72*T, y: 12*T, state: 'running', frame: 264 },
+                { x: 75*T, y: 10*T, state: 'jumping', frame: 274 },
+                { x: 78*T, y: 10*T, state: 'falling', frame: 284 },
+                { x: 82*T, y: 13*T, state: 'jumping', frame: 294 },
+                { x: 85*T, y: 16*T, state: 'falling', frame: 304 },
+                { x: 85*T, y: 13*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 312 },
+                { x: 89*T, y: 13*T+(PLAYER_H-PLAYER_H_SLIDE), state: 'sliding', frame: 324 },
+                { x: 90*T, y: 14*T, state: 'running', frame: 330 },
+                { x: 93*T, y: 12*T, state: 'jumping', frame: 340 },
+                { x: 95*T, y: 12*T, state: 'running', frame: 348 },
+                { x: 98*T, y: 14*T, state: 'jumping', frame: 358 },
+                { x: 100*T, y: 16*T, state: 'falling', frame: 366 },
+                { x: 101*T, y: 16*T, state: 'running', frame: 370 },
+                { x: 102*T, y: 14*T, state: 'jumping', frame: 378 },
+                { x: 106*T, y: 12*T, state: 'jumping', frame: 388 },
+                { x: 108*T, y: 8*T, state: 'wall_sliding', frame: 398 },
+                { x: 112*T-PLAYER_W, y: 6*T, state: 'jumping', frame: 408 },
+                { x: 108*T, y: 5*T, state: 'wall_sliding', frame: 416 },
+                { x: 114*T, y: 8*T, state: 'jumping', frame: 426 },
+                { x: 118*T, y: 14*T, state: 'falling', frame: 438 },
+                { x: 120*T, y: 14*T, state: 'running', frame: 444 },
+                { x: 122*T, y: 12*T, state: 'jumping', frame: 454 },
+                { x: 125*T, y: 12*T, state: 'falling', frame: 464 },
+                { x: 130*T, y: 16*T, state: 'falling', frame: 472 },
+                { x: 132*T, y: 14*T, state: 'jumping', frame: 478 },
+                { x: 135*T, y: 6*T, state: 'wall_sliding', frame: 486 },
+                { x: 140*T-PLAYER_W, y: 4*T, state: 'jumping', frame: 492 },
+                { x: 143*T, y: 2*T, state: 'falling', frame: 496 },
+                { x: 148*T, y: 2*T, state: 'running', frame: 499 },
+                { x: 148*T, y: 2*T, state: 'idle', frame: 500 },
+            ]
+        },
+    };
+
+    const data = levelWaypoints[levelIndex];
+    if (!data) {
+        // Fallback for any missing level
+        return { time: 30, username: 'COMPUTER', replay: [] };
+    }
+    const replay = buildReplayPath(data.waypoints, data.frames);
+    return { time: data.time, username: 'COMPUTER', replay: replay };
+}
+
+function loadBestRuns() {
+    try {
+        const saved = localStorage.getItem('parkour_best_runs');
+        if (saved) bestRuns = JSON.parse(saved);
+    } catch(e) {}
+    // Fill missing with computer runs
+    for (let i = 0; i < LEVELS.length; i++) {
+        if (!bestRuns[i]) {
+            bestRuns[i] = generateComputerRun(i);
+        }
+    }
+}
+
 // ---------- GRADE SYSTEM ----------
 function getGrade(level, time) {
     if (level < 0 || level >= GRADE_THRESHOLDS.length) return 'none';
@@ -1820,6 +2413,21 @@ function completeLevel() {
         newRecordEl.classList.add('hidden');
     }
 
+    // Check if player beat the best run
+    if (currentLevel >= 0 && bestRuns[currentLevel] && time < bestRuns[currentLevel].time) {
+        const username = prompt('NEW BEST RUN! Enter your name:', 'PLAYER');
+        if (username && username.trim()) {
+            bestRuns[currentLevel] = {
+                time: time,
+                username: username.trim().toUpperCase().substring(0, 12),
+                replay: [...ghostRecording]
+            };
+            try {
+                localStorage.setItem('parkour_best_runs', JSON.stringify(bestRuns));
+            } catch(e) {}
+        }
+    }
+
     document.getElementById('btn-next').style.display =
         currentLevel + 1 >= LEVELS.length ? 'none' : '';
 
@@ -2198,6 +2806,212 @@ function drawGoal() {
     }
 }
 
+// ---------- REPLAY SYSTEM ----------
+function startReplayMode(levelIndex) {
+    const run = bestRuns[levelIndex];
+    if (!run || !run.replay || run.replay.length === 0) return;
+
+    replayLevelIndex = levelIndex;
+    replayData = run.replay;
+    replayFrame = 0;
+    replayTimer = 0;
+    replayPlayerFacing = 1;
+    replayDistTraveled = 0;
+    replayPlayerState = 'idle';
+
+    // Load level geometry
+    platforms = [];
+    spikes = [];
+    movingPlatforms = [];
+    fallingPlatforms = [];
+    boostPads = [];
+    walls = [];
+    goalZone = null;
+    particles = [];
+    checkpoints = [];
+    lastCheckpoint = null;
+
+    currentLevel = levelIndex;
+    LEVELS[levelIndex]();
+
+    // Reset moving platform timers
+    for (const mp of movingPlatforms) {
+        mp.t = 0;
+        mp.x = mp.startX;
+        mp.y = mp.startY;
+        mp.trail = [];
+    }
+
+    // Set initial player position
+    player.x = replayData[0].x;
+    player.y = replayData[0].y;
+    player.w = PLAYER_W;
+    player.h = PLAYER_H;
+    camera.x = player.x - canvasW / 2;
+    camera.y = player.y - canvasH / 2;
+
+    // Show game screen
+    showScreen('game');
+    gameState = 'replay';
+
+    // Hide normal HUD, show replay HUD
+    const hud = document.getElementById('hud');
+    if (hud) hud.style.display = 'none';
+    const replayHud = document.getElementById('replay-hud');
+    if (replayHud) replayHud.classList.remove('hidden');
+    const replayHudUser = document.getElementById('replay-hud-user');
+    if (replayHudUser) replayHudUser.textContent = run.username || 'COMPUTER';
+    const replayHudTimer = document.getElementById('replay-hud-timer');
+    if (replayHudTimer) replayHudTimer.textContent = '0.00s';
+    const replayHudInfo = document.getElementById('replay-hud-info');
+    if (replayHudInfo) replayHudInfo.textContent = 'BEST RUN - Level ' + (levelIndex + 1);
+
+    // Hide other overlays
+    document.getElementById('pause-overlay').classList.add('hidden');
+    document.getElementById('complete-overlay').classList.add('hidden');
+    document.getElementById('death-overlay').classList.add('hidden');
+    document.getElementById('replay-overlay').classList.add('hidden');
+
+    // Hide tutorial hint
+    const tutEl = document.getElementById('tutorial-hint');
+    if (tutEl) tutEl.classList.remove('visible');
+}
+
+function showReplayComplete() {
+    gameState = 'replay_done';
+    const run = bestRuns[replayLevelIndex];
+    const overlay = document.getElementById('replay-overlay');
+    const title = document.getElementById('replay-title');
+    const info = document.getElementById('replay-info');
+
+    if (title) title.textContent = 'RUN COMPLETE';
+    if (info) info.textContent = (run ? run.username : 'COMPUTER') + ' - ' + (run ? run.time.toFixed(2) : replayTimer.toFixed(2)) + 's';
+    if (overlay) overlay.classList.remove('hidden');
+}
+
+function exitReplayMode() {
+    gameState = 'menu';
+
+    // Restore normal HUD
+    const hud = document.getElementById('hud');
+    if (hud) hud.style.display = '';
+    const replayHud = document.getElementById('replay-hud');
+    if (replayHud) replayHud.classList.add('hidden');
+    document.getElementById('replay-overlay').classList.add('hidden');
+
+    // Go back to best run list
+    populateBestRunGrid();
+    showScreen('bestrun');
+}
+
+function drawReplayPlayer() {
+    const p = player;
+    const sx = p.x - camera.x;
+    const sy = p.y - camera.y;
+    const state = replayPlayerState;
+    const facing = replayPlayerFacing;
+    const currentH = state === 'sliding' ? PLAYER_H_SLIDE : PLAYER_H;
+    const centerX = sx + PLAYER_W / 2;
+    const bottomY = sy + currentH;
+
+    ctx.save();
+    ctx.translate(centerX, bottomY);
+    ctx.scale(facing, 1);
+
+    if (state === 'sliding') {
+        ctx.fillStyle = '#00b8d4';
+        ctx.fillRect(-10, -PLAYER_H_SLIDE, 20, PLAYER_H_SLIDE);
+        ctx.fillStyle = '#00e5ff';
+        ctx.fillRect(-4, -PLAYER_H_SLIDE, 8, 6);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(1, -PLAYER_H_SLIDE + 2, 2, 2);
+    } else {
+        let bodyColor = '#00e5ff';
+        if (state === 'dashing') bodyColor = '#ff4081';
+        else if (state === 'jumping' || state === 'falling') bodyColor = '#33ecff';
+        else if (state === 'wall_sliding') bodyColor = '#00cc99';
+
+        // Head
+        ctx.fillStyle = bodyColor;
+        ctx.fillRect(-4, -PLAYER_H, 8, 8);
+        // Eyes
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(1, -PLAYER_H + 3, 2, 2);
+        // Torso
+        const breathOffset = state === 'idle' ? Math.sin(Date.now() * 0.003) * 0.5 : 0;
+        ctx.fillStyle = bodyColor;
+        ctx.fillRect(-6, -PLAYER_H + 8 + breathOffset, 12, 10);
+
+        // Arms
+        const animCycle = Math.floor(replayDistTraveled / 12) % 4;
+        let leftArmY = -PLAYER_H + 9;
+        let rightArmY = -PLAYER_H + 9;
+        if (state === 'running') {
+            const offsets = [0, -3, 0, 3];
+            leftArmY += offsets[animCycle];
+            rightArmY += offsets[(animCycle + 2) % 4];
+        } else if (state === 'jumping') {
+            leftArmY -= 4; rightArmY -= 4;
+        } else if (state === 'falling') {
+            leftArmY -= 2; rightArmY -= 2;
+        } else if (state === 'dashing') {
+            leftArmY += 2; rightArmY += 2;
+        }
+        ctx.fillRect(-10, leftArmY, 4, 8);
+        ctx.fillRect(6, rightArmY, 4, 8);
+
+        // Legs
+        let leftLegY = -PLAYER_H + 18;
+        let rightLegY = -PLAYER_H + 18;
+        let leftLegX = -5;
+        let rightLegX = 1;
+        if (state === 'running') {
+            const legOffsets = [0, -3, 0, 3];
+            leftLegY += legOffsets[animCycle];
+            rightLegY += legOffsets[(animCycle + 2) % 4];
+            leftLegX += (animCycle < 2 ? -1 : 1);
+            rightLegX += (animCycle < 2 ? 1 : -1);
+        } else if (state === 'jumping') {
+            leftLegY += 3; rightLegY += 3;
+            leftLegX -= 1; rightLegX += 1;
+        } else if (state === 'falling') {
+            leftLegX -= 2; rightLegX += 2;
+        } else if (state === 'wall_sliding') {
+            leftLegX = -3; rightLegX = -1;
+        }
+        ctx.fillRect(leftLegX, leftLegY, 4, 10);
+        ctx.fillRect(rightLegX, rightLegY, 4, 10);
+    }
+
+    ctx.restore();
+}
+
+function populateBestRunGrid() {
+    const grid = document.getElementById('bestrun-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (let i = 0; i < LEVELS.length; i++) {
+        const tile = document.createElement('div');
+        tile.className = 'level-tile';
+        const run = bestRuns[i];
+        const runnerName = run ? run.username : 'COMPUTER';
+        const runTime = run ? run.time.toFixed(2) + 's' : '---';
+
+        tile.innerHTML =
+            '<span class="level-num">' + (i + 1) + '</span>' +
+            '<span class="level-best">' + runTime + '</span>' +
+            '<span class="level-runner">' + runnerName + '</span>';
+
+        tile.addEventListener('click', ((lvl) => () => {
+            initAudio();
+            playSound('click');
+            doScreenWipe(() => startReplayMode(lvl));
+        })(i));
+
+        grid.appendChild(tile);
+    }
+}
+
 function toggleGhost() {
     ghostEnabled = !ghostEnabled;
     try { localStorage.setItem('parkour_ghost_enabled', ghostEnabled); } catch(e) {}
@@ -2404,7 +3218,7 @@ function gameLoop(timestamp) {
     }
 
     // Menu background
-    if (currentScreen === 'menu' || currentScreen === 'level' || currentScreen === 'controls') {
+    if (currentScreen === 'menu' || currentScreen === 'level' || currentScreen === 'controls' || currentScreen === 'bestrun') {
         drawMenuBackground();
     }
 
@@ -2436,6 +3250,35 @@ function gameLoop(timestamp) {
         if (hudTimer) hudTimer.textContent = levelTimer.toFixed(2) + 's';
     }
 
+    // Replay mode update
+    if (gameState === 'replay') {
+        replayFrame++;
+        if (replayFrame < replayData.length) {
+            const frame = replayData[replayFrame];
+            const prevX = player.x;
+            player.x = frame.x;
+            player.y = frame.y;
+            replayPlayerState = frame.state || 'running';
+            // Track facing direction from movement
+            if (frame.x > prevX + 0.5) replayPlayerFacing = 1;
+            else if (frame.x < prevX - 0.5) replayPlayerFacing = -1;
+            // Track distance for animation
+            replayDistTraveled += Math.abs(frame.x - prevX);
+            // Update camera to follow
+            updateCamera(dtScale);
+            // Update replay timer
+            replayTimer += dt / 1000;
+            // Update replay HUD timer
+            const replayHudTimer = document.getElementById('replay-hud-timer');
+            if (replayHudTimer) replayHudTimer.textContent = replayTimer.toFixed(2) + 's';
+            // Update moving platforms for visual fidelity
+            updateMovingPlatforms(dtScale);
+        } else {
+            // Replay complete
+            showReplayComplete();
+        }
+    }
+
     updateParticles(dtScale);
 
     // Screen shake decay
@@ -2459,7 +3302,9 @@ function gameLoop(timestamp) {
         drawBackground();
         drawAmbientParticles();
         updateAmbientParticles(dtScale);
-        drawGhost();
+        if (gameState !== 'replay') {
+            drawGhost();
+        }
         drawGoal();
         drawCheckpoints();
         drawPlatforms();
@@ -2468,9 +3313,15 @@ function gameLoop(timestamp) {
         drawMovingPlatforms();
         drawFallingPlatforms();
         drawBoostPads();
-        drawPlayer();
+        if (gameState === 'replay') {
+            drawReplayPlayer();
+        } else {
+            drawPlayer();
+        }
         drawParticles();
-        drawSpeedLines();
+        if (gameState !== 'replay') {
+            drawSpeedLines();
+        }
         drawVignette();
 
         ctx.restore();
@@ -2504,7 +3355,9 @@ document.addEventListener('keydown', (e) => {
     }
 
     if (e.code === 'Escape') {
-        if (gameState === 'playing') {
+        if (gameState === 'replay' || gameState === 'replay_done') {
+            exitReplayMode();
+        } else if (gameState === 'playing') {
             gameState = 'paused';
             stopMusic();
             document.getElementById('pause-overlay').classList.remove('hidden');
@@ -2621,6 +3474,7 @@ function loadBestTimes() {
         const savedDiff = localStorage.getItem('parkour_difficulty');
         if (savedDiff && DIFFICULTIES[savedDiff]) difficulty = savedDiff;
     } catch(e) {}
+    loadBestRuns();
 }
 
 // ---------- SCREEN MANAGEMENT ----------
@@ -2986,6 +3840,22 @@ function initUI() {
         playSound('click');
         pendingAction = 'levels';
         showScreen('difficulty');
+    });
+
+    document.getElementById('btn-best-runs').addEventListener('click', () => {
+        playSound('click');
+        populateBestRunGrid();
+        showScreen('bestrun');
+    });
+
+    document.getElementById('btn-back-bestrun').addEventListener('click', () => {
+        playSound('click');
+        showScreen('menu');
+    });
+
+    document.getElementById('btn-back-replay').addEventListener('click', () => {
+        playSound('click');
+        exitReplayMode();
     });
 
     document.getElementById('btn-editor').addEventListener('click', () => {

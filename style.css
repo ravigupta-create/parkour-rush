@@ -85,7 +85,7 @@ body {
 }
 
 /* --- Menu --- */
-.menu-container, .level-container, .controls-container {
+.menu-container, .level-container, .controls-container, .bestrun-container {
     text-align: center;
     z-index: 2;
     position: relative;
@@ -688,6 +688,41 @@ body {
     min-width: unset;
     padding: 8px 12px;
     font-size: 0.8rem;
+}
+
+/* --- Best Run Level Tiles --- */
+.level-tile .level-runner {
+    font-size: 0.55rem;
+    color: #ff4081;
+    margin-top: 2px;
+}
+
+/* --- Replay HUD --- */
+#replay-hud {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    z-index: 15;
+    pointer-events: none;
+}
+
+#replay-hud-info {
+    color: #ff4081;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+}
+
+#replay-hud-user {
+    color: #ffd700;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+#replay-hud-timer {
+    color: #fff;
+    font-size: 1.4rem;
 }
 
 /* --- Responsive --- */
