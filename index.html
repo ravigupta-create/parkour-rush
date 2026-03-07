@@ -2,11 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Parkour Rush</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Menu Background Canvas -->
+    <canvas id="menuBgCanvas"></canvas>
+
+    <!-- Screen Wipe Overlay -->
+    <div id="screen-wipe"></div>
+
     <!-- Main Menu -->
     <div id="menu-screen" class="screen active">
         <div class="menu-container">
@@ -55,10 +61,20 @@
     <div id="game-screen" class="screen">
         <canvas id="gameCanvas"></canvas>
         <div id="hud">
-            <div id="hud-level">Level 1</div>
-            <div id="hud-timer">0.00s</div>
-            <div id="hud-best">Best: --</div>
+            <div id="hud-left">
+                <div id="hud-level">Level 1</div>
+                <div id="hud-deaths">Deaths: 0</div>
+            </div>
+            <div id="hud-center">
+                <div id="hud-timer">0.00s</div>
+                <div id="hud-combo"></div>
+            </div>
+            <div id="hud-right">
+                <div id="hud-best">Best: --</div>
+                <div id="hud-dash">DASH &#9679;</div>
+            </div>
         </div>
+        <div id="tutorial-hint"></div>
         <div id="pause-overlay" class="overlay hidden">
             <h2>PAUSED</h2>
             <button id="btn-resume" class="menu-btn primary">RESUME</button>
@@ -67,8 +83,10 @@
         </div>
         <div id="complete-overlay" class="overlay hidden">
             <h2>LEVEL COMPLETE!</h2>
+            <div id="complete-grade"></div>
             <p id="complete-time"></p>
             <p id="complete-best"></p>
+            <p id="death-count"></p>
             <p id="complete-new-record" class="hidden gold">NEW RECORD!</p>
             <button id="btn-next" class="menu-btn primary">NEXT LEVEL</button>
             <button id="btn-replay" class="menu-btn">REPLAY</button>
@@ -78,6 +96,19 @@
             <h2>WIPEOUT!</h2>
             <button id="btn-retry" class="menu-btn primary">RETRY</button>
             <button id="btn-quit3" class="menu-btn">MENU</button>
+        </div>
+    </div>
+
+    <!-- Touch Controls -->
+    <div id="touch-controls">
+        <div id="touch-left-group">
+            <button id="touch-left" class="touch-btn">&larr;</button>
+            <button id="touch-right" class="touch-btn">&rarr;</button>
+        </div>
+        <div id="touch-right-group">
+            <button id="touch-jump" class="touch-btn touch-btn-big">JUMP</button>
+            <button id="touch-dash" class="touch-btn">DASH</button>
+            <button id="touch-slide" class="touch-btn">SLIDE</button>
         </div>
     </div>
 

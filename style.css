@@ -1,11 +1,12 @@
 /* ============================================
-   PARKOUR RUSH - Styles
+   PARKOUR RUSH - Styles (Enhanced)
    ============================================ */
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -15,6 +16,49 @@ body {
     overflow: hidden;
     width: 100vw;
     height: 100vh;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* --- Menu Background Canvas --- */
+#menuBgCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* --- Screen Wipe --- */
+#screen-wipe {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #0a0a0f;
+    z-index: 100;
+    pointer-events: none;
+    transform: translateX(-101%);
+    transition: none;
+}
+
+#screen-wipe.active {
+    animation: wipeIn 0.25s ease-in forwards, wipeOut 0.25s ease-out 0.25s forwards;
+}
+
+@keyframes wipeIn {
+    from { transform: translateX(-101%); }
+    to { transform: translateX(0%); }
+}
+
+@keyframes wipeOut {
+    from { transform: translateX(0%); }
+    to { transform: translateX(101%); }
 }
 
 /* --- Screens --- */
@@ -25,6 +69,13 @@ body {
     position: absolute;
     top: 0;
     left: 0;
+    z-index: 1;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.screen.fading {
+    opacity: 0;
 }
 
 .screen.active {
@@ -36,6 +87,8 @@ body {
 /* --- Menu --- */
 .menu-container, .level-container, .controls-container {
     text-align: center;
+    z-index: 2;
+    position: relative;
 }
 
 .game-title {
@@ -141,6 +194,7 @@ body {
     cursor: pointer;
     font-family: 'Courier New', monospace;
     transition: all 0.15s;
+    position: relative;
 }
 
 .level-tile:hover {
@@ -167,6 +221,15 @@ body {
     color: #888;
     margin-top: 4px;
 }
+
+.level-tile .level-grade {
+    font-size: 0.7rem;
+    margin-top: 2px;
+}
+
+.level-tile .level-grade.grade-gold { color: #ffd700; }
+.level-tile .level-grade.grade-silver { color: #c0c0c0; }
+.level-tile .level-grade.grade-bronze { color: #cd7f32; }
 
 /* --- Controls Screen --- */
 .control-list {
@@ -203,8 +266,27 @@ body {
     z-index: 10;
 }
 
+#hud-left, #hud-center, #hud-right {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#hud-center {
+    align-items: center;
+}
+
+#hud-right {
+    align-items: flex-end;
+}
+
 #hud-level {
     color: #00e5ff;
+}
+
+#hud-deaths {
+    color: #ff4444;
+    font-size: 0.8rem;
 }
 
 #hud-timer {
@@ -212,8 +294,69 @@ body {
     font-size: 1.4rem;
 }
 
+#hud-combo {
+    color: #ffd700;
+    font-size: 1rem;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+#hud-combo.visible {
+    opacity: 1;
+}
+
 #hud-best {
     color: #888;
+}
+
+#hud-dash {
+    font-size: 0.8rem;
+    color: #4caf50;
+}
+
+#hud-dash.cooldown {
+    color: #666;
+}
+
+/* --- Tutorial Hint --- */
+#tutorial-hint {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 229, 255, 0.15);
+    border: 1px solid #00e5ff44;
+    color: #00e5ff;
+    padding: 12px 24px;
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+    max-width: 400px;
+    text-align: center;
+}
+
+#tutorial-hint.visible {
+    opacity: 1;
+}
+
+/* --- Complete Grade --- */
+#complete-grade {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+#complete-grade .star-gold { color: #ffd700; text-shadow: 0 0 10px #ffd70066; }
+#complete-grade .star-silver { color: #c0c0c0; text-shadow: 0 0 10px #c0c0c066; }
+#complete-grade .star-bronze { color: #cd7f32; text-shadow: 0 0 10px #cd7f3266; }
+#complete-grade .star-none { color: #333; }
+
+#death-count {
+    color: #ff4444;
+    font-size: 0.9rem;
 }
 
 /* --- Overlays --- */
@@ -257,9 +400,69 @@ body {
 /* --- Canvas --- */
 #gameCanvas, #editorCanvas {
     display: block;
-    width: 100%;
-    height: 100%;
     background: #0a0a0f;
+}
+
+#gameCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* --- Touch Controls --- */
+#touch-controls {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 16px;
+    z-index: 30;
+    justify-content: space-between;
+    pointer-events: none;
+}
+
+#touch-controls.visible {
+    display: flex;
+}
+
+#touch-left-group, #touch-right-group {
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+#touch-right-group {
+    align-items: flex-end;
+}
+
+.touch-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    color: rgba(255, 255, 255, 0.6);
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+}
+
+.touch-btn:active {
+    background: rgba(0, 229, 255, 0.3);
+    border-color: #00e5ff;
+}
+
+.touch-btn-big {
+    width: 72px;
+    height: 72px;
+    font-size: 0.8rem;
 }
 
 /* --- Editor --- */
@@ -329,4 +532,31 @@ body {
     .game-title { font-size: 2.2rem; }
     .level-grid { grid-template-columns: repeat(5, 60px); }
     .level-tile { width: 60px; height: 60px; }
+    .level-tile .level-num { font-size: 1.1rem; }
+
+    #hud {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+
+    #hud-timer {
+        font-size: 1.1rem;
+    }
+
+    #tutorial-hint {
+        bottom: 160px;
+        font-size: 0.75rem;
+        padding: 8px 16px;
+    }
+
+    .touch-btn {
+        width: 52px;
+        height: 52px;
+        font-size: 0.6rem;
+    }
+
+    .touch-btn-big {
+        width: 64px;
+        height: 64px;
+    }
 }
