@@ -173,6 +173,51 @@ body {
     color: #00e5ff;
 }
 
+/* --- Cheat Mode Footer --- */
+.cheat-footer {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.cheat-label {
+    color: #555;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+}
+
+.cheat-input {
+    background: #0d0d1a;
+    border: 1px solid #333;
+    color: #aaa;
+    padding: 5px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    width: 100px;
+    outline: none;
+}
+
+.cheat-input:focus {
+    border-color: #ff4081;
+    color: #ff4081;
+}
+
+.cheat-status {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    min-width: 60px;
+}
+
+.cheat-status.active {
+    color: #ffd700;
+}
+
+.cheat-status.wrong {
+    color: #ff4444;
+}
+
 /* --- Level Select --- */
 .level-grid {
     display: grid;

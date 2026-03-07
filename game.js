@@ -274,7 +274,33 @@ const DIFFICULTIES = {
 function getTheme() { return getDiff().theme; }
 
 let difficulty = 'medium';
+let cheatMode = false;
 function getDiff() { return DIFFICULTIES[difficulty]; }
+
+// Cheat mode overrides — applied on top of difficulty settings
+const CHEAT_OVERRIDES = {
+    gravity: 0.3,
+    maxFall: 8,
+    jumpForce: -14,
+    coyoteTime: 20,
+    jumpBuffer: 20,
+    dashDuration: 18,
+    dashCooldown: 10,
+    spikeInset: 12,
+    wallSlideMax: 1,
+    runSpeed: 8,
+};
+
+function getCheatGravity() { return cheatMode ? CHEAT_OVERRIDES.gravity : getDiff().gravity; }
+function getCheatMaxFall() { return cheatMode ? CHEAT_OVERRIDES.maxFall : getDiff().maxFall; }
+function getCheatJumpForce() { return cheatMode ? CHEAT_OVERRIDES.jumpForce : getDiff().jumpForce; }
+function getCheatCoyoteTime() { return cheatMode ? CHEAT_OVERRIDES.coyoteTime : getDiff().coyoteTime; }
+function getCheatJumpBuffer() { return cheatMode ? CHEAT_OVERRIDES.jumpBuffer : getDiff().jumpBuffer; }
+function getCheatDashDuration() { return cheatMode ? CHEAT_OVERRIDES.dashDuration : getDiff().dashDuration; }
+function getCheatDashCooldown() { return cheatMode ? CHEAT_OVERRIDES.dashCooldown : getDiff().dashCooldown; }
+function getCheatSpikeInset() { return cheatMode ? CHEAT_OVERRIDES.spikeInset : getDiff().spikeInset; }
+function getCheatWallSlideMax() { return cheatMode ? CHEAT_OVERRIDES.wallSlideMax : getDiff().wallSlideMax; }
+function getCheatRunSpeed() { return cheatMode ? CHEAT_OVERRIDES.runSpeed : RUN_SPEED; }
 
 // ---------- GAME STATE ----------
 let canvas, ctx, editorCanvas, editorCtx, menuBgCanvas, menuBgCtx;
@@ -1945,11 +1971,18 @@ function generateComputerRun(levelIndex) {
 
     const data = levelWaypoints[levelIndex];
     if (!data) {
-        // Fallback for any missing level
         return { time: 30, username: 'COMPUTER', replay: [] };
     }
-    const replay = buildReplayPath(data.waypoints, data.frames);
-    return { time: data.time, username: 'COMPUTER', replay: replay };
+    // Scale to realistic human speed — 1.8x slower so movement looks natural
+    const speedScale = 1.8;
+    const scaledWaypoints = data.waypoints.map(wp => ({
+        ...wp,
+        frame: Math.round(wp.frame * speedScale)
+    }));
+    const scaledFrames = Math.round(data.frames * speedScale);
+    const scaledTime = +(data.time * speedScale).toFixed(1);
+    const replay = buildReplayPath(scaledWaypoints, scaledFrames);
+    return { time: scaledTime, username: 'COMPUTER', replay: replay };
 }
 
 function loadBestRuns() {
@@ -2193,7 +2226,7 @@ function updatePlayer(dt) {
     if (keys['KeyD'] || keys['ArrowRight']) inputX = 1;
 
     if (!p.isDashing && !p.isSliding && p.climbTimer <= 0) {
-        p.vx = inputX * RUN_SPEED;
+        p.vx = inputX * getCheatRunSpeed();
         if (inputX !== 0) p.facing = inputX;
     }
 
@@ -2207,8 +2240,8 @@ function updatePlayer(dt) {
         !(prevKeys['ShiftLeft'] || prevKeys['ShiftRight'] || prevKeys['touchDash']) &&
         !p.onGround && p.dashTimer <= 0 && p.dashCooldown <= 0) {
         p.isDashing = true;
-        p.dashTimer = getDiff().dashDuration;
-        p.dashCooldown = getDiff().dashCooldown;
+        p.dashTimer = getCheatDashDuration();
+        p.dashCooldown = getCheatDashCooldown();
         p.dashDir = p.facing;
         p.vy = 0;
         playSound('dash');
@@ -2222,7 +2255,7 @@ function updatePlayer(dt) {
         p.dashTimer -= s;
         if (p.dashTimer <= 0) {
             p.isDashing = false;
-            p.vx = inputX * RUN_SPEED;
+            p.vx = inputX * getCheatRunSpeed();
         }
         spawnParticles(p.x + p.w / 2, p.y + p.h / 2, 2, '#ff4081', 2, 0.5);
         // Dash afterimage trail
@@ -2288,16 +2321,21 @@ function updatePlayer(dt) {
         p.climbTimer -= s;
     }
 
-    // ---- Gravity (difficulty-scaled) ----
+    // ---- Gravity (difficulty + cheat scaled) ----
     const diff = getDiff();
+    const cGravity = getCheatGravity();
+    const cMaxFall = getCheatMaxFall();
+    const cJumpForce = getCheatJumpForce();
+    const cCoyoteTime = getCheatCoyoteTime();
+    const cJumpBuffer = getCheatJumpBuffer();
     if (!p.isDashing) {
-        p.vy += diff.gravity * s;
-        if (p.vy > diff.maxFall) p.vy = diff.maxFall;
+        p.vy += cGravity * s;
+        if (p.vy > cMaxFall) p.vy = cMaxFall;
     }
 
-    // ---- Coyote time & jump buffer (difficulty-scaled) ----
+    // ---- Coyote time & jump buffer ----
     if (p.onGround) {
-        p.coyoteTimer = diff.coyoteTime;
+        p.coyoteTimer = cCoyoteTime;
         p.dashCooldown = 0;
     } else {
         if (p.coyoteTimer > 0) p.coyoteTimer -= s;
@@ -2305,13 +2343,13 @@ function updatePlayer(dt) {
 
     if ((keys['KeyW'] || keys['Space'] || keys['ArrowUp'] || keys['touchJump']) &&
         !(prevKeys['KeyW'] || prevKeys['Space'] || prevKeys['ArrowUp'] || prevKeys['touchJump'])) {
-        p.jumpBuffer = diff.jumpBuffer;
+        p.jumpBuffer = cJumpBuffer;
     }
     if (p.jumpBuffer > 0) p.jumpBuffer -= s;
 
     // ---- Jump ----
     if (p.jumpBuffer > 0 && p.coyoteTimer > 0 && !p.isDashing) {
-        p.vy = diff.jumpForce;
+        p.vy = cJumpForce;
         p.onGround = false;
         p.coyoteTimer = 0;
         p.jumpBuffer = 0;
@@ -2351,7 +2389,7 @@ function updatePlayer(dt) {
 
     // ---- Wall slide ----
     if (!p.onGround && (p.onWallLeft || p.onWallRight) && p.vy > 1 && !p.isDashing) {
-        p.vy = Math.min(p.vy, getDiff().wallSlideMax);
+        p.vy = Math.min(p.vy, getCheatWallSlideMax());
         if (Math.random() < 0.3) {
             const wx = p.onWallLeft ? p.x : p.x + p.w;
             spawnParticles(wx, p.y + p.h / 2, 1, '#aaa', 1, 0.3);
@@ -2462,7 +2500,7 @@ function updatePlayer(dt) {
     }
 
     // ---- Spike collision (death, hitbox shrunk by difficulty) ----
-    const si = getDiff().spikeInset;
+    const si = getCheatSpikeInset();
     for (const sp of spikes) {
         if (aabb({ x: p.x + si, y: p.y + si, w: p.w - si * 2, h: p.h - si * 2 }, sp)) {
             killPlayer();
@@ -4321,6 +4359,44 @@ function initUI() {
         playSound('click');
         showScreen('menu');
     });
+
+    // Cheat mode
+    const cheatInput = document.getElementById('cheat-input');
+    const cheatStatus = document.getElementById('cheat-status');
+    const btnCheat = document.getElementById('btn-cheat');
+    if (btnCheat && cheatInput && cheatStatus) {
+        const activateCheat = () => {
+            const code = cheatInput.value.trim().toLowerCase();
+            if (code === 'srg2') {
+                cheatMode = true;
+                cheatStatus.textContent = 'ACTIVE';
+                cheatStatus.className = 'cheat-status active';
+                cheatInput.value = '';
+                playSound('checkpoint');
+            } else if (code === '') {
+                // do nothing
+            } else {
+                cheatMode = false;
+                cheatStatus.textContent = 'WRONG';
+                cheatStatus.className = 'cheat-status wrong';
+                setTimeout(() => {
+                    if (!cheatMode) {
+                        cheatStatus.textContent = '';
+                        cheatStatus.className = 'cheat-status';
+                    }
+                }, 1500);
+            }
+        };
+        btnCheat.addEventListener('click', () => {
+            playSound('click');
+            activateCheat();
+        });
+        cheatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') activateCheat();
+            e.stopPropagation(); // prevent game keys from firing
+        });
+        cheatInput.addEventListener('keyup', (e) => e.stopPropagation());
+    }
 }
 
 // ---------- CANVAS RESIZE HANDLER ----------
