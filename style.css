@@ -231,6 +231,76 @@ body {
 .level-tile .level-grade.grade-silver { color: #c0c0c0; }
 .level-tile .level-grade.grade-bronze { color: #cd7f32; }
 
+/* --- Difficulty Select --- */
+.difficulty-container {
+    text-align: center;
+    z-index: 2;
+    position: relative;
+}
+
+.difficulty-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    margin: 28px 0;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.diff-btn {
+    width: 100%;
+    max-width: 360px;
+    background: #1a1a2e;
+    border: 2px solid #333;
+    padding: 16px 24px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    text-align: left;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.diff-btn:hover {
+    transform: scale(1.02);
+}
+
+.diff-label {
+    font-size: 1.1rem;
+    font-weight: bold;
+    letter-spacing: 0.2em;
+}
+
+.diff-desc {
+    font-size: 0.7rem;
+    color: #888;
+    letter-spacing: 0.05em;
+}
+
+.diff-easy { border-color: #4caf50; }
+.diff-easy:hover { background: #1a2e1a; box-shadow: 0 0 20px #4caf5033; }
+.diff-easy .diff-label { color: #4caf50; }
+
+.diff-medium { border-color: #00e5ff; }
+.diff-medium:hover { background: #1a1a2e; box-shadow: 0 0 20px #00e5ff33; }
+.diff-medium .diff-label { color: #00e5ff; }
+
+.diff-hard { border-color: #ff9800; }
+.diff-hard:hover { background: #2e1a0a; box-shadow: 0 0 20px #ff980033; }
+.diff-hard .diff-label { color: #ff9800; }
+
+.diff-extreme { border-color: #ff1744; }
+.diff-extreme:hover { background: #2e0a0a; box-shadow: 0 0 20px #ff174433; }
+.diff-extreme .diff-label { color: #ff1744; }
+
+.diff-btn.selected {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
 /* --- Controls Screen --- */
 .controls-container {
     max-height: 90vh;

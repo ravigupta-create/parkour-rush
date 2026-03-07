@@ -53,6 +53,69 @@ const TUTORIAL_HINTS = [
     "Press S or DOWN while running to SLIDE under low ceilings."
 ];
 
+// ---------- DIFFICULTY SETTINGS ----------
+const DIFFICULTIES = {
+    easy: {
+        label: 'EASY',
+        desc: 'Forgiving jumps, weaker gravity, generous hitboxes',
+        gravity: 0.42,
+        maxFall: 10,
+        jumpForce: -11.5,
+        coyoteTime: 14,
+        jumpBuffer: 14,
+        dashDuration: 12,
+        dashCooldown: 20,
+        spikeInset: 8,       // pixels to shrink spike hitbox
+        wallSlideMax: 1.5,
+        timerMultiplier: 1,  // grade thresholds stay same
+    },
+    medium: {
+        label: 'MEDIUM',
+        desc: 'The intended experience',
+        gravity: 0.55,
+        maxFall: 12,
+        jumpForce: -10.5,
+        coyoteTime: 6,
+        jumpBuffer: 6,
+        dashDuration: 8,
+        dashCooldown: 30,
+        spikeInset: 4,
+        wallSlideMax: 2,
+        timerMultiplier: 1,
+    },
+    hard: {
+        label: 'HARD',
+        desc: 'Tight timing, faster falls, less forgiveness',
+        gravity: 0.65,
+        maxFall: 14,
+        jumpForce: -10.5,
+        coyoteTime: 3,
+        jumpBuffer: 3,
+        dashDuration: 6,
+        dashCooldown: 40,
+        spikeInset: 2,
+        wallSlideMax: 2.5,
+        timerMultiplier: 1,
+    },
+    extreme: {
+        label: 'EXTREME',
+        desc: 'Pixel-perfect precision — no mercy',
+        gravity: 0.75,
+        maxFall: 15,
+        jumpForce: -10.2,
+        coyoteTime: 0,
+        jumpBuffer: 0,
+        dashDuration: 5,
+        dashCooldown: 50,
+        spikeInset: 0,
+        wallSlideMax: 3,
+        timerMultiplier: 1,
+    }
+};
+
+let difficulty = 'medium';
+function getDiff() { return DIFFICULTIES[difficulty]; }
+
 // ---------- GAME STATE ----------
 let canvas, ctx, editorCanvas, editorCtx, menuBgCanvas, menuBgCtx;
 let currentScreen = 'menu';
@@ -1220,7 +1283,7 @@ function loadLevel(index) {
     const hudBest = document.getElementById('hud-best');
     const hudDeaths = document.getElementById('hud-deaths');
     const hudDash = document.getElementById('hud-dash');
-    if (hudLevel) hudLevel.textContent = 'Level ' + (index + 1);
+    if (hudLevel) hudLevel.textContent = 'Level ' + (index + 1) + ' [' + getDiff().label + ']';
     const best = bestTimes[index];
     if (hudBest) hudBest.textContent = best ? 'Best: ' + best.toFixed(2) + 's' : 'Best: --';
     if (hudDeaths) hudDeaths.textContent = 'Deaths: 0';
@@ -1306,8 +1369,8 @@ function updatePlayer(dt) {
         !(prevKeys['ShiftLeft'] || prevKeys['ShiftRight'] || prevKeys['touchDash']) &&
         !p.onGround && p.dashTimer <= 0 && p.dashCooldown <= 0) {
         p.isDashing = true;
-        p.dashTimer = DASH_DURATION;
-        p.dashCooldown = DASH_COOLDOWN;
+        p.dashTimer = getDiff().dashDuration;
+        p.dashCooldown = getDiff().dashCooldown;
         p.dashDir = p.facing;
         p.vy = 0;
         playSound('dash');
@@ -1387,15 +1450,16 @@ function updatePlayer(dt) {
         p.climbTimer -= s;
     }
 
-    // ---- Gravity ----
+    // ---- Gravity (difficulty-scaled) ----
+    const diff = getDiff();
     if (!p.isDashing) {
-        p.vy += GRAVITY * s;
-        if (p.vy > MAX_FALL) p.vy = MAX_FALL;
+        p.vy += diff.gravity * s;
+        if (p.vy > diff.maxFall) p.vy = diff.maxFall;
     }
 
-    // ---- Coyote time & jump buffer ----
+    // ---- Coyote time & jump buffer (difficulty-scaled) ----
     if (p.onGround) {
-        p.coyoteTimer = COYOTE_TIME;
+        p.coyoteTimer = diff.coyoteTime;
         p.dashCooldown = 0;
     } else {
         if (p.coyoteTimer > 0) p.coyoteTimer -= s;
@@ -1403,13 +1467,13 @@ function updatePlayer(dt) {
 
     if ((keys['KeyW'] || keys['Space'] || keys['ArrowUp'] || keys['touchJump']) &&
         !(prevKeys['KeyW'] || prevKeys['Space'] || prevKeys['ArrowUp'] || prevKeys['touchJump'])) {
-        p.jumpBuffer = JUMP_BUFFER;
+        p.jumpBuffer = diff.jumpBuffer;
     }
     if (p.jumpBuffer > 0) p.jumpBuffer -= s;
 
     // ---- Jump ----
     if (p.jumpBuffer > 0 && p.coyoteTimer > 0 && !p.isDashing) {
-        p.vy = JUMP_FORCE;
+        p.vy = diff.jumpForce;
         p.onGround = false;
         p.coyoteTimer = 0;
         p.jumpBuffer = 0;
@@ -1449,7 +1513,7 @@ function updatePlayer(dt) {
 
     // ---- Wall slide ----
     if (!p.onGround && (p.onWallLeft || p.onWallRight) && p.vy > 1 && !p.isDashing) {
-        p.vy = Math.min(p.vy, 2);
+        p.vy = Math.min(p.vy, getDiff().wallSlideMax);
         if (Math.random() < 0.3) {
             const wx = p.onWallLeft ? p.x : p.x + p.w;
             spawnParticles(wx, p.y + p.h / 2, 1, '#aaa', 1, 0.3);
@@ -1559,9 +1623,10 @@ function updatePlayer(dt) {
         }
     }
 
-    // ---- Spike collision (death) ----
+    // ---- Spike collision (death, hitbox shrunk by difficulty) ----
+    const si = getDiff().spikeInset;
     for (const sp of spikes) {
-        if (aabb({ x: p.x + 2, y: p.y + 2, w: p.w - 4, h: p.h - 4 }, sp)) {
+        if (aabb({ x: p.x + si, y: p.y + si, w: p.w - si * 2, h: p.h - si * 2 }, sp)) {
             killPlayer();
             return;
         }
@@ -2552,6 +2617,10 @@ function loadBestTimes() {
         const ge = localStorage.getItem('parkour_ghost_enabled');
         if (ge !== null) ghostEnabled = ge !== 'false';
     } catch(e) {}
+    try {
+        const savedDiff = localStorage.getItem('parkour_difficulty');
+        if (savedDiff && DIFFICULTIES[savedDiff]) difficulty = savedDiff;
+    } catch(e) {}
 }
 
 // ---------- SCREEN MANAGEMENT ----------
@@ -2909,18 +2978,44 @@ function initUI() {
     document.getElementById('btn-play').addEventListener('click', () => {
         initAudio();
         playSound('click');
-        doScreenWipe(() => startLevel(0));
+        pendingAction = 'play';
+        showScreen('difficulty');
     });
 
     document.getElementById('btn-levels').addEventListener('click', () => {
         playSound('click');
-        populateLevelGrid();
-        showScreen('level');
+        pendingAction = 'levels';
+        showScreen('difficulty');
     });
 
     document.getElementById('btn-editor').addEventListener('click', () => {
         playSound('click');
         showScreen('editor');
+    });
+
+    // Difficulty select buttons
+    let pendingAction = 'play';
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            initAudio();
+            playSound('click');
+            difficulty = btn.dataset.diff;
+            try { localStorage.setItem('parkour_difficulty', difficulty); } catch(e) {}
+            // Highlight selected
+            document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            if (pendingAction === 'play') {
+                doScreenWipe(() => startLevel(0));
+            } else {
+                populateLevelGrid();
+                showScreen('level');
+            }
+        });
+    });
+
+    document.getElementById('btn-back-diff').addEventListener('click', () => {
+        playSound('click');
+        showScreen('menu');
     });
 
     document.getElementById('btn-controls').addEventListener('click', () => {
