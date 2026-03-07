@@ -111,6 +111,10 @@ let ghostRecording = [];
 let ghostPlayback = [];
 let ghostFrame = 0;
 let ghostRecordFrame = 0;
+let ghostEnabled = true;
+
+// R key double-tap tracking
+let lastRPressTime = 0;
 
 // Background layers
 let bgLayers = [];
@@ -2098,8 +2102,18 @@ function drawGoal() {
     }
 }
 
+function toggleGhost() {
+    ghostEnabled = !ghostEnabled;
+    try { localStorage.setItem('parkour_ghost_enabled', ghostEnabled); } catch(e) {}
+    const label = ghostEnabled ? 'GHOST: ON' : 'GHOST: OFF';
+    const btn1 = document.getElementById('btn-ghost-toggle');
+    const btn2 = document.getElementById('btn-ghost-pause');
+    if (btn1) btn1.textContent = label;
+    if (btn2) btn2.textContent = label;
+}
+
 function drawGhost() {
-    if (ghostPlayback.length === 0 || gameState !== 'playing') return;
+    if (!ghostEnabled || ghostPlayback.length === 0 || gameState !== 'playing') return;
     const idx = Math.min(ghostFrame, ghostPlayback.length - 1);
     const g = ghostPlayback[idx];
     if (!g) return;
@@ -2379,8 +2393,18 @@ document.addEventListener('keydown', (e) => {
     initAudio();
 
     if (e.code === 'KeyR' && gameState === 'playing') {
-        loadLevel(currentLevel);
-        gameState = 'playing';
+        const now = performance.now();
+        if (now - lastRPressTime < 500) {
+            // Double-tap R: restart from Level 1
+            lastRPressTime = 0;
+            deathCount = 0;
+            doScreenWipe(() => startLevel(0));
+        } else {
+            // Single R: restart current level
+            lastRPressTime = now;
+            loadLevel(currentLevel);
+            gameState = 'playing';
+        }
     }
 
     if (e.code === 'Escape') {
@@ -2388,6 +2412,8 @@ document.addEventListener('keydown', (e) => {
             gameState = 'paused';
             stopMusic();
             document.getElementById('pause-overlay').classList.remove('hidden');
+            const gpb = document.getElementById('btn-ghost-pause');
+            if (gpb) gpb.textContent = ghostEnabled ? 'GHOST: ON' : 'GHOST: OFF';
         } else if (gameState === 'paused') {
             gameState = 'playing';
             startMusic();
@@ -2491,6 +2517,10 @@ function loadBestTimes() {
     try {
         unlockedLevel = parseInt(localStorage.getItem('parkour_unlocked') || '0');
     } catch(e) { unlockedLevel = 0; }
+    try {
+        const ge = localStorage.getItem('parkour_ghost_enabled');
+        if (ge !== null) ghostEnabled = ge !== 'false';
+    } catch(e) {}
 }
 
 // ---------- SCREEN MANAGEMENT ----------
@@ -2904,6 +2934,26 @@ function initUI() {
         if (!soundEnabled) stopMusic();
         playSound('click');
     });
+
+    // Ghost trail toggle (menu)
+    const ghostBtn = document.getElementById('btn-ghost-toggle');
+    if (ghostBtn) {
+        ghostBtn.textContent = ghostEnabled ? 'GHOST: ON' : 'GHOST: OFF';
+        ghostBtn.addEventListener('click', () => {
+            toggleGhost();
+            playSound('click');
+        });
+    }
+
+    // Ghost trail toggle (pause)
+    const ghostPauseBtn = document.getElementById('btn-ghost-pause');
+    if (ghostPauseBtn) {
+        ghostPauseBtn.textContent = ghostEnabled ? 'GHOST: ON' : 'GHOST: OFF';
+        ghostPauseBtn.addEventListener('click', () => {
+            toggleGhost();
+            playSound('click');
+        });
+    }
 
     // Pause overlay
     document.getElementById('btn-resume').addEventListener('click', () => {

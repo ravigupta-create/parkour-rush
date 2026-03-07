@@ -27,6 +27,7 @@
             <div class="menu-footer">
                 <button id="btn-fullscreen" class="small-btn">FULLSCREEN</button>
                 <button id="btn-sound-toggle" class="small-btn">SOUND: ON</button>
+                <button id="btn-ghost-toggle" class="small-btn">GHOST: ON</button>
             </div>
         </div>
     </div>
@@ -44,15 +45,64 @@
     <div id="controls-screen" class="screen">
         <div class="controls-container">
             <h2>CONTROLS</h2>
-            <div class="control-list">
-                <div class="control-item"><span class="key">A / D</span> or <span class="key">&larr; / &rarr;</span> Move</div>
-                <div class="control-item"><span class="key">W</span> or <span class="key">SPACE</span> Jump / Wall Jump</div>
-                <div class="control-item"><span class="key">SHIFT</span> Dash (midair)</div>
-                <div class="control-item"><span class="key">S</span> or <span class="key">&darr;</span> Slide (while running)</div>
-                <div class="control-item"><span class="key">E</span> Climb Ledge (at edge)</div>
-                <div class="control-item"><span class="key">R</span> Restart Level</div>
-                <div class="control-item"><span class="key">ESC</span> Pause / Menu</div>
+
+            <div class="controls-sections">
+                <div class="control-section">
+                    <h3 class="section-title movement-title">MOVEMENT</h3>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">A</span><span class="key">D</span> or <span class="key">&larr;</span><span class="key">&rarr;</span></div>
+                        <div class="control-desc">Move left / right</div>
+                    </div>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">W</span> or <span class="key">SPACE</span></div>
+                        <div class="control-desc">Jump &mdash; also wall jump when touching a wall</div>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3 class="section-title advanced-title">ADVANCED MOVES</h3>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">SHIFT</span></div>
+                        <div class="control-desc">Dash &mdash; burst of speed in midair (cooldown resets on landing)</div>
+                    </div>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">S</span> or <span class="key">&darr;</span></div>
+                        <div class="control-desc">Slide &mdash; duck under low ceilings while running</div>
+                    </div>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">E</span></div>
+                        <div class="control-desc">Climb &mdash; pull yourself up a ledge while wall sliding</div>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3 class="section-title system-title">SYSTEM</h3>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">R</span></div>
+                        <div class="control-desc">Restart level &mdash; press twice quickly to go back to Level 1</div>
+                    </div>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">ESC</span></div>
+                        <div class="control-desc">Pause / resume</div>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3 class="section-title tips-title">TIPS</h3>
+                    <div class="tip-item">Wall jump between two close walls to climb up fast.</div>
+                    <div class="tip-item">Chain dash + wall jump for maximum distance.</div>
+                    <div class="tip-item">Slide into a jump to keep your momentum.</div>
+                    <div class="tip-item">Look for checkpoints (glowing flags) in later levels.</div>
+                    <div class="tip-item">Beat your ghost trail to improve your best time!</div>
+                </div>
+
+                <div class="control-section" id="mobile-controls-info">
+                    <h3 class="section-title mobile-title">MOBILE</h3>
+                    <div class="tip-item">Touch controls appear automatically on mobile devices.</div>
+                    <div class="tip-item">Use the on-screen buttons for all moves.</div>
+                </div>
             </div>
+
             <button id="btn-back-controls" class="menu-btn">BACK</button>
         </div>
     </div>
@@ -80,6 +130,9 @@
             <button id="btn-resume" class="menu-btn primary">RESUME</button>
             <button id="btn-restart" class="menu-btn">RESTART</button>
             <button id="btn-quit" class="menu-btn">QUIT</button>
+            <div class="pause-footer">
+                <button id="btn-ghost-pause" class="small-btn">GHOST: ON</button>
+            </div>
         </div>
         <div id="complete-overlay" class="overlay hidden">
             <h2>LEVEL COMPLETE!</h2>
