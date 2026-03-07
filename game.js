@@ -1846,27 +1846,41 @@ function drawPlatforms() {
         const sy = p.y - camera.y;
         if (sx + p.w < 0 || sx > canvasW || sy + p.h < 0 || sy > canvasH) continue;
 
-        ctx.fillStyle = '#2a2a4a';
+        // Main body — bright enough to see clearly
+        ctx.fillStyle = '#3d3d6b';
         ctx.fillRect(sx, sy, p.w, p.h);
-        // Top highlight
-        ctx.fillStyle = '#4a4a7a';
+        // Bright top edge — neon highlight so you can see where to land
+        ctx.fillStyle = '#6a6aff';
         ctx.fillRect(sx, sy, p.w, 3);
+        // Glowing top line
+        ctx.fillStyle = 'rgba(106, 106, 255, 0.3)';
+        ctx.fillRect(sx, sy - 2, p.w, 2);
         // Bottom shadow
-        ctx.fillStyle = '#1a1a35';
+        ctx.fillStyle = '#1e1e40';
         ctx.fillRect(sx, sy + p.h - 4, p.w, 4);
+        // Side edges
+        ctx.fillStyle = '#4e4e8a';
+        ctx.fillRect(sx, sy, 2, p.h);
+        ctx.fillRect(sx + p.w - 2, sy, 2, p.h);
         // Rivets
-        ctx.fillStyle = '#3a3a5a';
+        ctx.fillStyle = '#5555aa';
         for (let rx = TILE / 2; rx < p.w; rx += TILE) {
-            ctx.fillRect(sx + rx - 2, sy + 5, 4, 4);
-            if (p.h > TILE) ctx.fillRect(sx + rx - 2, sy + p.h - 9, 4, 4);
+            ctx.fillRect(sx + rx - 2, sy + 6, 4, 4);
+            if (p.h > TILE) ctx.fillRect(sx + rx - 2, sy + p.h - 10, 4, 4);
         }
         // Grid lines
-        ctx.strokeStyle = '#1a1a3a';
+        ctx.strokeStyle = '#2b2b55';
         ctx.lineWidth = 1;
-        for (let gx = 0; gx < p.w; gx += TILE) {
+        for (let gx = TILE; gx < p.w; gx += TILE) {
             ctx.beginPath();
             ctx.moveTo(sx + gx, sy);
             ctx.lineTo(sx + gx, sy + p.h);
+            ctx.stroke();
+        }
+        for (let gy = TILE; gy < p.h; gy += TILE) {
+            ctx.beginPath();
+            ctx.moveTo(sx, sy + gy);
+            ctx.lineTo(sx + p.w, sy + gy);
             ctx.stroke();
         }
     }
@@ -1878,19 +1892,29 @@ function drawWalls() {
         const sy = w.y - camera.y;
         if (sx + w.w < 0 || sx > canvasW || sy + w.h < 0 || sy > canvasH) continue;
 
-        ctx.fillStyle = '#2a3a2a';
-        ctx.fillRect(sx, sy, w.w, w.h);
+        // Main body — bright green-tinted
         ctx.fillStyle = '#3a5a3a';
+        ctx.fillRect(sx, sy, w.w, w.h);
+        // Bright side edges — neon green highlights
+        ctx.fillStyle = '#55cc55';
         ctx.fillRect(sx, sy, 3, w.h);
         ctx.fillRect(sx + w.w - 3, sy, 3, w.h);
+        // Glow on edges
+        ctx.fillStyle = 'rgba(85, 204, 85, 0.2)';
+        ctx.fillRect(sx - 2, sy, 2, w.h);
+        ctx.fillRect(sx + w.w, sy, 2, w.h);
+        // Top/bottom caps
+        ctx.fillStyle = '#4a7a4a';
+        ctx.fillRect(sx, sy, w.w, 2);
+        ctx.fillRect(sx, sy + w.h - 2, w.w, 2);
         // Rivets
-        ctx.fillStyle = '#3a4a3a';
+        ctx.fillStyle = '#5a8a5a';
         for (let ry = TILE / 2; ry < w.h; ry += TILE) {
-            ctx.fillRect(sx + 5, sy + ry - 2, 4, 4);
+            ctx.fillRect(sx + w.w / 2 - 2, sy + ry - 2, 4, 4);
         }
-        ctx.strokeStyle = '#1a2a1a';
+        ctx.strokeStyle = '#2a3a2a';
         ctx.lineWidth = 1;
-        for (let gy = 0; gy < w.h; gy += TILE) {
+        for (let gy = TILE; gy < w.h; gy += TILE) {
             ctx.beginPath();
             ctx.moveTo(sx, sy + gy);
             ctx.lineTo(sx + w.w, sy + gy);
@@ -1940,14 +1964,21 @@ function drawMovingPlatforms() {
             ctx.fillRect(tr.x - camera.x, tr.y - camera.y, mp.w, mp.h);
         }
 
-        ctx.fillStyle = '#4a3a6a';
+        ctx.fillStyle = '#5a4a8a';
         ctx.fillRect(sx, sy, mp.w, mp.h);
-        ctx.fillStyle = '#7a5aaa';
+        // Bright purple top edge
+        ctx.fillStyle = '#aa7aff';
         ctx.fillRect(sx, sy, mp.w, 3);
+        ctx.fillStyle = 'rgba(170, 122, 255, 0.25)';
+        ctx.fillRect(sx, sy - 2, mp.w, 2);
+        // Side edges
+        ctx.fillStyle = '#6a5a9a';
+        ctx.fillRect(sx, sy, 2, mp.h);
+        ctx.fillRect(sx + mp.w - 2, sy, 2, mp.h);
 
         // Path guide
         ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = '#4a3a6a44';
+        ctx.strokeStyle = 'rgba(170, 122, 255, 0.25)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         if (mp.dx) {
@@ -1971,13 +2002,16 @@ function drawFallingPlatforms() {
         if (sx + fp.w < 0 || sx > canvasW || sy + fp.h < 0 || sy > canvasH) continue;
 
         if (fp.triggered && fp.fallTimer < 30) {
-            ctx.fillStyle = fp.fallTimer % 6 < 3 ? '#6a3a3a' : '#4a2a2a';
+            ctx.fillStyle = fp.fallTimer % 6 < 3 ? '#8a4a3a' : '#6a3a2a';
         } else {
-            ctx.fillStyle = '#4a3a2a';
+            ctx.fillStyle = '#6a5035';
         }
         ctx.fillRect(sx, sy, fp.w, fp.h);
-        ctx.fillStyle = '#7a5a3a';
+        // Bright orange top edge
+        ctx.fillStyle = '#cc8844';
         ctx.fillRect(sx, sy, fp.w, 3);
+        ctx.fillStyle = 'rgba(204, 136, 68, 0.25)';
+        ctx.fillRect(sx, sy - 2, fp.w, 2);
 
         // Progressive crack lines
         ctx.strokeStyle = '#3a2a1a';
