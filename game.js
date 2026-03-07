@@ -577,23 +577,19 @@ function drawMenuBackground() {
 }
 
 // ---------- PARALLAX CITYSCAPE ----------
-function generateCityscape() {
-    bgLayers = [];
-    for (let layer = 0; layer < 3; layer++) {
-        const buildings = [];
-        const count = 30 + layer * 10;
-        for (let i = 0; i < count; i++) {
-            buildings.push({
-                x: i * (60 - layer * 15) + Math.random() * 20,
-                w: 20 + Math.random() * (40 - layer * 10),
-                h: 40 + Math.random() * (120 + layer * 40),
-                windows: Math.random() > 0.3
-            });
-        }
-        bgLayers.push({
-            buildings,
-            parallax: 0.05 + layer * 0.1,
-            color: `rgba(0, ${100 + layer * 50}, ${150 + layer * 40}, ${0.15 + layer * 0.05})`
+// Background stars — generated once
+let bgStars = [];
+
+function generateBackground() {
+    bgStars = [];
+    for (let i = 0; i < 120; i++) {
+        bgStars.push({
+            x: Math.random() * 3000,
+            y: Math.random() * 1200,
+            size: 0.5 + Math.random() * 1.5,
+            brightness: 0.2 + Math.random() * 0.5,
+            twinkleSpeed: 0.001 + Math.random() * 0.003,
+            parallax: 0.02 + Math.random() * 0.06
         });
     }
     bgGenerated = true;
@@ -1790,53 +1786,26 @@ function updateCamera(dt) {
 
 // ---------- RENDERING ----------
 function drawBackground() {
-    ctx.fillStyle = '#0a0a0f';
+    // Dark gradient sky — deep navy to near-black
+    const grad = ctx.createLinearGradient(0, 0, 0, canvasH);
+    grad.addColorStop(0, '#05050f');
+    grad.addColorStop(0.5, '#0a0a1a');
+    grad.addColorStop(1, '#0f0818');
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    // Parallax city
+    // Stars with parallax and twinkle
     if (bgGenerated) {
-        for (let l = 0; l < bgLayers.length; l++) {
-            const layer = bgLayers[l];
-            ctx.fillStyle = layer.color;
-            for (const b of layer.buildings) {
-                const bx = (b.x - camera.x * layer.parallax) % (canvasW + 200) - 100;
-                const by = canvasH - b.h;
-                if (bx + b.w < -10 || bx > canvasW + 10) continue;
-                ctx.fillRect(bx, by, b.w, b.h);
-                // Windows
-                if (b.windows) {
-                    const winColor = l === 0 ? 'rgba(0, 200, 255, 0.08)' :
-                                     l === 1 ? 'rgba(0, 200, 255, 0.06)' :
-                                               'rgba(0, 200, 255, 0.04)';
-                    ctx.fillStyle = winColor;
-                    for (let wy = by + 8; wy < canvasH - 8; wy += 16) {
-                        for (let wx = bx + 4; wx < bx + b.w - 4; wx += 10) {
-                            ctx.fillRect(wx, wy, 4, 6);
-                        }
-                    }
-                    ctx.fillStyle = layer.color;
-                }
-            }
+        const t = Date.now();
+        for (const s of bgStars) {
+            const sx = ((s.x - camera.x * s.parallax) % (canvasW + 200) + canvasW + 200) % (canvasW + 200) - 100;
+            const sy = ((s.y - camera.y * s.parallax * 0.5) % (canvasH + 200) + canvasH + 200) % (canvasH + 200) - 100;
+            const twinkle = s.brightness * (0.6 + 0.4 * Math.sin(t * s.twinkleSpeed));
+            ctx.globalAlpha = twinkle;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(sx, sy, s.size, s.size);
         }
-    }
-
-    // Subtle grid
-    ctx.strokeStyle = '#151525';
-    ctx.lineWidth = 1;
-    const gridSize = 64;
-    const offsetX = (-camera.x * 0.3) % gridSize;
-    const offsetY = (-camera.y * 0.3) % gridSize;
-    for (let x = offsetX; x < canvasW; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvasH);
-        ctx.stroke();
-    }
-    for (let y = offsetY; y < canvasH; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvasW, y);
-        ctx.stroke();
+        ctx.globalAlpha = 1;
     }
 }
 
@@ -3133,7 +3102,7 @@ function init() {
     handleResize();
 
     loadBestTimes();
-    generateCityscape();
+    generateBackground();
     initMenuParticles();
     initAmbientParticles();
     initUI();
