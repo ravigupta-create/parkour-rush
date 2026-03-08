@@ -11,25 +11,31 @@
     <canvas id="menuBgCanvas"></canvas>
 
     <!-- Screen Wipe Overlay -->
-    <div id="screen-wipe"></div>
+    <div id="screen-wipe">
+        <div id="wipe-label" class="wipe-label"></div>
+    </div>
 
     <!-- Main Menu -->
     <div id="menu-screen" class="screen active">
         <div class="menu-container">
-            <h1 class="game-title">PARKOUR<span>RUSH</span></h1>
+            <h1 class="game-title" id="animated-title">PARKOUR<span>RUSH</span></h1>
             <p class="subtitle">Speed. Flow. Precision.</p>
             <div id="menu-stars" class="menu-stars"></div>
             <div class="menu-buttons">
                 <button id="btn-play" class="menu-btn primary">PLAY</button>
                 <button id="btn-levels" class="menu-btn">LEVEL SELECT</button>
+                <button id="btn-daily" class="menu-btn">DAILY</button>
+                <button id="btn-endless" class="menu-btn">ENDLESS</button>
                 <button id="btn-best-runs" class="menu-btn">BEST RUNS</button>
                 <button id="btn-stats" class="menu-btn">STATS</button>
+                <button id="btn-achievements" class="menu-btn">ACHIEVEMENTS</button>
+                <button id="btn-skins" class="menu-btn">SKINS</button>
                 <button id="btn-editor" class="menu-btn">LEVEL EDITOR</button>
                 <button id="btn-controls" class="menu-btn">CONTROLS</button>
             </div>
             <div class="menu-footer">
                 <button id="btn-fullscreen" class="small-btn">FULLSCREEN</button>
-                <button id="btn-sound-toggle" class="small-btn">SOUND: ON</button>
+                <button id="btn-settings" class="small-btn">SETTINGS</button>
                 <button id="btn-ghost-toggle" class="small-btn">GHOST: ON</button>
             </div>
             <div class="cheat-footer">
@@ -163,11 +169,13 @@
                 <div id="hud-timer">0.00s</div>
                 <div id="hud-delta"></div>
                 <div id="hud-combo"></div>
+                <div id="hud-speed" class="hud-speed"></div>
             </div>
             <div id="hud-right">
                 <div id="hud-best">Best: --</div>
                 <div id="hud-dash">DASH &#9679;</div>
                 <div id="hud-streak" style="display:none"></div>
+                <div id="hud-distance" class="hud-distance" style="display:none"></div>
             </div>
         </div>
         <div id="tutorial-hint"></div>
@@ -178,6 +186,7 @@
             <button id="btn-quit" class="menu-btn">QUIT</button>
             <div class="pause-footer">
                 <button id="btn-ghost-pause" class="small-btn">GHOST: ON</button>
+                <button id="btn-practice-toggle" class="small-btn">PRACTICE: OFF</button>
             </div>
         </div>
         <div id="complete-overlay" class="overlay hidden">
@@ -219,6 +228,57 @@
         </div>
     </div>
 
+    <!-- Achievements Screen -->
+    <div id="achievements-screen" class="screen">
+        <div class="achievements-container">
+            <h2>ACHIEVEMENTS</h2>
+            <div id="achievements-grid" class="achievements-grid"></div>
+            <button id="btn-back-achievements" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings-screen" class="screen">
+        <div class="settings-container">
+            <h2>SETTINGS</h2>
+            <div class="settings-rows">
+                <div class="settings-row">
+                    <span class="settings-label">VOLUME</span>
+                    <input type="range" id="settings-volume" class="settings-slider" min="0" max="100" value="100">
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">PARTICLES</span>
+                    <button id="settings-particles" class="small-btn">HIGH</button>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">SCREEN SHAKE</span>
+                    <button id="settings-shake" class="small-btn">ON</button>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">MINIMAP</span>
+                    <button id="settings-minimap" class="small-btn">ON</button>
+                </div>
+            </div>
+            <div class="settings-actions">
+                <button id="btn-export-save" class="menu-btn">EXPORT SAVE</button>
+                <button id="btn-import-save" class="menu-btn">IMPORT SAVE</button>
+                <input type="file" id="import-file" accept=".json" style="display:none">
+                <button id="btn-reset-progress" class="menu-btn" style="border-color:#ff4444;color:#ff4444">RESET ALL PROGRESS</button>
+            </div>
+            <button id="btn-back-settings" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Skins Screen -->
+    <div id="skins-screen" class="screen">
+        <div class="skins-container">
+            <h2>SKINS</h2>
+            <div id="orb-count" class="orb-count">Orbs: 0</div>
+            <div id="skins-grid" class="skins-grid"></div>
+            <button id="btn-back-skins" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
     <!-- Touch Controls -->
     <div id="touch-controls">
         <div id="touch-left-group">
@@ -257,6 +317,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Achievement Popup -->
+    <div id="achievement-popup" class="achievement-popup hidden"></div>
 
     <script src="game.js"></script>
 </body>

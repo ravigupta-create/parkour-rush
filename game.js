@@ -432,6 +432,77 @@ let totalCompletions = 0;
 let fpsHistory = [];
 let lowFpsMode = false;
 
+// --- New Systems State (v3.0) ---
+let footstepDist = 0;
+let wallSlideNode = null;
+let wallSlideGainNode = null;
+let isWallSlideSounding = false;
+let windNode = null;
+let windGainNode = null;
+let windFilterNode = null;
+let deathAnim = { active: false, pieces: [], frame: 0 };
+let confetti = [];
+let confettiTimer = 0;
+let weatherParticles = [];
+let scarfTrail = [];
+let deathZoom = 0;
+let deathReplayBuffer = [];
+let deathReplayActive = false;
+let deathReplayFrame = 0;
+let cameraZoom = 1;
+let practiceMode = false;
+let endlessMode = false;
+let endlessDistance = 0;
+let endlessBest = 0;
+let endlessSegments = [];
+let endlessLastX = 0;
+let musicBeatCount = 0;
+let masterGainNode = null;
+let gameSettings = { volume: 100, particles: true, shake: true, minimap: true };
+// Achievements
+const ACHIEVEMENTS = [
+    { id: 'first_clear', name: 'First Steps', desc: 'Complete any level', icon: '1' },
+    { id: 'all_clear', name: 'Completionist', desc: 'Complete all 15 levels', icon: 'A' },
+    { id: 'gold_run', name: 'Gold Standard', desc: 'Get a gold grade', icon: 'G' },
+    { id: 'all_gold', name: 'Perfect Runner', desc: 'Gold on every level', icon: '*' },
+    { id: 'no_death', name: 'Deathless', desc: 'Complete a level with 0 deaths', icon: '0' },
+    { id: 'speed_demon', name: 'Speed Demon', desc: 'Beat gold time by 2+ seconds', icon: 'S' },
+    { id: 'combo_5', name: 'Combo Starter', desc: 'Reach a 5x combo', icon: '5' },
+    { id: 'combo_10', name: 'Combo Master', desc: 'Reach a 10x combo', icon: 'X' },
+    { id: 'streak_3', name: 'On a Roll', desc: '3 deathless levels in a row', icon: '3' },
+    { id: 'streak_5', name: 'Unstoppable', desc: '5 deathless levels in a row', icon: '!' },
+    { id: 'deaths_100', name: 'Persistent', desc: 'Die 100 times total', icon: 'D' },
+    { id: 'wall_master', name: 'Wall Master', desc: '50 wall jumps total', icon: 'W' },
+    { id: 'dash_master', name: 'Dash Master', desc: '50 dashes total', icon: '-' },
+    { id: 'collector', name: 'Collector', desc: 'Collect 50 orbs', icon: 'O' },
+    { id: 'daily_first', name: 'Daily Runner', desc: 'Complete a daily challenge', icon: 'C' },
+    { id: 'hard_clear', name: 'Firewalker', desc: 'Complete a level on hard', icon: 'F' },
+    { id: 'extreme_clear', name: 'Extremist', desc: 'Complete a level on extreme', icon: 'E' },
+    { id: 'editor_test', name: 'Creator', desc: 'Test a custom level', icon: 'T' },
+    { id: 'all_skins', name: 'Fashionista', desc: 'Unlock all skins', icon: 'K' },
+    { id: 'time_1h', name: 'Dedicated', desc: 'Play for 1 hour total', icon: 'H' }
+];
+let unlockedAchievements = {};
+let achievementPopup = null;
+let achievementPopupTimer = 0;
+// Skins
+const SKINS = [
+    { id: 'default', name: 'Default', cost: 0, body: null, head: null, arms: null, legs: null },
+    { id: 'neon_green', name: 'Neon Green', cost: 10, body: '#00ff66', head: '#33ff88', arms: '#00dd44', legs: '#00bb33' },
+    { id: 'sunset', name: 'Sunset', cost: 15, body: '#ff6633', head: '#ff8855', arms: '#ee5522', legs: '#dd4411' },
+    { id: 'ice', name: 'Ice', cost: 20, body: '#88ddff', head: '#aaeeff', arms: '#66ccee', legs: '#44bbdd' },
+    { id: 'gold_skin', name: 'Gold', cost: 30, body: '#ffd700', head: '#ffee44', arms: '#ddbb00', legs: '#ccaa00' },
+    { id: 'shadow', name: 'Shadow', cost: 40, body: '#333344', head: '#444455', arms: '#222233', legs: '#111122' },
+    { id: 'bubblegum', name: 'Bubblegum', cost: 50, body: '#ff66aa', head: '#ff88cc', arms: '#ff4488', legs: '#ee3377' },
+    { id: 'rainbow', name: 'Rainbow', cost: 100, body: 'rainbow', head: 'rainbow', arms: 'rainbow', legs: 'rainbow' }
+];
+let currentSkin = 'default';
+let unlockedSkins = ['default'];
+let totalOrbs = 0;
+let orbs = [];
+let totalWallJumps = 0;
+let totalDashes = 0;
+
 // Editor state
 let editorTool = 'platform';
 let editorCamera = { x: 0, y: 0 };
@@ -446,10 +517,17 @@ let audioCtx = null;
 function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGainNode = audioCtx.createGain();
+        masterGainNode.gain.value = gameSettings.volume / 100;
+        masterGainNode.connect(audioCtx['destination']);
     }
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
+}
+
+function audioDest() {
+    return masterGainNode || audioCtx.destination;
 }
 
 function playSound(type) {
@@ -464,8 +542,8 @@ function playSound(type) {
                 const gain = audioCtx.createGain();
                 const osc2 = audioCtx.createOscillator();
                 const gain2 = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                osc2.connect(gain2); gain2.connect(audioCtx.destination);
+                osc.connect(gain); gain.connect(audioDest());
+                osc2.connect(gain2); gain2.connect(audioDest());
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(300 * pitchVar, now);
                 osc.frequency.exponentialRampToValueAtTime(600 * pitchVar, now + 0.1);
@@ -485,8 +563,8 @@ function playSound(type) {
                 const gain = audioCtx.createGain();
                 const osc2 = audioCtx.createOscillator();
                 const gain2 = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                osc2.connect(gain2); gain2.connect(audioCtx.destination);
+                osc.connect(gain); gain.connect(audioDest());
+                osc2.connect(gain2); gain2.connect(audioDest());
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(200 * pitchVar, now);
                 osc.frequency.exponentialRampToValueAtTime(800 * pitchVar, now + 0.12);
@@ -506,8 +584,8 @@ function playSound(type) {
                 const gain = audioCtx.createGain();
                 const osc2 = audioCtx.createOscillator();
                 const gain2 = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                osc2.connect(gain2); gain2.connect(audioCtx.destination);
+                osc.connect(gain); gain.connect(audioDest());
+                osc2.connect(gain2); gain2.connect(audioDest());
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(400 * pitchVar, now);
                 osc.frequency.exponentialRampToValueAtTime(800 * pitchVar, now + 0.08);
@@ -526,7 +604,7 @@ function playSound(type) {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 const filter = audioCtx.createBiquadFilter();
-                osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+                osc.connect(filter); filter.connect(gain); gain.connect(audioDest());
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(100 * pitchVar, now);
                 osc.frequency.linearRampToValueAtTime(60 * pitchVar, now + 0.2);
@@ -543,8 +621,8 @@ function playSound(type) {
                 const gain = audioCtx.createGain();
                 const osc2 = audioCtx.createOscillator();
                 const gain2 = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                osc2.connect(gain2); gain2.connect(audioCtx.destination);
+                osc.connect(gain); gain.connect(audioDest());
+                osc2.connect(gain2); gain2.connect(audioDest());
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(400 * pitchVar, now);
                 osc.frequency.exponentialRampToValueAtTime(1200 * pitchVar, now + 0.15);
@@ -563,7 +641,7 @@ function playSound(type) {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 const filter = audioCtx.createBiquadFilter();
-                osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+                osc.connect(filter); filter.connect(gain); gain.connect(audioDest());
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(300 * pitchVar, now);
                 osc.frequency.exponentialRampToValueAtTime(50, now + 0.4);
@@ -582,8 +660,8 @@ function playSound(type) {
                     const g = audioCtx.createGain();
                     const o2 = audioCtx.createOscillator();
                     const g2 = audioCtx.createGain();
-                    o.connect(g); g.connect(audioCtx.destination);
-                    o2.connect(g2); g2.connect(audioCtx.destination);
+                    o.connect(g); g.connect(audioDest());
+                    o2.connect(g2); g2.connect(audioDest());
                     const t = now + i * 0.15;
                     o.type = 'sine';
                     o.frequency.setValueAtTime(notes[i] * pitchVar, t);
@@ -601,7 +679,7 @@ function playSound(type) {
             case 'click': {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.connect(gain); gain.connect(audioDest());
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(800 * pitchVar, now);
                 osc.frequency.exponentialRampToValueAtTime(600 * pitchVar, now + 0.05);
@@ -615,7 +693,7 @@ function playSound(type) {
                 for (let i = 0; i < 4; i++) {
                     const o = audioCtx.createOscillator();
                     const g = audioCtx.createGain();
-                    o.connect(g); g.connect(audioCtx.destination);
+                    o.connect(g); g.connect(audioDest());
                     const t = now + i * 0.1;
                     o.type = 'sine';
                     o.frequency.setValueAtTime(notes[i] * pitchVar, t);
@@ -625,18 +703,132 @@ function playSound(type) {
                 }
                 break;
             }
+            case 'footstep': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                osc.connect(filter); filter.connect(gain); gain.connect(audioDest());
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime((60 + Math.random() * 40) * pitchVar, now);
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(300, now);
+                gain.gain.setValueAtTime(0.025, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                osc.start(now); osc.stop(now + 0.06);
+                break;
+            }
+            case 'land': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                osc.connect(filter); filter.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(80 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.04, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.start(now); osc.stop(now + 0.12);
+                break;
+            }
+            case 'orb': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(1320 * pitchVar, now + 0.1);
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+                break;
+            }
         }
     } catch (e) {
         // Audio errors are non-critical
     }
 }
 
+// ---------- WALL-SLIDE SOUND ----------
+function startWallSlideSound() {
+    if (isWallSlideSounding || !soundEnabled || !audioCtx) return;
+    try {
+        isWallSlideSounding = true;
+        const bufSize = audioCtx.sampleRate * 2;
+        const buffer = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+        wallSlideNode = audioCtx.createBufferSource();
+        wallSlideNode.buffer = buffer;
+        wallSlideNode.loop = true;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1500, audioCtx.currentTime);
+        filter.Q.setValueAtTime(2, audioCtx.currentTime);
+        wallSlideGainNode = audioCtx.createGain();
+        wallSlideGainNode.gain.setValueAtTime(0.015, audioCtx.currentTime);
+        wallSlideNode.connect(filter);
+        filter.connect(wallSlideGainNode);
+        wallSlideGainNode.connect(audioDest());
+        wallSlideNode.start();
+    } catch(e) {}
+}
+
+function stopWallSlideSound() {
+    if (!isWallSlideSounding) return;
+    isWallSlideSounding = false;
+    try {
+        if (wallSlideNode) { wallSlideNode.stop(); wallSlideNode = null; }
+        wallSlideGainNode = null;
+    } catch(e) {}
+}
+
+// ---------- AMBIENT WIND ----------
+function startWind() {
+    if (windNode || !soundEnabled || !audioCtx) return;
+    try {
+        const bufSize = audioCtx.sampleRate * 2;
+        const buffer = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+        windNode = audioCtx.createBufferSource();
+        windNode.buffer = buffer;
+        windNode.loop = true;
+        windFilterNode = audioCtx.createBiquadFilter();
+        windFilterNode.type = 'lowpass';
+        windFilterNode.frequency.setValueAtTime(400, audioCtx.currentTime);
+        windGainNode = audioCtx.createGain();
+        windGainNode.gain.setValueAtTime(0.008, audioCtx.currentTime);
+        windNode.connect(windFilterNode);
+        windFilterNode.connect(windGainNode);
+        windGainNode.connect(audioDest());
+        windNode.start();
+    } catch(e) {}
+}
+
+function stopWind() {
+    try {
+        if (windNode) { windNode.stop(); windNode = null; }
+        windGainNode = null;
+        windFilterNode = null;
+    } catch(e) {}
+}
+
 // ---------- BACKGROUND MUSIC ----------
+function getThemeMusicNotes() {
+    if (difficulty === 'hard') return { bass: [46, 55, 61, 69], melody: [174, 207, 233, 261, 311], pad: [110, 138, 165] };
+    if (difficulty === 'extreme') return { bass: [41, 49, 55, 61], melody: [165, 196, 220, 247, 294], pad: [98, 123, 147] };
+    return { bass: [55, 65, 73, 82], melody: [196, 220, 247, 294, 330], pad: [130, 164, 196] };
+}
+
 function startMusic() {
     if (musicPlaying || !soundEnabled || !audioCtx) return;
     musicPlaying = true;
+    musicBeatCount = 0;
     try {
-        const bassNotes = [55, 65, 73, 82];
+        const tmNotes = getThemeMusicNotes();
+        const bassNotes = tmNotes.bass;
         let noteIndex = 0;
         const bpm = 120;
         const beatTime = 60 / bpm;
@@ -647,7 +839,7 @@ function startMusic() {
             try {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.connect(gain); gain.connect(audioDest());
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(bassNotes[noteIndex % bassNotes.length], audioCtx.currentTime);
                 gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
@@ -665,7 +857,7 @@ function startMusic() {
             try {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.connect(gain); gain.connect(audioDest());
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(150, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.1);
@@ -677,16 +869,38 @@ function startMusic() {
             } catch(e) {}
         }
 
+        // Melody lead line
+        function playMelody() {
+            if (!musicPlaying || !audioCtx) return;
+            try {
+                const melNotes = tmNotes.melody;
+                const note = melNotes[Math.floor(Math.random() * melNotes.length)];
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                osc.connect(filter); filter.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(note, audioCtx.currentTime);
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + beatTime * 0.7);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + beatTime * 0.7);
+                musicNodes.push({ osc, gain });
+            } catch(e) {}
+        }
+
         // Pad chord
         function playPad() {
             if (!musicPlaying || !audioCtx) return;
             try {
-                const freqs = [130, 164, 196];
+                const freqs = tmNotes.pad;
                 for (const f of freqs) {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     const filter = audioCtx.createBiquadFilter();
-                    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+                    osc.connect(filter); filter.connect(gain); gain.connect(audioDest());
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(f, audioCtx.currentTime);
                     filter.type = 'lowpass';
@@ -719,21 +933,21 @@ function startMusic() {
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
                 source.connect(filter);
                 filter.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(audioDest());
                 source.start(audioCtx.currentTime);
                 source.stop(audioCtx.currentTime + 0.05);
                 musicNodes.push({ osc: source, gain });
             } catch(e) {}
         }
 
-        let beatCount = 0;
         musicInterval = setInterval(() => {
             if (!musicPlaying) { clearInterval(musicInterval); return; }
             playBassNote();
             playKick();
             playHihat();
-            if (beatCount % 4 === 0) playPad();
-            beatCount++;
+            if (musicBeatCount % 4 === 0) playPad();
+            if (musicBeatCount % 2 === 1) playMelody();
+            musicBeatCount++;
         }, beatTime * 1000);
     } catch (e) {}
 }
@@ -745,6 +959,8 @@ function stopMusic() {
         try { node.osc.stop(); } catch(e) {}
     }
     musicNodes = [];
+    stopWallSlideSound();
+    stopWind();
 }
 
 // ---------- PARTICLE SYSTEM (Object Pool) ----------
@@ -902,6 +1118,705 @@ function drawMenuBackground() {
     mctx.globalAlpha = 1;
 }
 
+// ---------- WEATHER EFFECTS ----------
+function initWeather() {
+    weatherParticles = [];
+    const count = lowFpsMode ? 20 : 60;
+    for (let i = 0; i < count; i++) {
+        weatherParticles.push({
+            x: Math.random() * canvasW,
+            y: Math.random() * canvasH,
+            vx: 0, vy: 0,
+            size: 1 + Math.random() * 2,
+            alpha: 0.2 + Math.random() * 0.4
+        });
+    }
+}
+
+function updateWeather(dt) {
+    for (const p of weatherParticles) {
+        if (difficulty === 'easy') {
+            // Gentle floating blue motes (upward)
+            p.vy = -0.5 - Math.random() * 0.3;
+            p.vx = Math.sin(Date.now() * 0.001 + p.x * 0.01) * 0.5;
+        } else if (difficulty === 'medium') {
+            // Rain streaks (fast downward)
+            p.vy = 4 + Math.random() * 2;
+            p.vx = -0.5;
+        } else if (difficulty === 'hard') {
+            // Fire embers (upward, orange)
+            p.vy = -1 - Math.random() * 1.5;
+            p.vx = Math.sin(Date.now() * 0.002 + p.y * 0.02) * 0.8;
+        } else {
+            // Blood drips (downward, red)
+            p.vy = 1.5 + Math.random() * 1;
+            p.vx = Math.sin(Date.now() * 0.001 + p.x * 0.005) * 0.3;
+        }
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if (p.y < -10) p.y = canvasH + 10;
+        if (p.y > canvasH + 10) p.y = -10;
+        if (p.x < -10) p.x = canvasW + 10;
+        if (p.x > canvasW + 10) p.x = -10;
+    }
+}
+
+function drawWeather() {
+    for (const p of weatherParticles) {
+        ctx.globalAlpha = p.alpha;
+        if (difficulty === 'easy') {
+            ctx.fillStyle = '#88ccff';
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        } else if (difficulty === 'medium') {
+            ctx.strokeStyle = '#aabbdd';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - 1, p.y + 8); ctx.stroke();
+        } else if (difficulty === 'hard') {
+            ctx.fillStyle = Math.random() > 0.5 ? '#ff8833' : '#ffcc44';
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+        } else {
+            ctx.fillStyle = '#cc2222';
+            ctx.fillRect(p.x, p.y, 1.5, p.size + 2);
+        }
+    }
+    ctx.globalAlpha = 1;
+}
+
+// ---------- CONFETTI SYSTEM ----------
+function spawnConfetti() {
+    confetti = [];
+    for (let i = 0; i < 80; i++) {
+        confetti.push({
+            x: Math.random() * canvasW,
+            y: -Math.random() * canvasH,
+            vx: (Math.random() - 0.5) * 3,
+            vy: 1 + Math.random() * 3,
+            w: 4 + Math.random() * 6,
+            h: 2 + Math.random() * 4,
+            rot: Math.random() * Math.PI * 2,
+            rotV: (Math.random() - 0.5) * 0.2,
+            color: ['#00e5ff', '#ff4081', '#ffd700', '#4caf50', '#cc99ff'][Math.floor(Math.random() * 5)]
+        });
+    }
+    confettiTimer = 180; // 3 seconds at 60fps
+}
+
+function updateConfetti(dt) {
+    if (confettiTimer <= 0) return;
+    confettiTimer -= dt;
+    for (const c of confetti) {
+        c.x += c.vx * dt;
+        c.y += c.vy * dt;
+        c.vy += 0.02 * dt;
+        c.vx += (Math.random() - 0.5) * 0.1;
+        c.rot += c.rotV * dt;
+        if (c.y > canvasH + 20) { c.y = -20; c.x = Math.random() * canvasW; }
+    }
+}
+
+function drawConfetti() {
+    if (confettiTimer <= 0) return;
+    const alpha = Math.min(1, confettiTimer / 30);
+    for (const c of confetti) {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.rot);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = c.color;
+        ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+        ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+}
+
+// ---------- DEATH ANIMATION ----------
+function startDeathAnim(px, py) {
+    deathAnim.active = true;
+    deathAnim.frame = 0;
+    const th = getTheme();
+    const skinColors = getSkinColors(th);
+    deathAnim.pieces = [
+        { x: px, y: py - 24, vx: -2 + Math.random() * 4, vy: -4 - Math.random() * 3, w: 8, h: 8, rot: 0, rv: 0.2, color: skinColors.head },
+        { x: px, y: py - 14, vx: -1 + Math.random() * 2, vy: -3 - Math.random() * 2, w: 12, h: 10, rot: 0, rv: -0.15, color: skinColors.body },
+        { x: px - 6, y: py - 14, vx: -3 - Math.random() * 2, vy: -2 - Math.random() * 2, w: 4, h: 8, rot: 0, rv: 0.3, color: skinColors.arms },
+        { x: px + 6, y: py - 14, vx: 3 + Math.random() * 2, vy: -2 - Math.random() * 2, w: 4, h: 8, rot: 0, rv: -0.3, color: skinColors.arms },
+        { x: px - 3, y: py - 4, vx: -2 - Math.random(), vy: -1 - Math.random() * 2, w: 4, h: 10, rot: 0, rv: 0.25, color: skinColors.legs },
+        { x: px + 3, y: py - 4, vx: 2 + Math.random(), vy: -1 - Math.random() * 2, w: 4, h: 10, rot: 0, rv: -0.25, color: skinColors.legs }
+    ];
+}
+
+function updateDeathAnim(dt) {
+    if (!deathAnim.active) return;
+    deathAnim.frame += dt;
+    if (deathAnim.frame > 24) { deathAnim.active = false; return; }
+    for (const p of deathAnim.pieces) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 0.3 * dt;
+        p.rot += p.rv * dt;
+    }
+}
+
+function drawDeathAnim() {
+    if (!deathAnim.active) return;
+    const alpha = Math.max(0, 1 - deathAnim.frame / 24);
+    for (const p of deathAnim.pieces) {
+        ctx.save();
+        ctx.translate(p.x - camera.x, p.y - camera.y);
+        ctx.rotate(p.rot);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+}
+
+// ---------- SCARF / CAPE TRAIL ----------
+function updateScarfTrail() {
+    if (gameState !== 'playing') return;
+    const neckX = player.x + player.w / 2 - player.facing * 3;
+    const neckY = player.y + 4;
+    scarfTrail.unshift({ x: neckX, y: neckY });
+    if (scarfTrail.length > 8) scarfTrail.pop();
+}
+
+function drawScarfTrail() {
+    if (scarfTrail.length < 2) return;
+    for (let i = 1; i < scarfTrail.length; i++) {
+        const alpha = (1 - i / scarfTrail.length) * 0.6;
+        ctx.strokeStyle = '#ff4081';
+        ctx.lineWidth = 3 - i * 0.3;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.moveTo(scarfTrail[i - 1].x - camera.x, scarfTrail[i - 1].y - camera.y);
+        ctx.lineTo(scarfTrail[i].x - camera.x, scarfTrail[i].y - camera.y);
+        ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+}
+
+// ---------- PLAYER GLOW / AURA ----------
+function drawPlayerGlow() {
+    if (gameState !== 'playing' && gameState !== 'dead') return;
+    const th = getTheme();
+    const skinColors = getSkinColors(th);
+    const pulse = Math.sin(Date.now() * 0.004) * 0.08 + 0.12;
+    const sx = player.x - camera.x;
+    const sy = player.y - camera.y;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = skinColors.body;
+    ctx.fillRect(sx - 4, sy - 4, player.w + 8, player.h + 8);
+    ctx.globalAlpha = pulse * 0.5;
+    ctx.fillRect(sx - 8, sy - 8, player.w + 16, player.h + 16);
+    ctx.globalAlpha = 1;
+}
+
+// ---------- SKIN COLOR HELPER ----------
+function getSkinColors(theme) {
+    const skin = SKINS.find(s => s.id === currentSkin);
+    if (!skin || skin.id === 'default' || !skin.body) return {
+        body: theme.playerBody, head: theme.playerHead, arms: theme.playerArms, legs: theme.playerLegs
+    };
+    if (skin.body === 'rainbow') {
+        const t = Date.now() * 0.003;
+        const r = Math.floor(Math.sin(t) * 127 + 128);
+        const g = Math.floor(Math.sin(t + 2) * 127 + 128);
+        const b = Math.floor(Math.sin(t + 4) * 127 + 128);
+        const c = '#' + r.toString(16).padStart(2,'0') + g.toString(16).padStart(2,'0') + b.toString(16).padStart(2,'0');
+        return { body: c, head: c, arms: c, legs: c };
+    }
+    return { body: skin.body, head: skin.head, arms: skin.arms, legs: skin.legs };
+}
+
+// ---------- MINIMAP ----------
+function drawMinimap() {
+    if (!gameSettings.minimap || !goalZone) return;
+    const mw = 120, mh = 40;
+    const mx = canvasW - mw - 10;
+    const my = canvasH - mh - 10;
+    // Calculate level bounds
+    let minX = spawnPoint.x, maxX = goalZone.x + goalZone.w;
+    let minY = 0, maxY = WORLD_H * TILE;
+    const scaleX = mw / (maxX - minX);
+    const scaleY = mh / (maxY - minY);
+    const scale = Math.min(scaleX, scaleY);
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(mx, my, mw, mh);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(mx, my, mw, mh);
+    // Platforms
+    ctx.fillStyle = '#666';
+    for (const p of platforms) {
+        const px = mx + (p.x - minX) * scale;
+        const py = my + (p.y - minY) * scale;
+        ctx.fillRect(px, py, Math.max(1, p.w * scale), Math.max(1, p.h * scale));
+    }
+    // Goal
+    ctx.fillStyle = '#00e5ff';
+    const gx = mx + (goalZone.x - minX) * scale;
+    const gy = my + (goalZone.y - minY) * scale;
+    ctx.fillRect(gx, gy, 3, 3);
+    // Player
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = '#ff4081';
+    const ppx = mx + (player.x - minX) * scale;
+    const ppy = my + (player.y - minY) * scale;
+    ctx.fillRect(ppx - 1, ppy - 1, 3, 3);
+    ctx.globalAlpha = 1;
+}
+
+// ---------- PROGRESS BAR ----------
+function drawProgressBar() {
+    if (!goalZone || endlessMode) return;
+    const barW = canvasW * 0.6;
+    const barH = 3;
+    const barX = (canvasW - barW) / 2;
+    const barY = canvasH - 8;
+    const progress = Math.max(0, Math.min(1, player.x / goalZone.x));
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#00e5ff';
+    ctx.fillRect(barX, barY, barW * progress, barH);
+    ctx.globalAlpha = 1;
+}
+
+// ---------- POST-PROCESSING ----------
+function drawPostProcessing() {
+    // Per-theme color overlay
+    let overlayColor;
+    if (difficulty === 'easy') overlayColor = 'rgba(50, 100, 200, 0.03)';
+    else if (difficulty === 'medium') overlayColor = 'rgba(100, 50, 200, 0.03)';
+    else if (difficulty === 'hard') overlayColor = 'rgba(200, 100, 50, 0.04)';
+    else overlayColor = 'rgba(200, 30, 30, 0.05)';
+    ctx.fillStyle = overlayColor;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+    // Fake bloom around player
+    if (gameState === 'playing' || gameState === 'dead') {
+        const px = player.x - camera.x + player.w / 2;
+        const py = player.y - camera.y + player.h / 2;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.04;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(px, py, 40, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+// ---------- ORB SYSTEM ----------
+function orbHelper(tx, ty) {
+    return { x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, r: 8, collected: false, bobPhase: Math.random() * Math.PI * 2 };
+}
+
+function drawOrbs() {
+    for (const o of orbs) {
+        if (o.collected) continue;
+        const sx = o.x - camera.x;
+        const sy = o.y - camera.y + Math.sin(Date.now() * 0.004 + o.bobPhase) * 4;
+        if (sx < -20 || sx > canvasW + 20) continue;
+        // Glow
+        ctx.globalAlpha = 0.2 + Math.sin(Date.now() * 0.005 + o.bobPhase) * 0.1;
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath(); ctx.arc(sx, sy, 14, 0, Math.PI * 2); ctx.fill();
+        // Body
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath(); ctx.arc(sx, sy, o.r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(sx - 2, sy - 2, 3, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+}
+
+function checkOrbCollision() {
+    for (const o of orbs) {
+        if (o.collected) continue;
+        const dx = (player.x + player.w / 2) - o.x;
+        const dy = (player.y + player.h / 2) - o.y;
+        if (Math.sqrt(dx * dx + dy * dy) < o.r + 12) {
+            o.collected = true;
+            totalOrbs++;
+            try { localStorage.setItem('parkour_total_orbs', totalOrbs); } catch(e) {}
+            playSound('orb');
+            spawnParticles(o.x, o.y, 8, '#ffd700', 3, 1);
+            spawnFloatingText('+1', o.x, o.y - 15, '#ffd700', 16);
+            triggerCombo();
+            checkAchievements();
+        }
+    }
+}
+
+// ---------- ACHIEVEMENTS SYSTEM ----------
+function loadAchievements() {
+    try {
+        const saved = localStorage.getItem('parkour_achievements');
+        if (saved) unlockedAchievements = JSON.parse(saved);
+    } catch(e) { unlockedAchievements = {}; }
+    try { totalOrbs = parseInt(localStorage.getItem('parkour_total_orbs') || '0'); } catch(e) {}
+    try { totalWallJumps = parseInt(localStorage.getItem('parkour_wall_jumps') || '0'); } catch(e) {}
+    try { totalDashes = parseInt(localStorage.getItem('parkour_dashes') || '0'); } catch(e) {}
+    try {
+        const sk = localStorage.getItem('parkour_unlocked_skins');
+        if (sk) unlockedSkins = JSON.parse(sk);
+    } catch(e) {}
+    try {
+        const cs = localStorage.getItem('parkour_skin');
+        if (cs) currentSkin = cs;
+    } catch(e) {}
+    try {
+        const gs = localStorage.getItem('parkour_settings');
+        if (gs) gameSettings = { ...gameSettings, ...JSON.parse(gs) };
+    } catch(e) {}
+}
+
+function unlockAchievement(id) {
+    if (unlockedAchievements[id]) return;
+    unlockedAchievements[id] = true;
+    try { localStorage.setItem('parkour_achievements', JSON.stringify(unlockedAchievements)); } catch(e) {}
+    const ach = ACHIEVEMENTS.find(a => a.id === id);
+    if (!ach) return;
+    // Show popup
+    const el = document.getElementById('achievement-popup');
+    if (el) {
+        el.textContent = '[' + ach.icon + '] ' + ach.name;
+        el.classList.remove('hidden', 'fading');
+        achievementPopupTimer = 180; // 3 seconds
+    }
+    playSound('checkpoint');
+}
+
+function checkAchievements() {
+    // First clear
+    if (totalCompletions > 0) unlockAchievement('first_clear');
+    // All clear
+    let allDone = true;
+    for (let i = 0; i < LEVELS.length; i++) { if (!bestTimes[i]) { allDone = false; break; } }
+    if (allDone) unlockAchievement('all_clear');
+    // Gold
+    for (let i = 0; i < LEVELS.length; i++) { if (bestGrades[i] === 'gold') { unlockAchievement('gold_run'); break; } }
+    // All gold
+    let allGold = true;
+    for (let i = 0; i < LEVELS.length; i++) { if (bestGrades[i] !== 'gold') { allGold = false; break; } }
+    if (allGold && LEVELS.length > 0) unlockAchievement('all_gold');
+    // No death
+    if (gameState === 'complete' && deathCount === 0) unlockAchievement('no_death');
+    // Speed demon
+    if (gameState === 'complete' && currentLevel >= 0 && currentLevel < GRADE_THRESHOLDS.length) {
+        if (levelTimer <= GRADE_THRESHOLDS[currentLevel].gold - 2) unlockAchievement('speed_demon');
+    }
+    // Combo
+    if (comboCount >= 5) unlockAchievement('combo_5');
+    if (comboCount >= 10) unlockAchievement('combo_10');
+    // Streak
+    if (currentStreak >= 3) unlockAchievement('streak_3');
+    if (currentStreak >= 5) unlockAchievement('streak_5');
+    // Deaths
+    if (totalDeaths >= 100) unlockAchievement('deaths_100');
+    // Wall jumps / dashes
+    if (totalWallJumps >= 50) unlockAchievement('wall_master');
+    if (totalDashes >= 50) unlockAchievement('dash_master');
+    // Collector
+    if (totalOrbs >= 50) unlockAchievement('collector');
+    // Difficulty clears
+    if (difficulty === 'hard' && gameState === 'complete') unlockAchievement('hard_clear');
+    if (difficulty === 'extreme' && gameState === 'complete') unlockAchievement('extreme_clear');
+    // Time
+    if (totalTimePlayed >= 3600) unlockAchievement('time_1h');
+    // All skins
+    if (unlockedSkins.length >= SKINS.length) unlockAchievement('all_skins');
+}
+
+function populateAchievements() {
+    const grid = document.getElementById('achievements-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (const ach of ACHIEVEMENTS) {
+        const card = document.createElement('div');
+        const isUnlocked = unlockedAchievements[ach.id];
+        card.className = 'achievement-card ' + (isUnlocked ? 'unlocked' : 'locked');
+        card.innerHTML =
+            '<div class="achievement-icon">' + ach.icon + '</div>' +
+            '<div class="achievement-info">' +
+            '<div class="achievement-name">' + ach.name + '</div>' +
+            '<div class="achievement-desc">' + ach.desc + '</div>' +
+            '</div>';
+        grid.appendChild(card);
+    }
+}
+
+// ---------- SKINS SYSTEM ----------
+function populateSkins() {
+    const grid = document.getElementById('skins-grid');
+    const orbEl = document.getElementById('orb-count');
+    if (!grid) return;
+    if (orbEl) orbEl.textContent = 'Orbs: ' + totalOrbs;
+    grid.innerHTML = '';
+    for (const skin of SKINS) {
+        const card = document.createElement('div');
+        const owned = unlockedSkins.includes(skin.id);
+        const equipped = currentSkin === skin.id;
+        card.className = 'skin-card' + (equipped ? ' equipped' : '') + (!owned ? ' locked' : '');
+        const previewColor = skin.body && skin.body !== 'rainbow' ? skin.body : (skin.body === 'rainbow' ? '#ff0000' : '#00e5ff');
+        card.innerHTML =
+            '<div class="skin-preview" style="background:' + previewColor + '"></div>' +
+            '<div class="skin-name">' + skin.name + '</div>' +
+            (owned ? (equipped ? '<div class="skin-status">EQUIPPED</div>' : '<div class="skin-status" style="color:#00e5ff">EQUIP</div>') :
+            '<div class="skin-cost">' + skin.cost + ' orbs</div>');
+        card.addEventListener('click', () => {
+            if (owned) {
+                currentSkin = skin.id;
+                try { localStorage.setItem('parkour_skin', currentSkin); } catch(e) {}
+                populateSkins();
+                playSound('click');
+            } else if (totalOrbs >= skin.cost) {
+                totalOrbs -= skin.cost;
+                unlockedSkins.push(skin.id);
+                currentSkin = skin.id;
+                try {
+                    localStorage.setItem('parkour_total_orbs', totalOrbs);
+                    localStorage.setItem('parkour_unlocked_skins', JSON.stringify(unlockedSkins));
+                    localStorage.setItem('parkour_skin', currentSkin);
+                } catch(e) {}
+                populateSkins();
+                playSound('complete');
+                checkAchievements();
+            } else {
+                playSound('death');
+            }
+        });
+        grid.appendChild(card);
+    }
+}
+
+// ---------- DAILY CHALLENGE ----------
+function getDailyDate() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function seededRandom(seed) {
+    let s = 0;
+    for (let i = 0; i < seed.length; i++) s = ((s << 5) - s + seed.charCodeAt(i)) | 0;
+    return function() {
+        s = (s * 1103515245 + 12345) & 0x7fffffff;
+        return s / 0x7fffffff;
+    };
+}
+
+function generateDailyLevel() {
+    const dateStr = getDailyDate();
+    const rng = seededRandom(dateStr);
+    spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+    platforms = [plat(0, 18, 8, 2)];
+    spikes = [];
+    movingPlatforms = [];
+    fallingPlatforms = [];
+    boostPads = [];
+    walls = [];
+    checkpoints = [];
+    orbs = [];
+    let cx = 12;
+    const segments = 8 + Math.floor(rng() * 6);
+    for (let i = 0; i < segments; i++) {
+        const type = Math.floor(rng() * 4);
+        const w = 3 + Math.floor(rng() * 4);
+        const y = 14 + Math.floor(rng() * 5);
+        if (type === 0) {
+            platforms.push(plat(cx, y, w, 1));
+        } else if (type === 1) {
+            platforms.push(plat(cx, y, w, 1));
+            if (rng() > 0.5) spikes.push(spike(cx + 1, y - 1, Math.min(w - 2, 2), 1));
+        } else if (type === 2) {
+            movingPlatforms.push(moving(cx, y, w, 1, rng() > 0.5 ? 1 : 0, rng() > 0.5 ? 1 : 0, 0.5 + rng(), 2 + Math.floor(rng() * 3)));
+        } else {
+            fallingPlatforms.push(falling(cx, y, w, 1));
+        }
+        if (rng() > 0.6) orbs.push(orbHelper(cx + Math.floor(w / 2), y - 2));
+        cx += w + 3 + Math.floor(rng() * 4);
+    }
+    platforms.push(plat(cx, 18, 6, 2));
+    goalZone = goal(cx + 3, 17);
+}
+
+function startDailyChallenge() {
+    showScreen('game');
+    platforms = []; spikes = []; movingPlatforms = []; fallingPlatforms = [];
+    boostPads = []; walls = []; goalZone = null; particleCount = 0;
+    checkpoints = []; lastCheckpoint = null; ghostRecording = [];
+    ghostFrame = 0; ghostRecordFrame = 0; deathCount = 0; orbs = [];
+    currentLevel = -2; // Special index for daily
+    generateDailyLevel();
+    resetPlayer();
+    levelTimer = 0;
+    camera.x = player.x - canvasW / 2;
+    camera.y = player.y - canvasH / 2;
+    comboCount = 0; comboTimer = 0;
+    ghostPlayback = [];
+    const hudLevel = document.getElementById('hud-level');
+    if (hudLevel) hudLevel.textContent = 'DAILY [' + getDiff().label + ']';
+    const hudBest = document.getElementById('hud-best');
+    const dailyBest = getDailyBest();
+    if (hudBest) hudBest.textContent = dailyBest ? 'Best: ' + dailyBest.toFixed(2) + 's' : 'Best: --';
+    const hudDeaths = document.getElementById('hud-deaths');
+    if (hudDeaths) hudDeaths.textContent = 'Deaths: 0';
+    gameState = 'playing';
+    startMusic();
+    startWind();
+    initWeather();
+    scarfTrail = [];
+    deathReplayBuffer = [];
+    document.getElementById('pause-overlay').classList.add('hidden');
+    document.getElementById('complete-overlay').classList.add('hidden');
+    document.getElementById('death-overlay').classList.add('hidden');
+}
+
+function getDailyBest() {
+    try {
+        const saved = localStorage.getItem('parkour_daily_' + getDailyDate());
+        return saved ? parseFloat(saved) : null;
+    } catch(e) { return null; }
+}
+
+// ---------- ENDLESS MODE ----------
+function startEndlessMode() {
+    endlessMode = true;
+    endlessDistance = 0;
+    try { endlessBest = parseFloat(localStorage.getItem('parkour_endless_best') || '0'); } catch(e) { endlessBest = 0; }
+    showScreen('game');
+    platforms = [plat(0, 18, 10, 2)];
+    spikes = []; movingPlatforms = []; fallingPlatforms = [];
+    boostPads = []; walls = []; goalZone = null; particleCount = 0;
+    checkpoints = []; lastCheckpoint = null; orbs = [];
+    currentLevel = -3;
+    endlessLastX = 10 * TILE;
+    for (let i = 0; i < 10; i++) generateEndlessSegment();
+    spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+    resetPlayer();
+    levelTimer = 0;
+    camera.x = player.x - canvasW / 2;
+    camera.y = player.y - canvasH / 2;
+    comboCount = 0; comboTimer = 0;
+    ghostPlayback = []; ghostRecording = [];
+    const hudLevel = document.getElementById('hud-level');
+    if (hudLevel) hudLevel.textContent = 'ENDLESS';
+    const hudBest = document.getElementById('hud-best');
+    if (hudBest) hudBest.textContent = endlessBest > 0 ? 'Best: ' + Math.floor(endlessBest) + 'm' : 'Best: --';
+    const hudDeaths = document.getElementById('hud-deaths');
+    if (hudDeaths) hudDeaths.textContent = 'Deaths: 0';
+    const distEl = document.getElementById('hud-distance');
+    if (distEl) { distEl.style.display = ''; distEl.textContent = '0m'; }
+    deathCount = 0;
+    gameState = 'playing';
+    startMusic();
+    startWind();
+    initWeather();
+    scarfTrail = [];
+    deathReplayBuffer = [];
+    document.getElementById('pause-overlay').classList.add('hidden');
+    document.getElementById('complete-overlay').classList.add('hidden');
+    document.getElementById('death-overlay').classList.add('hidden');
+}
+
+function generateEndlessSegment() {
+    const rng = Math.random;
+    const cx = endlessLastX / TILE;
+    const gap = 3 + Math.floor(rng() * 3);
+    const w = 3 + Math.floor(rng() * 5);
+    const y = 14 + Math.floor(rng() * 5);
+    const type = Math.floor(rng() * 3);
+    const startX = cx + gap;
+    if (type === 0) {
+        platforms.push(plat(startX, y, w, 1));
+    } else if (type === 1) {
+        movingPlatforms.push(moving(startX, y, w, 1, rng() > 0.5 ? 1 : 0, rng() > 0.5 ? 1 : 0, 0.5 + rng(), 2));
+    } else {
+        fallingPlatforms.push(falling(startX, y, w, 1));
+    }
+    if (rng() > 0.7) spikes.push(spike(startX + gap, 19, 2, 1));
+    if (rng() > 0.5) orbs.push(orbHelper(startX + Math.floor(w / 2), y - 2));
+    endlessLastX = (startX + w) * TILE;
+}
+
+function updateEndless() {
+    if (!endlessMode) return;
+    endlessDistance = Math.max(endlessDistance, (player.x - 2 * TILE) / TILE);
+    const distEl = document.getElementById('hud-distance');
+    if (distEl) distEl.textContent = Math.floor(endlessDistance) + 'm';
+    // Generate new segments as player approaches edge
+    while (player.x > endlessLastX - canvasW * 2) {
+        generateEndlessSegment();
+    }
+}
+
+// ---------- DEATH REPLAY ----------
+function recordDeathReplayFrame() {
+    if (gameState !== 'playing') return;
+    deathReplayBuffer.push({ x: player.x, y: player.y, state: getPlayerState(), facing: player.facing });
+    if (deathReplayBuffer.length > 60) deathReplayBuffer.shift();
+}
+
+// ---------- SAVE EXPORT / IMPORT ----------
+function exportSave() {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('parkour_')) {
+            keys.push({ key, value: localStorage.getItem(key) });
+        }
+    }
+    const json = JSON.stringify(keys, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'parkour-rush-save.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importSave(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            for (const item of data) {
+                localStorage.setItem(item.key, item.value);
+            }
+            location.reload();
+        } catch(err) {
+            alert('Invalid save file.');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ---------- ANIMATED TITLE ----------
+function animateTitle() {
+    const el = document.getElementById('animated-title');
+    if (!el) return;
+    const text1 = 'PARKOUR';
+    const text2 = 'RUSH';
+    let html = '';
+    let delay = 0;
+    for (let i = 0; i < text1.length; i++) {
+        html += '<span class="title-letter" style="animation-delay:' + (delay * 0.06) + 's">' + text1[i] + '</span>';
+        delay++;
+    }
+    html += '<span>';
+    for (let i = 0; i < text2.length; i++) {
+        html += '<span class="title-letter" style="animation-delay:' + (delay * 0.06) + 's">' + text2[i] + '</span>';
+        delay++;
+    }
+    html += '</span>';
+    el.innerHTML = html;
+}
+
 // ---------- PARALLAX CITYSCAPE ----------
 // Background stars — generated once
 let bgStars = [];
@@ -972,6 +1887,12 @@ function resetPlayer() {
     landTimer = 0;
     jumpSquashTimer = 0;
     dashTrail = [];
+    scarfTrail = [];
+    footstepDist = 0;
+    deathReplayBuffer = [];
+    deathAnim = { active: false, pieces: [], frame: 0 };
+    deathZoom = 0;
+    orbs = [];
 }
 
 // ---------- LEVEL HELPERS ----------
@@ -2204,7 +3125,21 @@ function loadLevel(index) {
     deathCount = 0;
 
     currentLevel = index;
+    orbs = [];
     LEVELS[index]();
+
+    // Add orbs to levels (3-5 per level)
+    if (index >= 0 && index < LEVELS.length) {
+        const orbPositions = [];
+        // Place orbs above platforms at intervals
+        const sortedPlats = [...platforms].sort((a, b) => a.x - b.x);
+        const step = Math.max(1, Math.floor(sortedPlats.length / 5));
+        for (let i = step; i < sortedPlats.length && orbPositions.length < 5; i += step) {
+            const pl = sortedPlats[i];
+            orbPositions.push(orbHelper(Math.floor(pl.x / TILE) + Math.floor(pl.w / TILE / 2), Math.floor(pl.y / TILE) - 3));
+        }
+        orbs = orbPositions;
+    }
 
     // Apply difficulty-based geometry modifications
     applyDifficultyGeometry();
@@ -2244,6 +3179,10 @@ function loadLevel(index) {
     camera.y = player.y - canvasH / 2;
     comboCount = 0;
     comboTimer = 0;
+    confetti = [];
+    confettiTimer = 0;
+    initWeather();
+    startWind();
 
     // Update HUD
     const hudLevel = document.getElementById('hud-level');
@@ -2329,6 +3268,21 @@ function updatePlayer(dt) {
     // Track distance for run animation
     playerDistTraveled += Math.abs(p.vx) * s;
 
+    // Footstep sounds
+    if (p.onGround && Math.abs(p.vx) > 1) {
+        footstepDist += Math.abs(p.vx) * s;
+        if (footstepDist >= 12) {
+            footstepDist = 0;
+            playSound('footstep');
+            // Running dust particles (every ~8px)
+            if (gameSettings.particles) {
+                spawnParticles(p.x + p.w / 2, p.y + p.h, 1, '#888', 2, 0.3);
+            }
+        }
+    } else {
+        footstepDist = 0;
+    }
+
     // ---- Dash ----
     if (p.dashCooldown > 0) p.dashCooldown -= s;
 
@@ -2343,6 +3297,8 @@ function updatePlayer(dt) {
         playSound('dash');
         spawnParticles(p.x + p.w / 2, p.y + p.h / 2, 12, '#ff4081', 4, 1.5);
         triggerCombo();
+        totalDashes++;
+        try { localStorage.setItem('parkour_dashes', totalDashes); } catch(e) {}
     }
 
     if (p.dashTimer > 0) {
@@ -2471,6 +3427,8 @@ function updatePlayer(dt) {
             playSound('walljump');
             spawnParticles(p.x, p.y + p.h / 2, 8, '#00ff88', 3, 1);
             triggerCombo();
+            totalWallJumps++;
+            try { localStorage.setItem('parkour_wall_jumps', totalWallJumps); } catch(e) {}
         } else if (p.onWallRight) {
             p.vx = -WALL_JUMP_X;
             p.vy = WALL_JUMP_Y;
@@ -2480,6 +3438,8 @@ function updatePlayer(dt) {
             playSound('walljump');
             spawnParticles(p.x + p.w, p.y + p.h / 2, 8, '#00ff88', 3, 1);
             triggerCombo();
+            totalWallJumps++;
+            try { localStorage.setItem('parkour_wall_jumps', totalWallJumps); } catch(e) {}
         }
     }
 
@@ -2490,6 +3450,15 @@ function updatePlayer(dt) {
             const wx = p.onWallLeft ? p.x : p.x + p.w;
             spawnParticles(wx, p.y + p.h / 2, 1, '#aaa', 1, 0.3);
         }
+        // Wall-slide sparks (gold/orange)
+        if (gameSettings.particles && Math.random() < 0.4) {
+            const wx = p.onWallLeft ? p.x : p.x + p.w;
+            const sparkColors = ['#ffd700', '#ff8c00', '#ffaa33'];
+            spawnParticles(wx, p.y + p.h * 0.7, 1, sparkColors[Math.floor(Math.random() * 3)], 2, 0.5);
+        }
+        startWallSlideSound();
+    } else {
+        stopWallSlideSound();
     }
 
     // ---- Squash & stretch timers ----
@@ -2556,6 +3525,7 @@ function updatePlayer(dt) {
                 if (!p.wasOnGround && p.vy > 3) {
                     spawnParticles(p.x + p.w / 2, p.y + p.h, 6, '#fff', 3, 0.8);
                     landTimer = 4;
+                    playSound('land');
                 }
             } else if (p.vy < 0) {
                 p.y = sol.y + sol.h;
@@ -2614,6 +3584,12 @@ function updatePlayer(dt) {
     if (p.y > WORLD_H * TILE + 100) {
         killPlayer();
     }
+
+    // ---- Orb collision ----
+    checkOrbCollision();
+
+    // ---- Death replay recording ----
+    recordDeathReplayFrame();
 
     // ---- Ghost recording ----
     ghostRecordFrame++;
@@ -2705,10 +3681,15 @@ function killPlayer() {
     deathCount++;
     totalDeaths++;
     saveStats();
-    screenShake = 12;
+    if (gameSettings.shake) screenShake = 12;
     playSound('death');
     spawnParticles(player.x + player.w / 2, player.y + player.h / 2, 20, '#ff4444', 6, 2);
     triggerScreenFlash('#ff0000', 0.4, 0.3);
+    stopWallSlideSound();
+
+    // Death animation
+    startDeathAnim(player.x + player.w / 2, player.y + player.h / 2);
+    deathZoom = 20; // zoom effect frames
 
     // Break streak
     if (currentStreak >= 2) {
@@ -2720,6 +3701,26 @@ function killPlayer() {
 
     const hudDeaths = document.getElementById('hud-deaths');
     if (hudDeaths) hudDeaths.textContent = 'Deaths: ' + deathCount;
+
+    // Endless mode death
+    if (endlessMode) {
+        const dist = Math.floor(endlessDistance);
+        if (dist > endlessBest) {
+            endlessBest = dist;
+            try { localStorage.setItem('parkour_endless_best', endlessBest); } catch(e) {}
+        }
+    }
+
+    // Practice mode: auto-respawn quickly
+    if (practiceMode) {
+        setTimeout(() => {
+            if (gameState === 'dead') {
+                loadLevel(currentLevel);
+                gameState = 'playing';
+            }
+        }, 300);
+        return;
+    }
 
     // If we have a checkpoint, auto-retry from there
     if (lastCheckpoint) {
@@ -2883,12 +3884,24 @@ function completeLevel() {
         }
     }
 
+    // Daily challenge handling
+    if (endlessMode) {
+        // Endless mode doesn't really "complete" — this shouldn't fire
+        return;
+    }
+
+    // Check achievements
+    checkAchievements();
+
     document.getElementById('btn-next').style.display =
         currentLevel + 1 >= LEVELS.length ? 'none' : '';
 
     document.getElementById('complete-overlay').classList.remove('hidden');
 
-    // Victory particles
+    // Victory confetti
+    spawnConfetti();
+
+    // Victory particles + firework bursts
     for (let i = 0; i < 40; i++) {
         const colors = ['#00e5ff', '#ff4081', '#ffd700', '#4caf50'];
         spawnParticles(
@@ -2896,6 +3909,15 @@ function completeLevel() {
             player.y + (Math.random() - 0.5) * 100,
             1, colors[Math.floor(Math.random() * colors.length)], 5, 2
         );
+    }
+    // Firework bursts
+    for (let i = 0; i < 3; i++) {
+        setTimeout(() => {
+            const fx = player.x + (Math.random() - 0.5) * 200;
+            const fy = player.y - 50 - Math.random() * 100;
+            spawnParticles(fx, fy, 20, ['#ffd700', '#ff4081', '#00e5ff'][i], 5, 2);
+            playSound('boost');
+        }, i * 400);
     }
 }
 
@@ -3451,6 +4473,7 @@ function drawPlayerSprite(screenX, screenY, w, h, facing, state, dist, theme, al
     const currentH = state === 'sliding' ? PLAYER_H_SLIDE : PLAYER_H;
     const centerX = screenX + w / 2;
     const bottomY = screenY + currentH;
+    const skinC = getSkinColors(theme);
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -3458,24 +4481,25 @@ function drawPlayerSprite(screenX, screenY, w, h, facing, state, dist, theme, al
     ctx.scale(facing, 1);
 
     if (state === 'sliding') {
-        ctx.fillStyle = theme.playerArms;
+        ctx.fillStyle = skinC.playerArms;
         ctx.fillRect(-10, -PLAYER_H_SLIDE, 20, PLAYER_H_SLIDE);
-        ctx.fillStyle = theme.playerHead;
+        ctx.fillStyle = skinC.playerHead;
         ctx.fillRect(-4, -PLAYER_H_SLIDE, 8, 6);
         ctx.fillStyle = '#fff';
         ctx.fillRect(1, -PLAYER_H_SLIDE + 2, 2, 2);
     } else {
-        let bodyColor = theme.playerBody;
+        let bodyColor = skinC.playerBody;
         if (state === 'dashing') bodyColor = '#ff4081';
-        else if (state === 'jumping' || state === 'falling') bodyColor = theme.playerHead;
-        else if (state === 'wall_sliding') bodyColor = theme.playerArms;
+        else if (state === 'jumping' || state === 'falling') bodyColor = skinC.playerHead;
+        else if (state === 'wall_sliding') bodyColor = skinC.playerArms;
 
         ctx.fillStyle = bodyColor;
         ctx.fillRect(-4, -PLAYER_H, 8, 8);
         ctx.fillStyle = '#fff';
         ctx.fillRect(1, -PLAYER_H + 3, 2, 2);
 
-        const breathOffset = state === 'idle' ? Math.sin(Date.now() * 0.003) * 0.5 : 0;
+        const breathOffset = state === 'idle' ? Math.sin(Date.now() * 0.003) * 1.5 : 0;
+        const headBob = state === 'idle' ? Math.sin(Date.now() * 0.002) * 0.5 : 0;
         ctx.fillStyle = bodyColor;
         ctx.fillRect(-6, -PLAYER_H + 8 + breathOffset, 12, 10);
 
@@ -3555,20 +4579,21 @@ function drawPlayer() {
     ctx.translate(centerX, bottomY);
     ctx.scale(p.facing * scaleX, scaleY);
 
-    // Draw character based on state — themed
+    // Draw character based on state — themed with skins
     const th = getTheme();
+    const skinC = getSkinColors(th);
     if (state === 'sliding') {
-        ctx.fillStyle = th.playerArms;
+        ctx.fillStyle = skinC.playerArms;
         ctx.fillRect(-10, -PLAYER_H_SLIDE, 20, PLAYER_H_SLIDE);
-        ctx.fillStyle = th.playerHead;
+        ctx.fillStyle = skinC.playerHead;
         ctx.fillRect(-4, -PLAYER_H_SLIDE, 8, 6);
         ctx.fillStyle = '#fff';
         ctx.fillRect(1, -PLAYER_H_SLIDE + 2, 2, 2);
     } else {
-        let bodyColor = th.playerBody;
+        let bodyColor = skinC.playerBody;
         if (state === 'dashing') bodyColor = '#ff4081';
-        else if (state === 'jumping' || state === 'falling') bodyColor = th.playerHead;
-        else if (state === 'wall_sliding') bodyColor = th.playerArms;
+        else if (state === 'jumping' || state === 'falling') bodyColor = skinC.playerHead;
+        else if (state === 'wall_sliding') bodyColor = skinC.playerArms;
 
         // Head (8x8)
         ctx.fillStyle = bodyColor;
@@ -3578,8 +4603,8 @@ function drawPlayer() {
         ctx.fillStyle = '#fff';
         ctx.fillRect(1, -PLAYER_H + 3, 2, 2);
 
-        // Torso (12x10)
-        const breathOffset = state === 'idle' ? Math.sin(Date.now() * 0.003) * 0.5 : 0;
+        // Torso (12x10) — enhanced idle breathing
+        const breathOffset = state === 'idle' ? Math.sin(Date.now() * 0.003) * 1.5 : 0;
         ctx.fillStyle = bodyColor;
         ctx.fillRect(-6, -PLAYER_H + 8 + breathOffset, 12, 10);
 
@@ -3884,7 +4909,7 @@ function gameLoop(timestamp) {
     }
 
     // Menu background
-    if (currentScreen === 'menu' || currentScreen === 'level' || currentScreen === 'controls' || currentScreen === 'bestrun' || currentScreen === 'difficulty' || currentScreen === 'stats') {
+    if (currentScreen === 'menu' || currentScreen === 'level' || currentScreen === 'controls' || currentScreen === 'bestrun' || currentScreen === 'difficulty' || currentScreen === 'stats' || currentScreen === 'achievements' || currentScreen === 'settings' || currentScreen === 'skins') {
         drawMenuBackground();
     }
 
@@ -3897,6 +4922,69 @@ function gameLoop(timestamp) {
         updateCombo(dtScale);
         updateSplitTimer();
         updateStreakHUD();
+        updateWeather(dtScale);
+        updateConfetti(dtScale);
+        updateDeathAnim(dtScale);
+        updateScarfTrail();
+
+        // Endless mode
+        if (endlessMode) {
+            updateEndless();
+            endlessDistance = player.x / TILE;
+            const distEl = document.getElementById('hud-distance');
+            if (distEl) {
+                distEl.style.display = '';
+                distEl.textContent = Math.floor(endlessDistance) + 'm';
+            }
+        }
+
+        // Speed multiplier HUD
+        const speedEl = document.getElementById('hud-speed');
+        if (speedEl) {
+            const absVx = Math.abs(player.vx);
+            if (absVx > RUN_SPEED * 1.2) {
+                const mult = (absVx / RUN_SPEED).toFixed(1);
+                speedEl.textContent = mult + 'x SPEED';
+                speedEl.style.display = '';
+                speedEl.style.color = absVx > 10 ? '#ff4081' : '#ffd700';
+            } else {
+                speedEl.style.display = 'none';
+            }
+        }
+
+        // Wind modulation by player speed
+        if (windGainNode && windFilterNode) {
+            const speedFactor = Math.min(1, Math.abs(player.vx) / 12);
+            windGainNode.gain.value = 0.008 + speedFactor * 0.012;
+            windFilterNode.frequency.value = 400 + speedFactor * 300;
+        }
+
+        // Dynamic music intensity (via master gain)
+        if (masterGainNode) {
+            const speedFactor = Math.min(1, Math.abs(player.vx) / 12);
+            let dangerFactor = 0;
+            for (const sp of spikes) {
+                const dx = player.x - sp.x;
+                const dy = player.y - sp.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 100) { dangerFactor = Math.max(dangerFactor, 1 - dist / 100); }
+            }
+            const intensity = 0.7 + speedFactor * 0.15 + dangerFactor * 0.15;
+            masterGainNode.gain.value = Math.min(1, intensity) * (gameSettings.volume / 100);
+        }
+
+        // Camera zoom effects
+        const absVx = Math.abs(player.vx);
+        let targetZoom = 1.0;
+        if (absVx > 10) targetZoom = 0.92;
+        else if (absVx > 7) targetZoom = 0.96;
+        // Zoom in near spikes
+        for (const sp of spikes) {
+            const dx = player.x - sp.x;
+            const dy = player.y - sp.y;
+            if (Math.sqrt(dx * dx + dy * dy) < 80) { targetZoom = Math.max(targetZoom, 1.05); break; }
+        }
+        cameraZoom += (targetZoom - cameraZoom) * 0.05;
 
         // Tutorial hint timer
         if (tutorialTimer > 0) {
@@ -3913,9 +5001,23 @@ function gameLoop(timestamp) {
             if (ghostFrame >= ghostPlayback.length) ghostFrame = ghostPlayback.length - 1;
         }
 
+        // Achievement popup timer
+        if (achievementPopupTimer > 0) {
+            achievementPopupTimer -= dt / 1000;
+            if (achievementPopupTimer <= 0) {
+                const popup = document.getElementById('achievement-popup');
+                if (popup) popup.classList.add('hidden');
+            }
+        }
+
         // Update HUD timer
-        const hudTimer = document.getElementById('hud-timer');
-        if (hudTimer) hudTimer.textContent = levelTimer.toFixed(2) + 's';
+        if (!practiceMode) {
+            const hudTimer = document.getElementById('hud-timer');
+            if (hudTimer) hudTimer.textContent = levelTimer.toFixed(2) + 's';
+        } else {
+            const hudTimer = document.getElementById('hud-timer');
+            if (hudTimer) hudTimer.textContent = 'PRACTICE';
+        }
     }
 
     // Auto-restart countdown when dead
@@ -3972,18 +5074,31 @@ function gameLoop(timestamp) {
         screenShake = 0;
     }
 
+    // Death zoom effect
+    if (deathZoom > 0) deathZoom--;
+
     // Render
     if (currentScreen === 'game') {
-        // Apply screen shake
+        // Apply screen shake + camera zoom
         ctx.save();
-        if (screenShake > 0.5) {
+        const shakeEnabled = gameSettings.shake;
+        if (shakeEnabled && screenShake > 0.5) {
             ctx.translate(
                 (Math.random() - 0.5) * screenShake,
                 (Math.random() - 0.5) * screenShake
             );
         }
 
+        // Camera zoom transform
+        if (cameraZoom !== 1.0 || deathZoom > 0) {
+            const zoomVal = deathZoom > 0 ? 1 + 0.08 * (deathZoom / 20) : cameraZoom;
+            ctx.translate(canvasW / 2, canvasH / 2);
+            ctx.scale(zoomVal, zoomVal);
+            ctx.translate(-canvasW / 2, -canvasH / 2);
+        }
+
         drawBackground();
+        drawWeather();
         drawAmbientParticles();
         updateAmbientParticles(dtScale);
         if (gameState !== 'replay') {
@@ -3997,20 +5112,34 @@ function gameLoop(timestamp) {
         drawMovingPlatforms();
         drawFallingPlatforms();
         drawBoostPads();
+        drawOrbs();
         if (gameState === 'replay') {
             drawReplayPlayer();
-        } else {
+        } else if (!deathAnim.active) {
+            drawPlayerGlow();
+            drawScarfTrail();
             drawPlayer();
         }
+        drawDeathAnim();
         drawParticles();
         drawFloatingTexts();
+        drawConfetti();
         if (gameState !== 'replay') {
             drawSpeedLines();
         }
         drawVignette();
         drawScreenFlash();
+        drawPostProcessing();
 
         ctx.restore();
+
+        // Draw minimap and progress bar outside zoom transform
+        if (gameSettings.minimap && gameState !== 'replay') {
+            drawMinimap();
+        }
+        if (gameState === 'playing') {
+            drawProgressBar();
+        }
     }
 
     // Store previous keys for edge detection
@@ -4039,7 +5168,7 @@ document.addEventListener('keydown', (e) => {
             // Double-tap R: restart from Level 1
             lastRPressTime = 0;
             deathCount = 0;
-            doScreenWipe(() => startLevel(0));
+            doScreenWipe(() => startLevel(0), 'LEVEL 1');
         } else {
             // Single R: restart current level
             lastRPressTime = now;
@@ -4171,6 +5300,41 @@ function loadBestTimes() {
     loadBestRuns();
     loadStreaks();
     loadStats();
+    loadAchievements();
+
+    // Load skins
+    try {
+        const savedSkin = localStorage.getItem('parkour_skin');
+        if (savedSkin) currentSkin = savedSkin;
+        const savedUnlocked = localStorage.getItem('parkour_unlocked_skins');
+        if (savedUnlocked) unlockedSkins = JSON.parse(savedUnlocked);
+    } catch(e) {}
+
+    // Load total orbs
+    try {
+        const savedOrbs = localStorage.getItem('parkour_total_orbs');
+        if (savedOrbs) totalOrbs = parseInt(savedOrbs);
+    } catch(e) {}
+
+    // Load settings
+    try {
+        const savedSettings = localStorage.getItem('parkour_settings');
+        if (savedSettings) Object.assign(gameSettings, JSON.parse(savedSettings));
+    } catch(e) {}
+
+    // Load endless best
+    try {
+        const savedEndless = localStorage.getItem('parkour_endless_best');
+        if (savedEndless) endlessBest = parseInt(savedEndless);
+    } catch(e) {}
+
+    // Load wall jumps and dashes
+    try {
+        const wj = localStorage.getItem('parkour_wall_jumps');
+        if (wj) totalWallJumps = parseInt(wj);
+        const d = localStorage.getItem('parkour_dashes');
+        if (d) totalDashes = parseInt(d);
+    } catch(e) {}
 }
 
 // ---------- SCREEN MANAGEMENT ----------
@@ -4201,9 +5365,15 @@ function showScreen(name) {
     }, 150);
 }
 
-function doScreenWipe(callback) {
+function doScreenWipe(callback, label) {
     const wipe = document.getElementById('screen-wipe');
     if (!wipe) { callback(); return; }
+
+    // Show level label during wipe
+    const wipeLabel = document.getElementById('wipe-label');
+    if (wipeLabel) {
+        wipeLabel.textContent = label || '';
+    }
 
     // Remove and re-add class to restart animation
     wipe.classList.remove('active');
@@ -4216,6 +5386,7 @@ function doScreenWipe(callback) {
 
     setTimeout(() => {
         wipe.classList.remove('active');
+        if (wipeLabel) wipeLabel.textContent = '';
     }, 600);
 }
 
@@ -4245,7 +5416,7 @@ function populateLevelGrid() {
             tile.addEventListener('click', ((lvl) => () => {
                 initAudio();
                 playSound('click');
-                doScreenWipe(() => startLevel(lvl));
+                doScreenWipe(() => startLevel(lvl), 'LEVEL ' + (lvl + 1));
             })(i));
         }
         grid.appendChild(tile);
@@ -4257,9 +5428,15 @@ function startLevel(index) {
     loadLevel(index);
     gameState = 'playing';
     startMusic();
+    startWind();
     document.getElementById('pause-overlay').classList.add('hidden');
     document.getElementById('complete-overlay').classList.add('hidden');
     document.getElementById('death-overlay').classList.add('hidden');
+    // Hide distance HUD for non-endless
+    if (!endlessMode) {
+        const distEl = document.getElementById('hud-distance');
+        if (distEl) distEl.style.display = 'none';
+    }
 }
 
 // ---------- LEVEL EDITOR ----------
@@ -4583,7 +5760,7 @@ function initUI() {
             document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             if (pendingAction === 'play') {
-                doScreenWipe(() => startLevel(0));
+                doScreenWipe(() => startLevel(0), 'LEVEL 1');
             } else {
                 populateLevelGrid();
                 showScreen('level');
@@ -4630,14 +5807,143 @@ function initUI() {
         }
     });
 
-    // Sound toggle
-    document.getElementById('btn-sound-toggle').addEventListener('click', () => {
-        soundEnabled = !soundEnabled;
-        document.getElementById('btn-sound-toggle').textContent =
-            soundEnabled ? 'SOUND: ON' : 'SOUND: OFF';
-        if (!soundEnabled) stopMusic();
+    // Settings button
+    document.getElementById('btn-settings').addEventListener('click', () => {
         playSound('click');
+        // Update settings UI
+        const volSlider = document.getElementById('settings-volume');
+        if (volSlider) volSlider.value = gameSettings.volume;
+        const partBtn = document.getElementById('settings-particles');
+        if (partBtn) partBtn.textContent = gameSettings.particles ? 'HIGH' : 'LOW';
+        const shakeBtn = document.getElementById('settings-shake');
+        if (shakeBtn) shakeBtn.textContent = gameSettings.shake ? 'ON' : 'OFF';
+        const minimapBtn = document.getElementById('settings-minimap');
+        if (minimapBtn) minimapBtn.textContent = gameSettings.minimap ? 'ON' : 'OFF';
+        showScreen('settings');
     });
+
+    document.getElementById('btn-back-settings').addEventListener('click', () => {
+        playSound('click');
+        showScreen('menu');
+    });
+
+    // Settings controls
+    const volSlider = document.getElementById('settings-volume');
+    if (volSlider) {
+        volSlider.addEventListener('input', () => {
+            gameSettings.volume = parseInt(volSlider.value);
+            if (masterGainNode) masterGainNode.gain.value = gameSettings.volume / 100;
+            try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
+        });
+    }
+
+    const partBtn = document.getElementById('settings-particles');
+    if (partBtn) {
+        partBtn.addEventListener('click', () => {
+            playSound('click');
+            gameSettings.particles = !gameSettings.particles;
+            partBtn.textContent = gameSettings.particles ? 'HIGH' : 'LOW';
+            try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
+        });
+    }
+
+    const shakeBtn = document.getElementById('settings-shake');
+    if (shakeBtn) {
+        shakeBtn.addEventListener('click', () => {
+            playSound('click');
+            gameSettings.shake = !gameSettings.shake;
+            shakeBtn.textContent = gameSettings.shake ? 'ON' : 'OFF';
+            try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
+        });
+    }
+
+    const minimapBtn = document.getElementById('settings-minimap');
+    if (minimapBtn) {
+        minimapBtn.addEventListener('click', () => {
+            playSound('click');
+            gameSettings.minimap = !gameSettings.minimap;
+            minimapBtn.textContent = gameSettings.minimap ? 'ON' : 'OFF';
+            try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
+        });
+    }
+
+    // Export/Import/Reset
+    document.getElementById('btn-export-save').addEventListener('click', () => {
+        playSound('click');
+        exportSave();
+    });
+
+    document.getElementById('btn-import-save').addEventListener('click', () => {
+        playSound('click');
+        document.getElementById('import-file').click();
+    });
+
+    document.getElementById('import-file').addEventListener('change', (e) => {
+        if (e.target.files[0]) importSave(e.target.files[0]);
+    });
+
+    document.getElementById('btn-reset-progress').addEventListener('click', () => {
+        playSound('click');
+        if (confirm('Are you sure? This will erase ALL progress!')) {
+            if (confirm('Really? This cannot be undone!')) {
+                const keys = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.startsWith('parkour_')) keys.push(k);
+                }
+                keys.forEach(k => localStorage.removeItem(k));
+                location.reload();
+            }
+        }
+    });
+
+    // Achievements button
+    document.getElementById('btn-achievements').addEventListener('click', () => {
+        playSound('click');
+        populateAchievements();
+        showScreen('achievements');
+    });
+
+    document.getElementById('btn-back-achievements').addEventListener('click', () => {
+        playSound('click');
+        showScreen('menu');
+    });
+
+    // Skins button
+    document.getElementById('btn-skins').addEventListener('click', () => {
+        playSound('click');
+        populateSkins();
+        showScreen('skins');
+    });
+
+    document.getElementById('btn-back-skins').addEventListener('click', () => {
+        playSound('click');
+        showScreen('menu');
+    });
+
+    // Daily challenge button
+    document.getElementById('btn-daily').addEventListener('click', () => {
+        initAudio();
+        playSound('click');
+        startDailyChallenge();
+    });
+
+    // Endless mode button
+    document.getElementById('btn-endless').addEventListener('click', () => {
+        initAudio();
+        playSound('click');
+        startEndlessMode();
+    });
+
+    // Practice mode toggle (pause menu)
+    const practiceBtn = document.getElementById('btn-practice-toggle');
+    if (practiceBtn) {
+        practiceBtn.addEventListener('click', () => {
+            playSound('click');
+            practiceMode = !practiceMode;
+            practiceBtn.textContent = practiceMode ? 'PRACTICE: ON' : 'PRACTICE: OFF';
+        });
+    }
 
     // Ghost trail toggle (menu)
     const ghostBtn = document.getElementById('btn-ghost-toggle');
@@ -4689,14 +5995,14 @@ function initUI() {
         playSound('click');
         document.getElementById('complete-overlay').classList.add('hidden');
         if (currentLevel + 1 < LEVELS.length) {
-            doScreenWipe(() => startLevel(currentLevel + 1));
+            doScreenWipe(() => startLevel(currentLevel + 1), 'LEVEL ' + (currentLevel + 2));
         }
     });
 
     document.getElementById('btn-replay').addEventListener('click', () => {
         playSound('click');
         document.getElementById('complete-overlay').classList.add('hidden');
-        doScreenWipe(() => startLevel(currentLevel));
+        doScreenWipe(() => startLevel(currentLevel), 'LEVEL ' + (currentLevel + 1));
     });
 
     document.getElementById('btn-quit2').addEventListener('click', () => {
@@ -4853,6 +6159,7 @@ function init() {
     initEditor();
     initTouchControls();
     updateMenuStars();
+    animateTitle();
     showScreen('menu');
 
     lastTime = performance.now();
