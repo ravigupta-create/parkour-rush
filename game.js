@@ -15,7 +15,7 @@ const WALL_JUMP_Y = -9;
 const DASH_SPEED = 10;
 const DASH_DURATION = 8;
 const DASH_COOLDOWN = 30;
-const SLIDE_SPEED = 4.5;
+const SLIDE_SPEED = 3.5;
 const SLIDE_DURATION = 20;
 const PLAYER_W = 20;
 const PLAYER_H = 32;
@@ -3881,8 +3881,8 @@ function updatePlayer(dt) {
         p.onGround && !p.isSliding && Math.abs(p.vx) > 1) {
         p.isSliding = true;
         p.slideTimer = SLIDE_DURATION;
-        // Use the direction keys the player is pressing, or fallback to facing
-        p.slideDir = inputX !== 0 ? inputX : p.facing;
+        // Use actual velocity direction so slide always matches movement
+        p.slideDir = Math.sign(p.vx);
         p.y += PLAYER_H - PLAYER_H_SLIDE;
         playSound('slide');
         triggerCombo();
