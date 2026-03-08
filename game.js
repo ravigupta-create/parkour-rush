@@ -221,8 +221,8 @@ const DIFFICULTIES = {
         gravity: 0.75,
         maxFall: 15,
         jumpForce: -10.2,
-        coyoteTime: 0,
-        jumpBuffer: 0,
+        coyoteTime: 2,
+        jumpBuffer: 2,
         dashDuration: 5,
         dashCooldown: 50,
         spikeInset: 0,
@@ -5033,24 +5033,29 @@ function gameLoop(timestamp) {
         }
     }
 
-    // Replay mode update
+    // Replay mode update — smooth interpolation between sparse frames
     if (gameState === 'replay') {
         replayTimer += dt / 1000;
-        // Calculate which frame to show based on elapsed time vs total run time
         const progress = Math.min(replayTimer / replayTotalTime, 1);
-        const newFrame = Math.min(Math.floor(progress * replayData.length), replayData.length - 1);
-        if (newFrame < replayData.length && progress < 1) {
-            const frame = replayData[newFrame];
+        const exactFrame = progress * (replayData.length - 1);
+        const frameA = Math.floor(exactFrame);
+        const frameB = Math.min(frameA + 1, replayData.length - 1);
+        const t = exactFrame - frameA;
+
+        if (frameA < replayData.length && progress < 1) {
+            const a = replayData[frameA];
+            const b = replayData[frameB];
             const prevX = player.x;
-            player.x = frame.x;
-            player.y = frame.y;
-            replayPlayerState = frame.state || 'running';
+            // Lerp between frames for smooth movement
+            player.x = a.x + (b.x - a.x) * t;
+            player.y = a.y + (b.y - a.y) * t;
+            replayPlayerState = a.state || 'running';
             // Track facing direction from movement
-            if (frame.x > prevX + 0.5) replayPlayerFacing = 1;
-            else if (frame.x < prevX - 0.5) replayPlayerFacing = -1;
+            if (player.x > prevX + 0.3) replayPlayerFacing = 1;
+            else if (player.x < prevX - 0.3) replayPlayerFacing = -1;
             // Track distance for animation
-            replayDistTraveled += Math.abs(frame.x - prevX);
-            replayFrame = newFrame;
+            replayDistTraveled += Math.abs(player.x - prevX);
+            replayFrame = frameA;
             // Update camera to follow
             updateCamera(dtScale);
             // Update replay HUD timer
