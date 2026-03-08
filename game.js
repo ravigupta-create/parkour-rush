@@ -1487,7 +1487,7 @@ function unlockAchievement(id) {
     if (el) {
         el.textContent = '[' + ach.icon + '] ' + ach.name;
         el.classList.remove('hidden', 'fading');
-        achievementPopupTimer = 180; // 3 seconds
+        achievementPopupTimer = 3; // 3 seconds
     }
     playSound('checkpoint');
 }
@@ -1527,6 +1527,8 @@ function checkAchievements() {
     // Difficulty clears
     if (difficulty === 'hard' && gameState === 'complete') unlockAchievement('hard_clear');
     if (difficulty === 'extreme' && gameState === 'complete') unlockAchievement('extreme_clear');
+    // Daily
+    if (currentLevel === -2 && gameState === 'complete') unlockAchievement('daily_first');
     // Time
     if (totalTimePlayed >= 3600) unlockAchievement('time_1h');
     // All skins
@@ -3335,13 +3337,14 @@ function updatePlayer(dt) {
         p.onGround && !p.isSliding && Math.abs(p.vx) > 1) {
         p.isSliding = true;
         p.slideTimer = SLIDE_DURATION;
+        p.slideDir = p.vx > 0 ? 1 : -1; // lock slide direction to actual velocity
         p.y += PLAYER_H - PLAYER_H_SLIDE;
         playSound('slide');
         triggerCombo();
     }
 
     if (p.slideTimer > 0 && p.isSliding) {
-        p.vx = SLIDE_SPEED * p.facing;
+        p.vx = SLIDE_SPEED * (p.slideDir || p.facing);
         p.slideTimer -= s;
         if (p.onGround) {
             spawnParticles(p.x + p.w / 2, p.y + p.h, 1, '#00e5ff', 2, 0.3);
@@ -3368,6 +3371,9 @@ function updatePlayer(dt) {
         p.climbTimer = 10;
         p.vy = -6;
         p.vx = p.facing * 3;
+        playSound('walljump');
+        spawnParticles(p.x + p.w / 2, p.y, 4, '#ffd700', 2, 0.8);
+        triggerCombo();
     }
     if (p.climbTimer > 0) {
         p.climbTimer -= s;
@@ -3730,19 +3736,26 @@ function killPlayer() {
             }
         }, 600);
     } else {
-        // Near-miss death indicator
+        // Near-miss death indicator / endless score
         const deathProgress = document.getElementById('death-progress');
-        if (deathProgress && goalZone) {
-            const progress = Math.min(100, Math.max(0, Math.round(player.x / goalZone.x * 100)));
-            if (progress > 70) {
-                deathProgress.textContent = progress + '% COMPLETE - SO CLOSE!';
+        if (deathProgress) {
+            if (endlessMode) {
+                const dist = Math.floor(endlessDistance);
+                const bestStr = endlessBest > 0 ? ' (Best: ' + endlessBest + 'm)' : '';
+                deathProgress.textContent = 'DISTANCE: ' + dist + 'm' + bestStr;
                 deathProgress.className = 'death-progress pulse';
-            } else if (progress > 30) {
-                deathProgress.textContent = progress + '% COMPLETE';
-                deathProgress.className = 'death-progress';
-            } else {
-                deathProgress.textContent = '';
-                deathProgress.className = 'death-progress';
+            } else if (goalZone) {
+                const progress = Math.min(100, Math.max(0, Math.round(player.x / goalZone.x * 100)));
+                if (progress > 70) {
+                    deathProgress.textContent = progress + '% COMPLETE - SO CLOSE!';
+                    deathProgress.className = 'death-progress pulse';
+                } else if (progress > 30) {
+                    deathProgress.textContent = progress + '% COMPLETE';
+                    deathProgress.className = 'death-progress';
+                } else {
+                    deathProgress.textContent = '';
+                    deathProgress.className = 'death-progress';
+                }
             }
         }
 
@@ -3828,7 +3841,8 @@ function completeLevel() {
 
     // Update complete overlay
     document.getElementById('complete-time').textContent = 'Time: ' + time.toFixed(2) + 's';
-    document.getElementById('complete-best').textContent = 'Best: ' + bestTimes[currentLevel].toFixed(2) + 's';
+    const displayBest = currentLevel === -2 ? getDailyBest() : bestTimes[currentLevel];
+    document.getElementById('complete-best').textContent = displayBest ? 'Best: ' + displayBest.toFixed(2) + 's' : '';
 
     const deathEl = document.getElementById('death-count');
     if (deathEl) deathEl.textContent = deathCount > 0 ? 'Deaths: ' + deathCount : '';
@@ -3890,11 +3904,19 @@ function completeLevel() {
         return;
     }
 
+    // Daily best time saving
+    if (currentLevel === -2) {
+        const dailyBest = getDailyBest();
+        if (!dailyBest || time < dailyBest) {
+            try { localStorage.setItem('parkour_daily_' + getDailyDate(), time.toFixed(3)); } catch(e) {}
+        }
+    }
+
     // Check achievements
     checkAchievements();
 
     document.getElementById('btn-next').style.display =
-        currentLevel + 1 >= LEVELS.length ? 'none' : '';
+        (currentLevel < 0 || currentLevel + 1 >= LEVELS.length) ? 'none' : '';
 
     document.getElementById('complete-overlay').classList.remove('hidden');
 
@@ -4862,6 +4884,8 @@ function populateStats() {
 
     const avgTime = totalCompletions > 0 ? (totalTimePlayed / totalCompletions).toFixed(1) + 's' : '--';
 
+    const achCount = Object.keys(unlockedAchievements).length;
+
     const stats = [
         { label: 'TOTAL DEATHS', value: totalDeaths, color: '#ff4444' },
         { label: 'TIME PLAYED', value: formatStatTime(totalTimePlayed), color: '#00e5ff' },
@@ -4873,6 +4897,12 @@ function populateStats() {
         { label: 'BEST STREAK', value: bestStreak, color: '#ff4081' },
         { label: 'CURRENT STREAK', value: currentStreak, color: '#ff4081' },
         { label: 'AVG TIME/LEVEL', value: avgTime, color: '#888' },
+        { label: 'WALL JUMPS', value: totalWallJumps, color: '#00ff88' },
+        { label: 'DASHES', value: totalDashes, color: '#ff4081' },
+        { label: 'ORBS COLLECTED', value: totalOrbs, color: '#ffd700' },
+        { label: 'ENDLESS BEST', value: endlessBest > 0 ? endlessBest + 'm' : '--', color: '#ff8c00' },
+        { label: 'ACHIEVEMENTS', value: achCount + '/' + ACHIEVEMENTS.length, color: '#ffaa00' },
+        { label: 'SKINS UNLOCKED', value: unlockedSkins.length + '/' + SKINS.length, color: '#ff66aa' },
     ];
 
     for (const s of stats) {
@@ -5028,8 +5058,15 @@ function gameLoop(timestamp) {
         if (autoRestartTimer <= 0) {
             autoRestartActive = false;
             document.getElementById('death-overlay').classList.add('hidden');
-            loadLevel(currentLevel);
-            gameState = 'playing';
+            if (endlessMode) {
+                endlessMode = false;
+                startEndlessMode();
+            } else if (currentLevel === -2) {
+                startDailyChallenge();
+            } else if (currentLevel >= 0) {
+                loadLevel(currentLevel);
+                gameState = 'playing';
+            }
         }
     }
 
@@ -5163,8 +5200,15 @@ document.addEventListener('keydown', (e) => {
     if (e.code === 'KeyR' && gameState === 'dead') {
         autoRestartActive = false;
         document.getElementById('death-overlay').classList.add('hidden');
-        loadLevel(currentLevel);
-        gameState = 'playing';
+        if (endlessMode) {
+            endlessMode = false;
+            startEndlessMode();
+        } else if (currentLevel === -2) {
+            startDailyChallenge();
+        } else if (currentLevel >= 0) {
+            loadLevel(currentLevel);
+            gameState = 'playing';
+        }
     }
 
     if (e.code === 'KeyR' && gameState === 'playing') {
@@ -5173,12 +5217,20 @@ document.addEventListener('keydown', (e) => {
             // Double-tap R: restart from Level 1
             lastRPressTime = 0;
             deathCount = 0;
+            endlessMode = false;
             doScreenWipe(() => startLevel(0), 'LEVEL 1');
         } else {
             // Single R: restart current level
             lastRPressTime = now;
-            loadLevel(currentLevel);
-            gameState = 'playing';
+            if (endlessMode) {
+                endlessMode = false;
+                startEndlessMode();
+            } else if (currentLevel === -2) {
+                startDailyChallenge();
+            } else if (currentLevel >= 0) {
+                loadLevel(currentLevel);
+                gameState = 'playing';
+            }
         }
     }
 
@@ -5981,14 +6033,22 @@ function initUI() {
     document.getElementById('btn-restart').addEventListener('click', () => {
         playSound('click');
         document.getElementById('pause-overlay').classList.add('hidden');
-        loadLevel(currentLevel);
-        gameState = 'playing';
-        startMusic();
+        if (endlessMode) {
+            endlessMode = false;
+            startEndlessMode();
+        } else if (currentLevel === -2) {
+            startDailyChallenge();
+        } else if (currentLevel >= 0) {
+            loadLevel(currentLevel);
+            gameState = 'playing';
+            startMusic();
+        }
     });
 
     document.getElementById('btn-quit').addEventListener('click', () => {
         playSound('click');
         document.getElementById('pause-overlay').classList.add('hidden');
+        endlessMode = false;
         gameState = 'menu';
         stopMusic();
         showScreen('menu');
@@ -6007,12 +6067,17 @@ function initUI() {
     document.getElementById('btn-replay').addEventListener('click', () => {
         playSound('click');
         document.getElementById('complete-overlay').classList.add('hidden');
-        doScreenWipe(() => startLevel(currentLevel), 'LEVEL ' + (currentLevel + 1));
+        if (currentLevel === -2) {
+            startDailyChallenge();
+        } else if (currentLevel >= 0) {
+            doScreenWipe(() => startLevel(currentLevel), 'LEVEL ' + (currentLevel + 1));
+        }
     });
 
     document.getElementById('btn-quit2').addEventListener('click', () => {
         playSound('click');
         document.getElementById('complete-overlay').classList.add('hidden');
+        endlessMode = false;
         gameState = 'menu';
         stopMusic();
         showScreen('menu');
@@ -6024,14 +6089,22 @@ function initUI() {
         playSound('click');
         autoRestartActive = false;
         document.getElementById('death-overlay').classList.add('hidden');
-        loadLevel(currentLevel);
-        gameState = 'playing';
+        if (endlessMode) {
+            endlessMode = false;
+            startEndlessMode();
+        } else if (currentLevel === -2) {
+            startDailyChallenge();
+        } else if (currentLevel >= 0) {
+            loadLevel(currentLevel);
+            gameState = 'playing';
+        }
     });
 
     document.getElementById('btn-quit3').addEventListener('click', () => {
         playSound('click');
         autoRestartActive = false;
         document.getElementById('death-overlay').classList.add('hidden');
+        endlessMode = false;
         gameState = 'menu';
         stopMusic();
         showScreen('menu');
@@ -6058,9 +6131,12 @@ function initUI() {
         showScreen('game');
         gameState = 'playing';
         startMusic();
+        initWeather();
+        startWind();
         document.getElementById('pause-overlay').classList.add('hidden');
         document.getElementById('complete-overlay').classList.add('hidden');
         document.getElementById('death-overlay').classList.add('hidden');
+        unlockAchievement('editor_test');
     });
 
     document.getElementById('btn-save-level').addEventListener('click', () => {
