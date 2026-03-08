@@ -3947,14 +3947,15 @@ function updatePlayer(dt) {
         if (p.coyoteTimer > 0) p.coyoteTimer -= s;
     }
 
-    if ((keys['KeyW'] || keys['Space'] || keys['ArrowUp'] || keys['touchJump']) &&
-        !(prevKeys['KeyW'] || prevKeys['Space'] || prevKeys['ArrowUp'] || prevKeys['touchJump'])) {
+    const jumpPressed = (keys['KeyW'] || keys['Space'] || keys['ArrowUp'] || keys['touchJump']) &&
+        !(prevKeys['KeyW'] || prevKeys['Space'] || prevKeys['ArrowUp'] || prevKeys['touchJump']);
+    if (jumpPressed) {
         p.jumpBuffer = cJumpBuffer;
     }
     if (p.jumpBuffer > 0) p.jumpBuffer -= s;
 
-    // ---- Jump ----
-    if (p.jumpBuffer > 0 && p.coyoteTimer > 0 && !p.isDashing) {
+    // ---- Jump (immediate on press frame if possible, otherwise buffered) ----
+    if ((jumpPressed || p.jumpBuffer > 0) && p.coyoteTimer > 0 && !p.isDashing) {
         p.vy = cJumpForce;
         p.onGround = false;
         p.coyoteTimer = 0;
