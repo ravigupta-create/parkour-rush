@@ -371,6 +371,7 @@ let replayLevelIndex = 0;
 let replayPlayerState = 'idle';
 let replayPlayerFacing = 1;
 let replayDistTraveled = 0;
+let replayTotalTime = 0;
 
 // R key double-tap tracking
 let lastRPressTime = 0;
@@ -3116,6 +3117,7 @@ function startReplayMode(levelIndex) {
     replayData = run.replay;
     replayFrame = 0;
     replayTimer = 0;
+    replayTotalTime = run.time;
     replayPlayerFacing = 1;
     replayDistTraveled = 0;
     replayPlayerState = 'idle';
@@ -3551,9 +3553,12 @@ function gameLoop(timestamp) {
 
     // Replay mode update
     if (gameState === 'replay') {
-        replayFrame++;
-        if (replayFrame < replayData.length) {
-            const frame = replayData[replayFrame];
+        replayTimer += dt / 1000;
+        // Calculate which frame to show based on elapsed time vs total run time
+        const progress = Math.min(replayTimer / replayTotalTime, 1);
+        const newFrame = Math.min(Math.floor(progress * replayData.length), replayData.length - 1);
+        if (newFrame < replayData.length && progress < 1) {
+            const frame = replayData[newFrame];
             const prevX = player.x;
             player.x = frame.x;
             player.y = frame.y;
@@ -3563,10 +3568,9 @@ function gameLoop(timestamp) {
             else if (frame.x < prevX - 0.5) replayPlayerFacing = -1;
             // Track distance for animation
             replayDistTraveled += Math.abs(frame.x - prevX);
+            replayFrame = newFrame;
             // Update camera to follow
             updateCamera(dtScale);
-            // Update replay timer
-            replayTimer += dt / 1000;
             // Update replay HUD timer
             const replayHudTimer = document.getElementById('replay-hud-timer');
             if (replayHudTimer) replayHudTimer.textContent = replayTimer.toFixed(2) + 's';
