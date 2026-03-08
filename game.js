@@ -50,7 +50,18 @@ const TUTORIAL_HINTS = [
     "Use A/D or Arrow Keys to move. Jump with W or SPACE.",
     "Jump between walls! Press JUMP while touching a wall to wall-jump.",
     "Press SHIFT in midair to DASH across big gaps!",
-    "Press S or DOWN while running to SLIDE under low ceilings."
+    "Press S or DOWN while running to SLIDE under low ceilings.",
+    "Time your jumps! Moving platforms follow set patterns.",
+    "Crumbling floors fall fast — keep moving!",
+    "Wall-jump up narrow shafts by bouncing left and right.",
+    "Boost pads launch you forward — hit them at full speed!",
+    "Mix everything! Wall-jumps, dashes, slides — use them all.",
+    "Master level! You'll need every skill to survive this.",
+    "Moving platforms can be tricky — watch the patterns.",
+    "Descending through walls? Control your fall with wall slides.",
+    "Slide under low ceilings where spikes block the top path.",
+    "Boost chain! Hit each pad and jump at peak speed.",
+    "The final rush tests everything. Use checkpoints wisely!"
 ];
 
 // ---------- DIFFICULTY SETTINGS ----------
@@ -460,7 +471,7 @@ let endlessSegments = [];
 let endlessLastX = 0;
 let musicBeatCount = 0;
 let masterGainNode = null;
-let gameSettings = { volume: 100, particles: true, shake: true, minimap: true, colorblind: false, highContrast: false };
+let gameSettings = { volume: 100, particles: true, shake: true, minimap: true, colorblind: false, highContrast: false, hints: true, autoRestart: true };
 let countdownTimer = 0; // 3-2-1-GO countdown
 let countdownActive = false;
 let bgClouds = []; // parallax cloud layer
@@ -469,6 +480,11 @@ let editorRedoStack = []; // redo stack
 let endlessRuns = 0;
 let endlessTotalDist = 0;
 let starAnimTimer = 0; // animated star count-up on completion
+let gamepadConnected = false; // gamepad support
+let gamepadDeadzone = 0.15;
+let prevGamepadButtons = {}; // edge detection for gamepad
+let dashReadyNotified = true; // dash cooldown notification flag
+let goalProximityNotified = false; // "ALMOST THERE" flag
 // Achievements
 const ACHIEVEMENTS = [
     { id: 'first_clear', name: 'First Steps', desc: 'Complete any level', icon: '1' },
@@ -490,7 +506,12 @@ const ACHIEVEMENTS = [
     { id: 'extreme_clear', name: 'Extremist', desc: 'Complete a level on extreme', icon: 'E' },
     { id: 'editor_test', name: 'Creator', desc: 'Test a custom level', icon: 'T' },
     { id: 'all_skins', name: 'Fashionista', desc: 'Unlock all skins', icon: 'K' },
-    { id: 'time_1h', name: 'Dedicated', desc: 'Play for 1 hour total', icon: 'H' }
+    { id: 'time_1h', name: 'Dedicated', desc: 'Play for 1 hour total', icon: 'H' },
+    { id: 'endless_100', name: 'Marathoner', desc: 'Reach 100m in endless mode', icon: 'M' },
+    { id: 'endless_500', name: 'Ultra Runner', desc: 'Reach 500m in endless mode', icon: 'U' },
+    { id: 'combo_20', name: 'Combo Legend', desc: 'Reach a 20x combo', icon: 'L' },
+    { id: 'orbs_200', name: 'Treasure Hunter', desc: 'Collect 200 orbs total', icon: '$' },
+    { id: 'deaths_500', name: 'Immortal Spirit', desc: 'Die 500 times total', icon: '+' }
 ];
 let unlockedAchievements = {};
 let achievementPopup = null;
@@ -743,15 +764,26 @@ function playSound(type) {
                 break;
             }
             case 'orb': {
+                // Satisfying coin-like cha-ching
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
                 osc.connect(gain); gain.connect(audioDest());
+                osc2.connect(gain2); gain2.connect(audioDest());
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(880 * pitchVar, now);
-                osc.frequency.exponentialRampToValueAtTime(1320 * pitchVar, now + 0.1);
-                gain.gain.setValueAtTime(0.06, now);
+                osc.frequency.exponentialRampToValueAtTime(1760 * pitchVar, now + 0.08);
+                gain.gain.setValueAtTime(0.07, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(1320 * pitchVar, now + 0.05);
+                osc2.frequency.exponentialRampToValueAtTime(1760 * pitchVar, now + 0.12);
+                gain2.gain.setValueAtTime(0, now);
+                gain2.gain.setValueAtTime(0.05, now + 0.05);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
                 osc.start(now); osc.stop(now + 0.15);
+                osc2.start(now + 0.05); osc2.stop(now + 0.18);
                 break;
             }
             case 'victory': {
@@ -1015,13 +1047,27 @@ function startMusic() {
     } catch (e) {}
 }
 
-function stopMusic() {
+function stopMusic(fadeOut) {
     musicPlaying = false;
     if (musicInterval) { clearInterval(musicInterval); musicInterval = null; }
-    for (const node of musicNodes) {
-        try { node.osc.stop(); } catch(e) {}
+    if (fadeOut && masterGainNode && audioCtx) {
+        // Fade out over 300ms
+        const now = audioCtx.currentTime;
+        masterGainNode.gain.setValueAtTime(masterGainNode.gain.value, now);
+        masterGainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+        setTimeout(() => {
+            for (const node of musicNodes) {
+                try { node.osc.stop(); } catch(e) {}
+            }
+            musicNodes = [];
+            if (masterGainNode) masterGainNode.gain.value = gameSettings.volume / 100;
+        }, 350);
+    } else {
+        for (const node of musicNodes) {
+            try { node.osc.stop(); } catch(e) {}
+        }
+        musicNodes = [];
     }
-    musicNodes = [];
     stopWallSlideSound();
     stopWind();
 }
@@ -1341,22 +1387,40 @@ function updateScarfTrail() {
     const neckX = player.x + player.w / 2 - player.facing * 3;
     const neckY = player.y + 4;
     scarfTrail.unshift({ x: neckX, y: neckY });
-    if (scarfTrail.length > 8) scarfTrail.pop();
+    // Longer scarf at higher speed
+    const maxLen = Math.min(14, 8 + Math.floor(Math.abs(player.vx) / 3));
+    while (scarfTrail.length > maxLen) scarfTrail.pop();
 }
 
 function drawScarfTrail() {
     if (scarfTrail.length < 2) return;
     const skinC = getSkinColors(getTheme());
     const scarfColor = skinC.body || '#ff4081';
+    const isDashing = player.isDashing;
     for (let i = 1; i < scarfTrail.length; i++) {
-        const alpha = (1 - i / scarfTrail.length) * 0.6;
-        ctx.strokeStyle = scarfColor;
-        ctx.lineWidth = 3 - i * 0.3;
+        const alpha = (1 - i / scarfTrail.length) * (isDashing ? 0.8 : 0.6);
+        ctx.strokeStyle = isDashing ? '#ff4081' : scarfColor;
+        ctx.lineWidth = (isDashing ? 4 : 3) - i * 0.25;
         ctx.globalAlpha = alpha;
         ctx.beginPath();
         ctx.moveTo(scarfTrail[i - 1].x - camera.x, scarfTrail[i - 1].y - camera.y);
         ctx.lineTo(scarfTrail[i].x - camera.x, scarfTrail[i].y - camera.y);
         ctx.stroke();
+    }
+    // Glow during dash
+    if (isDashing && scarfTrail.length > 1) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.15;
+        ctx.strokeStyle = '#ff4081';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(scarfTrail[0].x - camera.x, scarfTrail[0].y - camera.y);
+        for (let i = 1; i < Math.min(4, scarfTrail.length); i++) {
+            ctx.lineTo(scarfTrail[i].x - camera.x, scarfTrail[i].y - camera.y);
+        }
+        ctx.stroke();
+        ctx.restore();
     }
     ctx.globalAlpha = 1;
 }
@@ -1400,18 +1464,18 @@ function drawMinimap() {
     const mw = 120, mh = 40;
     const mx = canvasW - mw - 10;
     const my = canvasH - mh - 10;
-    // Calculate level bounds
     let minX = spawnPoint.x, maxX = goalZone.x + goalZone.w;
     let minY = 0, maxY = WORLD_H * TILE;
     const scaleX = mw / (maxX - minX);
     const scaleY = mh / (maxY - minY);
     const scale = Math.min(scaleX, scaleY);
-    ctx.globalAlpha = 0.3;
+    // Background
+    ctx.globalAlpha = 0.35;
     ctx.fillStyle = '#000';
-    ctx.fillRect(mx, my, mw, mh);
-    ctx.strokeStyle = '#333';
+    ctx.fillRect(mx - 1, my - 1, mw + 2, mh + 2);
+    ctx.strokeStyle = '#444';
     ctx.lineWidth = 1;
-    ctx.strokeRect(mx, my, mw, mh);
+    ctx.strokeRect(mx - 1, my - 1, mw + 2, mh + 2);
     // Platforms
     ctx.fillStyle = '#666';
     for (const p of platforms) {
@@ -1419,13 +1483,39 @@ function drawMinimap() {
         const py = my + (p.y - minY) * scale;
         ctx.fillRect(px, py, Math.max(1, p.w * scale), Math.max(1, p.h * scale));
     }
+    // Spikes (red dots)
+    ctx.fillStyle = '#ff3333';
+    for (const s of spikes) {
+        const sx2 = mx + (s.x - minX) * scale;
+        const sy2 = my + (s.y - minY) * scale;
+        ctx.fillRect(sx2, sy2, Math.max(1, s.w * scale), 1);
+    }
+    // Checkpoints (green dots)
+    ctx.fillStyle = '#00ffaa';
+    for (const cp of checkpoints) {
+        if (cp.activated) {
+            const cx2 = mx + (cp.x - minX) * scale;
+            const cy2 = my + (cp.y - minY) * scale;
+            ctx.fillRect(cx2, cy2, 2, 2);
+        }
+    }
+    // Orbs (gold dots)
+    ctx.fillStyle = '#ffd700';
+    for (const o of orbs) {
+        if (!o.collected) {
+            const ox = mx + (o.x - minX) * scale;
+            const oy = my + (o.y - minY) * scale;
+            ctx.fillRect(ox, oy, 2, 2);
+        }
+    }
     // Goal
+    ctx.globalAlpha = 0.7;
     ctx.fillStyle = '#00e5ff';
     const gx = mx + (goalZone.x - minX) * scale;
     const gy = my + (goalZone.y - minY) * scale;
-    ctx.fillRect(gx, gy, 3, 3);
+    ctx.fillRect(gx - 1, gy - 1, 4, 4);
     // Player
-    ctx.globalAlpha = 0.8;
+    ctx.globalAlpha = 0.9;
     ctx.fillStyle = '#ff4081';
     const ppx = mx + (player.x - minX) * scale;
     const ppy = my + (player.y - minY) * scale;
@@ -1441,12 +1531,26 @@ function drawProgressBar() {
     const barX = (canvasW - barW) / 2;
     const barY = canvasH - 8;
     const progress = Math.max(0, Math.min(1, player.x / goalZone.x));
+    // Background
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = '#333';
     ctx.fillRect(barX, barY, barW, barH);
+    // Fill
     ctx.globalAlpha = 0.7;
-    ctx.fillStyle = '#00e5ff';
+    const barColor = progress > 0.9 ? '#4caf50' : progress > 0.6 ? '#ffd700' : '#00e5ff';
+    ctx.fillStyle = barColor;
     ctx.fillRect(barX, barY, barW * progress, barH);
+    // Checkpoint markers on the bar
+    for (const cp of checkpoints) {
+        const cpProgress = Math.max(0, Math.min(1, cp.x / goalZone.x));
+        const cpX = barX + barW * cpProgress;
+        ctx.fillStyle = cp.activated ? '#00ffaa' : '#666';
+        ctx.fillRect(cpX - 1, barY - 2, 2, barH + 4);
+    }
+    // Player dot on bar
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ff4081';
+    ctx.fillRect(barX + barW * progress - 2, barY - 2, 4, barH + 4);
     ctx.globalAlpha = 1;
 }
 
@@ -1460,6 +1564,7 @@ function drawPostProcessing() {
     else overlayColor = 'rgba(200, 30, 30, 0.05)';
     ctx.fillStyle = overlayColor;
     ctx.fillRect(0, 0, canvasW, canvasH);
+
     // Fake bloom around player
     if (gameState === 'playing' || gameState === 'dead') {
         const px = player.x - camera.x + player.w / 2;
@@ -1471,6 +1576,30 @@ function drawPostProcessing() {
         ctx.beginPath();
         ctx.arc(px, py, 40, 0, Math.PI * 2);
         ctx.fill();
+
+        // Bloom around goal zone when close
+        if (goalZone) {
+            const gx = goalZone.x - camera.x + goalZone.w / 2;
+            const gy = goalZone.y - camera.y + goalZone.h / 2;
+            const distToGoal = Math.sqrt(Math.pow(px - gx, 2) + Math.pow(py - gy, 2));
+            if (distToGoal < 250) {
+                const bloomAlpha = (1 - distToGoal / 250) * 0.06;
+                ctx.globalAlpha = bloomAlpha;
+                ctx.fillStyle = '#00e5ff';
+                ctx.beginPath();
+                ctx.arc(gx, gy, 50, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.restore();
+    }
+
+    // Dash chromatic aberration
+    if (player.isDashing && gameState === 'playing') {
+        ctx.save();
+        ctx.globalAlpha = 0.03;
+        ctx.drawImage(canvas, 2, 0, canvasW, canvasH, 0, 0, canvasW, canvasH);
+        ctx.drawImage(canvas, -2, 0, canvasW, canvasH, 0, 0, canvasW, canvasH);
         ctx.restore();
     }
 }
@@ -1481,21 +1610,35 @@ function orbHelper(tx, ty) {
 }
 
 function drawOrbs() {
+    const px = player.x + player.w / 2;
+    const py = player.y + player.h / 2;
     for (const o of orbs) {
         if (o.collected) continue;
+        // Magnet effect: orbs drift toward player when close
+        const mdx = px - o.x;
+        const mdy = py - o.y;
+        const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+        if (mdist < 80 && mdist > 15) {
+            const pull = 0.02 * (1 - mdist / 80);
+            o.x += mdx * pull;
+            o.y += mdy * pull;
+        }
         const sx = o.x - camera.x;
         const sy = o.y - camera.y + Math.sin(Date.now() * 0.004 + o.bobPhase) * 4;
         if (sx < -20 || sx > canvasW + 20) continue;
+        // Scale up when player is near
+        const scaleFactor = mdist < 60 ? 1 + 0.4 * (1 - mdist / 60) : 1;
+        const drawR = o.r * scaleFactor;
         // Glow
         ctx.globalAlpha = 0.2 + Math.sin(Date.now() * 0.005 + o.bobPhase) * 0.1;
         ctx.fillStyle = '#ffd700';
-        ctx.beginPath(); ctx.arc(sx, sy, 14, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx, sy, drawR + 6, 0, Math.PI * 2); ctx.fill();
         // Body
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#ffd700';
-        ctx.beginPath(); ctx.arc(sx, sy, o.r, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx, sy, drawR, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(sx - 2, sy - 2, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx - 2, sy - 2, 3 * scaleFactor, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
 }
@@ -1507,11 +1650,12 @@ function checkOrbCollision() {
         const dy = (player.y + player.h / 2) - o.y;
         if (Math.sqrt(dx * dx + dy * dy) < o.r + 12) {
             o.collected = true;
-            totalOrbs++;
+            const mult = getComboMultiplier();
+            totalOrbs += mult;
             try { localStorage.setItem('parkour_total_orbs', totalOrbs); } catch(e) {}
             playSound('orb');
             spawnParticles(o.x, o.y, 8, '#ffd700', 3, 1);
-            spawnFloatingText('+1', o.x, o.y - 15, '#ffd700', 16);
+            spawnFloatingText('+' + mult, o.x, o.y - 15, mult > 1 ? '#ff4081' : '#ffd700', mult > 1 ? 20 : 16);
             triggerCombo();
             checkAchievements();
         }
@@ -1598,6 +1742,15 @@ function checkAchievements() {
     if (totalTimePlayed >= 3600) unlockAchievement('time_1h');
     // All skins
     if (unlockedSkins.length >= SKINS.length) unlockAchievement('all_skins');
+    // Endless milestones
+    if (endlessBest >= 100) unlockAchievement('endless_100');
+    if (endlessBest >= 500) unlockAchievement('endless_500');
+    // Advanced combo
+    if (comboCount >= 20) unlockAchievement('combo_20');
+    // Orb milestones
+    if (totalOrbs >= 200) unlockAchievement('orbs_200');
+    // Death milestones
+    if (totalDeaths >= 500) unlockAchievement('deaths_500');
 }
 
 function populateAchievements() {
@@ -1795,19 +1948,23 @@ function startEndlessMode() {
 function generateEndlessSegment() {
     const rng = Math.random;
     const cx = endlessLastX / TILE;
-    const gap = 3 + Math.floor(rng() * 3);
-    const w = 3 + Math.floor(rng() * 5);
+    // Difficulty scales with distance: platforms shrink, gaps grow, more hazards
+    const dist = Math.max(0, endlessDistance);
+    const diffScale = Math.min(1, dist / 300); // maxes out at 300m
+    const gap = 3 + Math.floor(rng() * (3 + diffScale * 3));
+    const w = Math.max(2, Math.floor((5 - diffScale * 2) + rng() * (4 - diffScale * 2)));
     const y = 14 + Math.floor(rng() * 5);
-    const type = Math.floor(rng() * 3);
+    const type = Math.floor(rng() * (3 + (diffScale > 0.5 ? 1 : 0))); // more falling/moving at distance
     const startX = cx + gap;
     if (type === 0) {
         platforms.push(plat(startX, y, w, 1));
     } else if (type === 1) {
-        movingPlatforms.push(moving(startX, y, w, 1, rng() > 0.5 ? 1 : 0, rng() > 0.5 ? 1 : 0, 0.5 + rng(), 2));
+        movingPlatforms.push(moving(startX, y, w, 1, rng() > 0.5 ? 1 : 0, rng() > 0.5 ? 1 : 0, 0.5 + rng() * (1 + diffScale), 2 + Math.floor(diffScale * 2)));
     } else {
         fallingPlatforms.push(falling(startX, y, w, 1));
     }
-    if (rng() > 0.7) spikes.push(spike(startX + gap, 19, 2, 1));
+    // More spikes as distance increases
+    if (rng() > (0.7 - diffScale * 0.3)) spikes.push(spike(startX + Math.floor(w / 2), 19, 2, 1));
     if (rng() > 0.5) orbs.push(orbHelper(startX + Math.floor(w / 2), y - 2));
     endlessLastX = (startX + w) * TILE;
 }
@@ -1977,14 +2134,19 @@ function animateStarReveal(grade) {
     const starClass = grade !== 'none' ? 'star-' + grade : 'star-none';
     for (let i = 0; i < starCount; i++) {
         setTimeout(() => {
-            const span = gradeEl.querySelector('.' + starClass) || document.createElement('span');
-            if (!gradeEl.querySelector('.' + starClass)) {
-                span.className = starClass;
-                gradeEl.appendChild(span);
-            }
-            span.textContent += '\u2605';
+            const span = document.createElement('span');
+            span.className = starClass + ' star-reveal';
+            span.textContent = '\u2605';
+            span.style.animationDelay = '0s';
+            gradeEl.appendChild(span);
             playSound('orb');
-        }, (i + 1) * 300);
+        }, (i + 1) * 350);
+    }
+    if (starCount === 0) {
+        const span = document.createElement('span');
+        span.className = 'star-none';
+        span.textContent = '\u2606';
+        gradeEl.appendChild(span);
     }
 }
 
@@ -2008,6 +2170,7 @@ function exportSave() {
 }
 
 function importSave(file) {
+    if (!confirm('This will overwrite your current progress. Continue?')) return;
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
@@ -3400,9 +3563,11 @@ function loadBestRuns() {
 function getGrade(level, time) {
     if (level < 0 || level >= GRADE_THRESHOLDS.length) return 'none';
     const t = GRADE_THRESHOLDS[level];
-    if (time <= t.gold) return 'gold';
-    if (time <= t.silver) return 'silver';
-    if (time <= t.bronze) return 'bronze';
+    // Scale thresholds by difficulty: easier = more lenient, harder = stricter
+    const scale = difficulty === 'easy' ? 1.3 : difficulty === 'hard' ? 0.85 : difficulty === 'extreme' ? 0.7 : 1.0;
+    if (time <= t.gold * scale) return 'gold';
+    if (time <= t.silver * scale) return 'silver';
+    if (time <= t.bronze * scale) return 'bronze';
     return 'none';
 }
 
@@ -3507,6 +3672,8 @@ function loadLevel(index) {
     deathCount = 0;
 
     timerStarted = false;
+    goalProximityNotified = false;
+    dashReadyNotified = true;
     currentLevel = index;
     orbs = [];
     LEVELS[index]();
@@ -3591,7 +3758,7 @@ function showTutorialHint(level) {
         if (shown) tutorialShown = JSON.parse(shown);
     } catch(e) { tutorialShown = {}; }
 
-    if (level < TUTORIAL_HINTS.length && !tutorialShown[level]) {
+    if (gameSettings.hints !== false && level < TUTORIAL_HINTS.length && !tutorialShown[level]) {
         el.textContent = TUTORIAL_HINTS[level];
         el.classList.add('visible');
         tutorialShown[level] = true;
@@ -3700,16 +3867,20 @@ function updatePlayer(dt) {
         dashTrail = [];
     }
 
-    // Update dash HUD
-    const hudDash = document.getElementById('hud-dash');
-    if (hudDash) {
-        if (p.dashCooldown > 0) {
-            hudDash.textContent = 'DASH \u25CB';
-            hudDash.classList.add('cooldown');
-        } else {
-            hudDash.textContent = 'DASH \u25CF';
-            hudDash.classList.remove('cooldown');
+    // Update dash HUD with visual cooldown bar
+    const dashBarFill = document.getElementById('dash-bar-fill');
+    if (dashBarFill) {
+        const maxCd = getDiff().dashCooldown || DASH_COOLDOWN;
+        const pct = p.dashCooldown > 0 ? Math.max(0, 1 - p.dashCooldown / maxCd) * 100 : 100;
+        dashBarFill.style.width = pct + '%';
+        dashBarFill.style.background = pct >= 100 ? '#00e5ff' : '#ff8800';
+        // Dash ready notification
+        if (pct >= 100 && !dashReadyNotified) {
+            dashReadyNotified = true;
+            dashBarFill.classList.add('dash-ready-pulse');
+            setTimeout(() => dashBarFill.classList.remove('dash-ready-pulse'), 400);
         }
+        if (pct < 100) dashReadyNotified = false;
     }
 
     // ---- Slide ----
@@ -3910,8 +4081,11 @@ function updatePlayer(dt) {
                 }
                 // Landing effects
                 if (!p.wasOnGround && p.vy > 3) {
-                    spawnParticles(p.x + p.w / 2, p.y + p.h, 6, '#fff', 3, 0.8);
-                    landTimer = 4;
+                    const impactForce = Math.min(p.vy / MAX_FALL, 1);
+                    const particleCount = 6 + Math.floor(impactForce * 8);
+                    spawnParticles(p.x + p.w / 2, p.y + p.h, particleCount, '#fff', 3 + impactForce * 2, 0.8 + impactForce * 0.5);
+                    landTimer = 4 + Math.floor(impactForce * 3);
+                    if (impactForce > 0.7 && gameSettings.shake) screenShake = Math.max(screenShake, 3 + impactForce * 4);
                     playSound('land');
                 }
             } else if (p.vy < 0) {
@@ -4002,11 +4176,24 @@ function triggerCombo() {
     if (hudCombo && comboCount > 1) {
         hudCombo.textContent = 'COMBO x' + comboCount;
         hudCombo.classList.add('visible');
+        // Pop animation
+        hudCombo.classList.remove('pop');
+        void hudCombo.offsetWidth; // force reflow
+        hudCombo.classList.add('pop');
+        setTimeout(() => hudCombo.classList.remove('pop'), 200);
         // Floating text for combo milestones
         if (comboCount % 5 === 0) {
             spawnFloatingText('COMBO x' + comboCount + '!', player.x + player.w / 2, player.y - 30, '#ffd700', 18);
+            playSound('milestone');
         }
     }
+}
+
+// Combo orb multiplier: higher combos earn bonus orbs
+function getComboMultiplier() {
+    if (comboCount >= 10) return 3;
+    if (comboCount >= 5) return 2;
+    return 1;
 }
 
 function updateCombo(dt) {
@@ -4156,24 +4343,31 @@ function killPlayer() {
                 deathProgress.className = 'death-progress pulse';
             } else if (goalZone) {
                 const progress = Math.min(100, Math.max(0, Math.round(player.x / goalZone.x * 100)));
+                let progressText = '';
                 if (progress > 70) {
-                    deathProgress.textContent = progress + '% COMPLETE - SO CLOSE!';
+                    progressText = progress + '% COMPLETE - SO CLOSE!';
                     deathProgress.className = 'death-progress pulse';
                 } else if (progress > 30) {
-                    deathProgress.textContent = progress + '% COMPLETE';
+                    progressText = progress + '% COMPLETE';
                     deathProgress.className = 'death-progress';
                 } else {
-                    deathProgress.textContent = '';
                     deathProgress.className = 'death-progress';
                 }
+                // Show time comparison to best
+                const best = bestTimes[currentLevel];
+                if (best && levelTimer > 0) {
+                    const behind = levelTimer - best;
+                    if (behind > 0) progressText += (progressText ? ' | ' : '') + behind.toFixed(1) + 's behind best';
+                }
+                deathProgress.textContent = progressText;
             }
         }
 
         document.getElementById('death-overlay').classList.remove('hidden');
 
-        // Auto-restart countdown
+        // Auto-restart countdown (respects settings)
         autoRestartTimer = 1.5;
-        autoRestartActive = true;
+        autoRestartActive = gameSettings.autoRestart !== false;
         const autoEl = document.getElementById('death-auto-restart');
         if (autoEl) autoEl.textContent = 'Auto-restart in 1.5s...';
     }
@@ -4199,7 +4393,7 @@ function respawnAtCheckpoint() {
 function completeLevel() {
     gameState = 'complete';
     playSound('victory');
-    stopMusic();
+    stopMusic(true);
 
     const time = levelTimer;
     const prevBest = bestTimes[currentLevel];
@@ -4249,8 +4443,19 @@ function completeLevel() {
         try { localStorage.setItem('parkour_unlocked', unlockedLevel); } catch(e) {}
     }
 
-    // Update complete overlay
-    document.getElementById('complete-time').textContent = 'Time: ' + time.toFixed(2) + 's';
+    // Update complete overlay with count-up animation
+    const completeTimeEl = document.getElementById('complete-time');
+    if (completeTimeEl) {
+        let countUp = 0;
+        const countUpInterval = setInterval(() => {
+            countUp += time / 30; // 30 steps over ~500ms
+            if (countUp >= time) {
+                countUp = time;
+                clearInterval(countUpInterval);
+            }
+            completeTimeEl.textContent = 'Time: ' + countUp.toFixed(2) + 's';
+        }, 16);
+    }
     const displayBest = currentLevel === -2 ? getDailyBest() : bestTimes[currentLevel];
     document.getElementById('complete-best').textContent = displayBest ? 'Best: ' + displayBest.toFixed(2) + 's' : '';
 
@@ -4348,7 +4553,9 @@ function completeLevel() {
 
 // ---------- CAMERA ----------
 function updateCamera(dt) {
-    const targetX = player.x - canvasW / 2 + player.w / 2;
+    // Camera look-ahead: bias in direction of movement
+    const lookAhead = player.vx * 8; // look ahead ~8px per vx unit
+    const targetX = player.x - canvasW / 2 + player.w / 2 + lookAhead;
     // Bias camera toward lower third — player at 40% from top, not centered
     const targetY = player.y - canvasH * 0.4 + player.h / 2;
     const smooth = 1 - Math.pow(1 - CAM_SMOOTH, dt);
@@ -4518,13 +4725,22 @@ function drawWalls() {
 
 function drawSpikes() {
     const pulseAlpha = Math.sin(Date.now() * 0.005) * 0.2 + 0.35;
+    const heartbeat = Math.sin(Date.now() * 0.008) * 0.5 + 0.5; // slow heartbeat pulse
+    const px = player.x + player.w / 2;
+    const py = player.y + player.h / 2;
     for (const s of spikes) {
         const sx = s.x - camera.x;
         const sy = s.y - camera.y;
         if (sx + s.w < 0 || sx > canvasW || sy + s.h < 0 || sy > canvasH) continue;
 
-        // Strong pulsing glow behind spikes
-        ctx.fillStyle = `rgba(255, 40, 40, ${pulseAlpha * 0.5})`;
+        // Distance-based danger tint
+        const dx = px - (s.x + s.w / 2);
+        const dy = py - (s.y + s.h / 2);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const danger = dist < 120 ? (1 - dist / 120) * 0.15 : 0;
+
+        // Heartbeat glow when player is close
+        ctx.fillStyle = `rgba(255, 40, 40, ${(pulseAlpha * 0.5) + (danger * heartbeat)})`;
         ctx.fillRect(sx - 2, sy - 4, s.w + 4, s.h + 8);
 
         // Spike triangles
@@ -4539,6 +4755,20 @@ function drawSpikes() {
             // Bright white tip
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(sx + i + spikeW / 2 - 2, sy + 1, 4, 4);
+        }
+
+        // Danger warning line when very close
+        if (danger > 0.05) {
+            ctx.save();
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = `rgba(255, 50, 50, ${danger * 2})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(px - camera.x, py - camera.y);
+            ctx.lineTo(sx + s.w / 2, sy + s.h / 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
         }
     }
 }
@@ -4589,6 +4819,30 @@ function drawMovingPlatforms() {
         }
         ctx.stroke();
         ctx.setLineDash([]);
+
+        // Directional arrow on platform surface
+        const arrowAlpha = Math.sin(Date.now() * 0.004) * 0.2 + 0.4;
+        ctx.globalAlpha = arrowAlpha;
+        ctx.fillStyle = th.movTop;
+        const acx = sx + mp.w / 2;
+        const acy = sy + mp.h / 2;
+        if (mp.dx) {
+            const dir = mp.vx > 0 ? 1 : -1;
+            ctx.beginPath();
+            ctx.moveTo(acx + 8 * dir, acy);
+            ctx.lineTo(acx - 4 * dir, acy - 4);
+            ctx.lineTo(acx - 4 * dir, acy + 4);
+            ctx.fill();
+        }
+        if (mp.dy) {
+            const dir = mp.vy > 0 ? 1 : -1;
+            ctx.beginPath();
+            ctx.moveTo(acx, acy + 8 * dir);
+            ctx.lineTo(acx - 4, acy - 4 * dir);
+            ctx.lineTo(acx + 4, acy - 4 * dir);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
     }
 }
 
@@ -4680,12 +4934,23 @@ function drawBoostPads() {
 }
 
 function drawCheckpoints() {
-    for (const cp of checkpoints) {
+    for (let ci = 0; ci < checkpoints.length; ci++) {
+        const cp = checkpoints[ci];
         const sx = cp.x - camera.x;
         const sy = cp.y - camera.y;
         if (sx < -50 || sx > canvasW + 50) continue;
 
         const pulse = Math.sin(Date.now() * 0.004) * 0.3 + 0.7;
+
+        // Pulsing ring around checkpoint
+        if (cp.activated) {
+            const ringR = 20 + Math.sin(Date.now() * 0.003) * 4;
+            ctx.strokeStyle = `rgba(0, 255, 170, ${pulse * 0.3})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(sx + cp.w / 2, sy + cp.h / 2, ringR, 0, Math.PI * 2);
+            ctx.stroke();
+        }
 
         // Flag pole
         ctx.fillStyle = cp.activated ? '#00ffaa' : '#555';
@@ -4699,6 +4964,13 @@ function drawCheckpoints() {
         ctx.lineTo(sx + cp.w / 2 + 18, sy + 8);
         ctx.lineTo(sx + cp.w / 2 + 2, sy + 16);
         ctx.fill();
+
+        // Checkpoint number label
+        ctx.fillStyle = cp.activated ? '#00ffaa' : '#777';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText((ci + 1).toString(), sx + cp.w / 2, sy - 6);
+        ctx.textAlign = 'left';
 
         // Glow when activated
         if (cp.activated) {
@@ -4715,12 +4987,32 @@ function drawGoal() {
     const now = Date.now();
     const pulse = Math.sin(now * 0.005) * 0.3 + 0.7;
 
-    // Radial glow
-    ctx.fillStyle = `rgba(0, 229, 255, ${0.08 * pulse})`;
+    // Distance-based intensity boost
+    const distToGoal = Math.sqrt(
+        Math.pow((player.x + player.w / 2) - (goalZone.x + goalZone.w / 2), 2) +
+        Math.pow((player.y + player.h / 2) - (goalZone.y + goalZone.h / 2), 2)
+    );
+    const proximityBoost = Math.max(0, 1 - distToGoal / 300) * 0.3;
+
+    // Expanding pulse ring when player approaches
+    if (distToGoal < 250) {
+        const ringPhase = (now % 1500) / 1500;
+        const ringRadius = 10 + ringPhase * 40;
+        const ringAlpha = (1 - ringPhase) * (0.3 + proximityBoost);
+        ctx.strokeStyle = `rgba(0, 229, 255, ${ringAlpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx + goalZone.w / 2, sy + goalZone.h / 2, ringRadius, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    // Radial glow (intensifies near player)
+    const glowMult = 1 + proximityBoost;
+    ctx.fillStyle = `rgba(0, 229, 255, ${0.08 * pulse * glowMult})`;
     ctx.fillRect(sx - 12, sy - 12, goalZone.w + 24, goalZone.h + 24);
-    ctx.fillStyle = `rgba(0, 229, 255, ${0.15 * pulse})`;
+    ctx.fillStyle = `rgba(0, 229, 255, ${0.15 * pulse * glowMult})`;
     ctx.fillRect(sx - 4, sy - 4, goalZone.w + 8, goalZone.h + 8);
-    ctx.fillStyle = `rgba(0, 229, 255, ${0.3 * pulse})`;
+    ctx.fillStyle = `rgba(0, 229, 255, ${0.3 * pulse * glowMult})`;
     ctx.fillRect(sx, sy, goalZone.w, goalZone.h);
 
     // Rotating rings (3 concentric)
@@ -4729,7 +5021,7 @@ function drawGoal() {
     for (let r = 0; r < 3; r++) {
         const radius = 12 + r * 8;
         const angle = now * (0.002 + r * 0.001) * (r % 2 === 0 ? 1 : -1);
-        ctx.strokeStyle = `rgba(0, 229, 255, ${0.4 - r * 0.1})`;
+        ctx.strokeStyle = `rgba(0, 229, 255, ${(0.4 - r * 0.1) * glowMult})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(cx, cy, radius, angle, angle + Math.PI * 1.2);
@@ -4746,8 +5038,9 @@ function drawGoal() {
     ctx.lineTo(cx + 2, sy + 20);
     ctx.fill();
 
-    // Particle fountain upward
-    if (gameState === 'playing' && Math.random() < 0.3) {
+    // Particle fountain (more particles when close)
+    const particleChance = distToGoal < 200 ? 0.6 : 0.3;
+    if (gameState === 'playing' && Math.random() < particleChance) {
         spawnParticles(cx, sy + goalZone.h, 1, '#00e5ff', 1, 0.5);
     }
 }
@@ -5096,32 +5389,79 @@ function drawPlayer() {
 
 // Speed lines when moving fast
 function drawSpeedLines() {
-    if (Math.abs(player.vx) < 8) return;
-    const alpha = Math.min((Math.abs(player.vx) - 8) / 10, 0.4);
-    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    const absVx = Math.abs(player.vx);
+    if (absVx < 8) return;
+    const alpha = Math.min((absVx - 8) / 10, 0.5);
+    // Theme-colored speed lines
+    const th = getTheme();
+    const lineColor = th.platTop || '#ffffff';
+    const r = parseInt(lineColor.slice(1, 3), 16) || 255;
+    const g = parseInt(lineColor.slice(3, 5), 16) || 255;
+    const b = parseInt(lineColor.slice(5, 7), 16) || 255;
     ctx.lineWidth = 1;
     const dir = player.vx > 0 ? -1 : 1;
-    for (let i = 0; i < 6; i++) {
+    const lineCount = Math.min(12, Math.floor(absVx - 6));
+    for (let i = 0; i < lineCount; i++) {
+        const lineAlpha = alpha * (0.5 + Math.random() * 0.5);
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${lineAlpha})`;
         const y = Math.random() * canvasH;
         const x = dir > 0 ? 0 : canvasW;
-        const len = 40 + Math.random() * 60;
+        const len = 40 + Math.random() * 80;
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x + len * dir, y);
         ctx.stroke();
     }
+
+    // Subtle motion blur behind player when very fast
+    if (absVx > 12) {
+        const px = player.x - camera.x + player.w / 2;
+        const py = player.y - camera.y + player.h / 2;
+        ctx.save();
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = lineColor;
+        for (let i = 1; i <= 3; i++) {
+            ctx.fillRect(px - dir * i * 8 - player.w / 2, py - player.h / 2, player.w, player.h);
+        }
+        ctx.restore();
+    }
 }
 
-// Vignette
+// Vignette (danger-responsive)
 function drawVignette() {
+    // Check proximity to spikes for danger vignette
+    let dangerLevel = 0;
+    if (gameState === 'playing') {
+        for (const sp of spikes) {
+            const dx = (player.x + player.w / 2) - (sp.x + sp.w / 2);
+            const dy = (player.y + player.h / 2) - (sp.y + sp.h / 2);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 100) dangerLevel = Math.max(dangerLevel, 1 - dist / 100);
+        }
+    }
+
     const grd = ctx.createRadialGradient(
         canvasW / 2, canvasH / 2, canvasH * 0.3,
         canvasW / 2, canvasH / 2, canvasH * 0.85
     );
-    grd.addColorStop(0, 'rgba(0,0,0,0)');
-    grd.addColorStop(1, 'rgba(0,0,0,0.4)');
+    const baseAlpha = 0.4 + dangerLevel * 0.15;
+    // Shift vignette red when in danger
+    if (dangerLevel > 0.3) {
+        grd.addColorStop(0, 'rgba(0,0,0,0)');
+        grd.addColorStop(0.7, `rgba(40,0,0,${dangerLevel * 0.1})`);
+        grd.addColorStop(1, `rgba(0,0,0,${baseAlpha})`);
+    } else {
+        grd.addColorStop(0, 'rgba(0,0,0,0)');
+        grd.addColorStop(1, `rgba(0,0,0,${baseAlpha})`);
+    }
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // Death state: darker vignette
+    if (gameState === 'dead') {
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(0, 0, canvasW, canvasH);
+    }
 }
 
 // ---------- FLOATING TEXT POPUPS ----------
@@ -5306,6 +5646,8 @@ function populateStats() {
         { label: 'ENDLESS BEST', value: endlessBest > 0 ? endlessBest + 'm' : '--', color: '#ff8c00' },
         { label: 'ACHIEVEMENTS', value: achCount + '/' + ACHIEVEMENTS.length, color: '#ffaa00' },
         { label: 'SKINS UNLOCKED', value: unlockedSkins.length + '/' + SKINS.length, color: '#ff66aa' },
+        { label: 'DIFFICULTY', value: (difficulty || 'medium').toUpperCase(), color: { easy: '#66aaff', medium: '#bb66ff', hard: '#ff6622', extreme: '#ff2222' }[difficulty] || '#bb66ff' },
+        { label: 'GAMEPAD', value: gamepadConnected ? 'CONNECTED' : 'NONE', color: gamepadConnected ? '#4caf50' : '#666' },
     ];
 
     for (const s of stats) {
@@ -5316,6 +5658,57 @@ function populateStats() {
         grid.appendChild(card);
     }
 }
+
+// ---------- GAMEPAD SUPPORT ----------
+function pollGamepad() {
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let gp = null;
+    for (let i = 0; i < gamepads.length; i++) {
+        if (gamepads[i]) { gp = gamepads[i]; break; }
+    }
+    if (!gp) { gamepadConnected = false; return; }
+    gamepadConnected = true;
+
+    // Left stick X axis
+    const lx = gp.axes[0] || 0;
+    if (lx < -gamepadDeadzone) { keys['ArrowLeft'] = true; keys['ArrowRight'] = false; }
+    else if (lx > gamepadDeadzone) { keys['ArrowRight'] = true; keys['ArrowLeft'] = false; }
+    else { keys['ArrowLeft'] = false; keys['ArrowRight'] = false; }
+
+    // Button mappings (standard gamepad):
+    // 0=A (South) = Jump, 1=B (East) = Dash, 2=X (West) = Slide, 3=Y (North) = Climb
+    // 9=Start = Pause, 12=DPad Up, 13=DPad Down, 14=DPad Left, 15=DPad Right
+    const btns = {};
+    for (let i = 0; i < gp.buttons.length; i++) btns[i] = gp.buttons[i].pressed;
+
+    // D-pad
+    if (btns[14]) keys['ArrowLeft'] = true;
+    if (btns[15]) keys['ArrowRight'] = true;
+    if (btns[12]) keys['ArrowUp'] = true; else if (!keys['KeyW']) keys['ArrowUp'] = false;
+
+    // Jump (A button)
+    if (btns[0]) { keys['Space'] = true; } else { if (!keys['KeyW'] && !keys['ArrowUp']) keys['Space'] = false; }
+    // Dash (B / right bumper)
+    if (btns[1] || btns[5]) { keys['ShiftLeft'] = true; } else { if (!keys['ShiftRight']) keys['ShiftLeft'] = false; }
+    // Slide (X button)
+    if (btns[2]) { keys['KeyS'] = true; } else { if (!keys['ArrowDown']) keys['KeyS'] = false; }
+    // Climb (Y button)
+    if (btns[3]) { keys['KeyE'] = true; } else { keys['KeyE'] = false; }
+
+    // Start = Pause (edge-triggered)
+    if (btns[9] && !prevGamepadButtons[9]) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+    }
+    // Select (8) = Restart
+    if (btns[8] && !prevGamepadButtons[8]) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR' }));
+    }
+
+    prevGamepadButtons = { ...btns };
+}
+
+window.addEventListener('gamepadconnected', () => { gamepadConnected = true; });
+window.addEventListener('gamepaddisconnected', () => { gamepadConnected = false; });
 
 // ---------- MAIN GAME LOOP ----------
 function gameLoop(timestamp) {
@@ -5340,6 +5733,9 @@ function gameLoop(timestamp) {
             initAmbientParticles();
         }
     }
+
+    // Gamepad polling
+    pollGamepad();
 
     // Menu background
     if (currentScreen === 'menu' || currentScreen === 'level' || currentScreen === 'controls' || currentScreen === 'bestrun' || currentScreen === 'difficulty' || currentScreen === 'stats' || currentScreen === 'achievements' || currentScreen === 'settings' || currentScreen === 'skins') {
@@ -5436,6 +5832,15 @@ function gameLoop(timestamp) {
             if (Math.sqrt(dx * dx + dy * dy) < 80) { targetZoom = Math.max(targetZoom, 1.05); break; }
         }
         cameraZoom += (targetZoom - cameraZoom) * 0.05;
+
+        // Goal proximity notification
+        if (goalZone && !endlessMode && !goalProximityNotified) {
+            const distToGoal = Math.abs(player.x - goalZone.x);
+            if (distToGoal < 150 && player.x > goalZone.x * 0.7) {
+                goalProximityNotified = true;
+                spawnFloatingText('ALMOST THERE!', player.x + player.w / 2, player.y - 50, '#00e5ff', 20);
+            }
+        }
 
         // Tutorial hint timer
         if (tutorialTimer > 0) {
@@ -5706,6 +6111,19 @@ document.addEventListener('keydown', (e) => {
             if (wasCountdown) countdownActive = false;
             stopMusic();
             document.getElementById('pause-overlay').classList.remove('hidden');
+            // Show level info in pause
+            const pauseInfo = document.getElementById('pause-level-info');
+            if (pauseInfo) {
+                let info = '';
+                if (endlessMode) info = 'ENDLESS — ' + Math.floor(endlessDistance) + 'm';
+                else if (currentLevel === -2) info = 'DAILY CHALLENGE';
+                else if (currentLevel === -1) info = 'CUSTOM LEVEL';
+                else info = 'LEVEL ' + (currentLevel + 1) + ' — ' + levelTimer.toFixed(1) + 's';
+                pauseInfo.textContent = info;
+            }
+            // Show/hide checkpoint restart button
+            const cpBtn = document.getElementById('btn-checkpoint-restart');
+            if (cpBtn) cpBtn.classList.toggle('hidden', !lastCheckpoint);
             const gpb = document.getElementById('btn-ghost-pause');
             if (gpb) gpb.textContent = ghostEnabled ? 'GHOST: ON' : 'GHOST: OFF';
         } else if (gameState === 'paused') {
@@ -5749,6 +6167,8 @@ function initTouchControls() {
             e.preventDefault();
             initAudio();
             keys[key] = true;
+            // Haptic feedback
+            if (navigator.vibrate) navigator.vibrate(25);
             // Map touch dash/slide to actual keys
             if (key === 'touchDash') keys['ShiftLeft'] = true;
             if (key === 'touchSlide') keys['KeyS'] = true;
@@ -5918,8 +6338,11 @@ function populateLevelGrid() {
     for (let i = 0; i < LEVELS.length; i++) {
         const tile = document.createElement('div');
         tile.className = 'level-tile';
+        tile.setAttribute('role', 'button');
+        tile.setAttribute('aria-label', 'Level ' + (i + 1) + (i > unlockedLevel ? ' (locked)' : ''));
         if (i > unlockedLevel) tile.classList.add('locked');
         if (bestTimes[i]) tile.classList.add('completed');
+        if (bestGrades[i] === 'gold') tile.classList.add('gold-completed');
 
         let gradeHTML = '';
         if (bestGrades[i]) {
@@ -6279,8 +6702,11 @@ function initUI() {
         showScreen('menu');
     });
 
-    // Difficulty select buttons
+    // Difficulty select buttons — highlight saved difficulty
     let pendingAction = 'play';
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+        if (btn.dataset.diff === difficulty) btn.classList.add('selected');
+    });
     document.querySelectorAll('.diff-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             initAudio();
@@ -6320,7 +6746,8 @@ function initUI() {
     });
 
     // Fullscreen
-    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+    const fsBtn = document.getElementById('btn-fullscreen');
+    fsBtn.addEventListener('click', () => {
         playSound('click');
         const el = document.documentElement;
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
@@ -6329,13 +6756,18 @@ function initUI() {
             } else if (el.webkitRequestFullscreen) {
                 el.webkitRequestFullscreen();
             }
+            fsBtn.textContent = 'EXIT FS';
         } else {
             if (document.exitFullscreen) {
                 document.exitFullscreen();
             } else if (document.webkitExitFullscreen) {
                 document.webkitExitFullscreen();
             }
+            fsBtn.textContent = 'FULLSCREEN';
         }
+    });
+    document.addEventListener('fullscreenchange', () => {
+        fsBtn.textContent = document.fullscreenElement ? 'EXIT FS' : 'FULLSCREEN';
     });
 
     // Settings button
@@ -6354,6 +6786,10 @@ function initUI() {
         if (cbBtnUI) cbBtnUI.textContent = gameSettings.colorblind ? 'ON' : 'OFF';
         const hcBtnUI = document.getElementById('settings-highcontrast');
         if (hcBtnUI) hcBtnUI.textContent = gameSettings.highContrast ? 'ON' : 'OFF';
+        const hintsBtnUI = document.getElementById('settings-hints');
+        if (hintsBtnUI) hintsBtnUI.textContent = gameSettings.hints !== false ? 'ON' : 'OFF';
+        const arBtnUI = document.getElementById('settings-autorestart');
+        if (arBtnUI) arBtnUI.textContent = gameSettings.autoRestart !== false ? 'ON' : 'OFF';
         showScreen('settings');
     });
 
@@ -6424,6 +6860,30 @@ function initUI() {
             gameSettings.highContrast = !gameSettings.highContrast;
             hcBtn.textContent = gameSettings.highContrast ? 'ON' : 'OFF';
             document.body.classList.toggle('high-contrast-mode', gameSettings.highContrast);
+            try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
+        });
+    }
+
+    // Hints toggle
+    const hintsBtn = document.getElementById('settings-hints');
+    if (hintsBtn) {
+        hintsBtn.textContent = gameSettings.hints !== false ? 'ON' : 'OFF';
+        hintsBtn.addEventListener('click', () => {
+            playSound('click');
+            gameSettings.hints = !gameSettings.hints;
+            hintsBtn.textContent = gameSettings.hints ? 'ON' : 'OFF';
+            try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
+        });
+    }
+
+    // Auto restart toggle
+    const arBtn = document.getElementById('settings-autorestart');
+    if (arBtn) {
+        arBtn.textContent = gameSettings.autoRestart !== false ? 'ON' : 'OFF';
+        arBtn.addEventListener('click', () => {
+            playSound('click');
+            gameSettings.autoRestart = !gameSettings.autoRestart;
+            arBtn.textContent = gameSettings.autoRestart ? 'ON' : 'OFF';
             try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
         });
     }
@@ -6503,6 +6963,8 @@ function initUI() {
             playSound('click');
             practiceMode = !practiceMode;
             practiceBtn.textContent = practiceMode ? 'PRACTICE: ON' : 'PRACTICE: OFF';
+            const badge = document.getElementById('practice-badge');
+            if (badge) badge.classList.toggle('hidden', !practiceMode);
         });
     }
 
@@ -6537,6 +6999,16 @@ function initUI() {
         }
         startMusic();
         document.getElementById('pause-overlay').classList.add('hidden');
+    });
+
+    // Checkpoint restart from pause
+    document.getElementById('btn-checkpoint-restart').addEventListener('click', () => {
+        playSound('click');
+        document.getElementById('pause-overlay').classList.add('hidden');
+        if (lastCheckpoint) {
+            respawnAtCheckpoint();
+            startMusic();
+        }
     });
 
     document.getElementById('btn-restart').addEventListener('click', () => {
