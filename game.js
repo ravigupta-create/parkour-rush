@@ -28,21 +28,21 @@ const CAM_SMOOTH = 0.1;
 
 // ---------- GRADE THRESHOLDS ----------
 const GRADE_THRESHOLDS = [
-    { gold: 6, silver: 10, bronze: 15 },
-    { gold: 8, silver: 13, bronze: 20 },
-    { gold: 10, silver: 15, bronze: 22 },
-    { gold: 8, silver: 12, bronze: 18 },
-    { gold: 12, silver: 18, bronze: 25 },
-    { gold: 10, silver: 15, bronze: 22 },
-    { gold: 15, silver: 22, bronze: 30 },
-    { gold: 12, silver: 18, bronze: 25 },
-    { gold: 18, silver: 25, bronze: 35 },
-    { gold: 25, silver: 35, bronze: 50 },
-    { gold: 15, silver: 22, bronze: 30 },
-    { gold: 12, silver: 18, bronze: 25 },
-    { gold: 14, silver: 20, bronze: 28 },
-    { gold: 16, silver: 24, bronze: 32 },
-    { gold: 30, silver: 42, bronze: 55 },
+    { gold: 10, silver: 16, bronze: 24 },     // L1: Tutorial
+    { gold: 12, silver: 18, bronze: 26 },     // L2: Wall Jump
+    { gold: 14, silver: 20, bronze: 28 },     // L3: Dash
+    { gold: 14, silver: 20, bronze: 28 },     // L4: Slide
+    { gold: 16, silver: 24, bronze: 34 },     // L5: Moving
+    { gold: 14, silver: 20, bronze: 28 },     // L6: Falling
+    { gold: 18, silver: 26, bronze: 36 },     // L7: Wall Climb
+    { gold: 16, silver: 24, bronze: 34 },     // L8: Boost Rush
+    { gold: 20, silver: 30, bronze: 42 },     // L9: Gauntlet
+    { gold: 28, silver: 40, bronze: 55 },     // L10: Master
+    { gold: 22, silver: 32, bronze: 44 },     // L11: Sky Highway
+    { gold: 16, silver: 24, bronze: 34 },     // L12: The Pit
+    { gold: 18, silver: 26, bronze: 36 },     // L13: Mirror Run
+    { gold: 20, silver: 30, bronze: 42 },     // L14: Momentum
+    { gold: 35, silver: 50, bronze: 70 },     // L15: Final Rush
 ];
 
 // ---------- TUTORIAL HINTS ----------
@@ -317,6 +317,7 @@ let currentScreen = 'menu';
 let gameState = 'menu';
 let currentLevel = 0;
 let levelTimer = 0;
+let timerStarted = false; // timer doesn't tick until player moves
 let bestTimes = {};
 let bestGrades = {};
 let unlockedLevel = 0;
@@ -374,6 +375,7 @@ let lastCheckpoint = null;
 let ghostRecording = [];
 let ghostPlayback = [];
 let ghostFrame = 0;
+let ghostPlaybackCounter = 0;
 let ghostRecordFrame = 0;
 let ghostEnabled = true;
 
@@ -1719,6 +1721,7 @@ function startDailyChallenge() {
     generateDailyLevel();
     resetPlayer();
     levelTimer = 0;
+    timerStarted = false;
     camera.x = player.x - canvasW / 2;
     camera.y = player.y - canvasH / 2;
     comboCount = 0; comboTimer = 0;
@@ -1764,6 +1767,7 @@ function startEndlessMode() {
     spawnPoint = { x: 2 * TILE, y: 16 * TILE };
     resetPlayer();
     levelTimer = 0;
+    timerStarted = false;
     camera.x = player.x - canvasW / 2;
     camera.y = player.y - canvasH / 2;
     comboCount = 0; comboTimer = 0;
@@ -2161,17 +2165,18 @@ function checkpoint(tx, ty) {
 
 // ---------- LEVEL DEFINITIONS ----------
 const LEVELS = [
-    // ----- LEVEL 1: Tutorial Run -----
+    // ----- LEVEL 1: Tutorial Run (learn to move & jump) -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(58, 17);
+        goalZone = goal(95, 17);
         platforms = [
-            plat(0, 18, 15, 2),
-            plat(17, 18, 6, 2),
-            plat(25, 18, 6, 2),
-            plat(33, 16, 5, 1),
-            plat(40, 18, 8, 2),
-            plat(50, 18, 12, 2),
+            plat(0, 18, 18, 2),
+            plat(22, 18, 8, 2),
+            plat(34, 18, 8, 2),
+            plat(46, 16, 6, 1),
+            plat(56, 18, 10, 2),
+            plat(70, 17, 6, 1),
+            plat(80, 18, 18, 2),
         ];
         spikes = [];
         movingPlatforms = [];
@@ -2184,16 +2189,22 @@ const LEVELS = [
     // ----- LEVEL 2: Wall Jump Intro -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(48, 5);
+        goalZone = goal(90, 17);
         platforms = [
-            plat(0, 18, 10, 2),
-            plat(20, 18, 6, 2),
-            plat(35, 18, 8, 2),
-            plat(45, 6, 6, 1),
+            plat(0, 18, 12, 2),
+            plat(20, 18, 6, 2),    // landing after wall jump
+            plat(20, 12, 6, 1),    // top of wall section
+            plat(32, 18, 8, 2),
+            plat(48, 18, 6, 2),
+            plat(48, 12, 6, 1),
+            plat(60, 18, 8, 2),
+            plat(75, 18, 18, 2),
         ];
         walls = [
-            wall(14, 8, 10),
-            wall(17, 8, 10),
+            wall(14, 10, 8),
+            wall(17, 10, 8),
+            wall(42, 10, 8),
+            wall(45, 10, 8),
         ];
         spikes = [];
         movingPlatforms = [];
@@ -2205,22 +2216,25 @@ const LEVELS = [
     // ----- LEVEL 3: Dash Training -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(70, 17);
+        goalZone = goal(105, 17);
         platforms = [
-            plat(0, 18, 10, 2),
-            plat(17, 18, 4, 2),
-            plat(28, 18, 4, 2),
-            plat(39, 18, 4, 2),
-            plat(50, 16, 4, 1),
-            plat(60, 18, 14, 2),
+            plat(0, 18, 12, 2),
+            plat(20, 18, 5, 2),
+            plat(33, 18, 5, 2),
+            plat(46, 18, 5, 2),
+            plat(59, 16, 5, 1),
+            plat(72, 18, 5, 2),
+            plat(85, 18, 5, 2),
+            plat(96, 18, 14, 2),
         ];
         boostPads = [
-            boost(62, 17, 3, 1),
+            boost(98, 17, 3, 1),
         ];
         spikes = [
-            spike(12, 19, 4, 1),
-            spike(23, 19, 4, 1),
-            spike(34, 19, 4, 1),
+            spike(14, 19, 4, 1),
+            spike(27, 19, 4, 1),
+            spike(40, 19, 4, 1),
+            spike(53, 19, 4, 1),
         ];
         walls = [];
         movingPlatforms = [];
@@ -2231,420 +2245,481 @@ const LEVELS = [
     // ----- LEVEL 4: Slide & Spikes -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(65, 17);
+        goalZone = goal(105, 17);
         platforms = [
-            plat(0, 18, 20, 2),
-            plat(8, 15, 10, 1),
-            plat(22, 18, 10, 2),
-            plat(22, 14, 10, 1),
-            plat(34, 18, 8, 2),
-            plat(44, 18, 6, 2),
-            plat(55, 18, 14, 2),
+            plat(0, 18, 22, 2),
+            plat(8, 15, 12, 1),      // low ceiling to slide under
+            plat(26, 18, 12, 2),
+            plat(26, 14, 12, 1),      // another low ceiling
+            plat(42, 18, 10, 2),
+            plat(56, 18, 8, 2),
+            plat(56, 15, 8, 1),
+            plat(68, 18, 10, 2),
+            plat(82, 18, 8, 2),
+            plat(82, 15, 8, 1),
+            plat(94, 18, 16, 2),
         ];
         spikes = [
-            spike(10, 17, 6, 1),
-            spike(24, 17, 6, 1),
-            spike(42, 19, 2, 1),
+            spike(10, 17, 8, 1),
+            spike(28, 17, 8, 1),
+            spike(58, 17, 4, 1),
+            spike(84, 17, 4, 1),
         ];
         walls = [];
         movingPlatforms = [];
         fallingPlatforms = [];
-        boostPads = [];
-        checkpoints = [];
+        boostPads = [
+            boost(43, 17, 3, 1),
+            boost(69, 17, 3, 1),
+        ];
+        checkpoints = [
+            checkpoint(44, 16),
+        ];
     },
 
     // ----- LEVEL 5: Moving Platforms -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(65, 8);
+        goalZone = goal(100, 17);
         platforms = [
-            plat(0, 18, 8, 2),
-            plat(60, 10, 8, 1),
+            plat(0, 18, 10, 2),
+            plat(30, 16, 5, 1),     // rest stop
+            plat(58, 16, 5, 1),     // rest stop
+            plat(88, 18, 16, 2),    // final platform
         ];
         movingPlatforms = [
-            moving(12, 16, 4, 1, 0, 1, 0.8, 3),
-            moving(22, 14, 4, 1, 1, 0, 1, 4),
-            moving(35, 12, 4, 1, 0, 1, 1, 3),
-            moving(45, 10, 4, 1, 1, 0, 0.6, 5),
+            moving(14, 17, 5, 1, 1, 0, 0.8, 4),
+            moving(36, 16, 5, 1, 0, 1, 0.6, 3),
+            moving(46, 14, 5, 1, 1, 0, 0.7, 4),
+            moving(64, 16, 5, 1, 0, 1, 0.5, 3),
+            moving(74, 15, 5, 1, 1, 0, 0.8, 4),
         ];
         spikes = [
-            spike(0, 19, 80, 1),
+            spike(10, 19, 78, 1),
         ];
         walls = [];
         fallingPlatforms = [];
         boostPads = [];
-        checkpoints = [];
+        checkpoints = [
+            checkpoint(32, 14),
+        ];
     },
 
     // ----- LEVEL 6: Falling Floor -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(55, 17);
+        goalZone = goal(90, 17);
         platforms = [
-            plat(0, 18, 6, 2),
-            plat(50, 18, 10, 2),
+            plat(0, 18, 8, 2),
+            plat(40, 18, 6, 2),    // safe landing midway
+            plat(80, 18, 14, 2),   // final platform
         ];
         fallingPlatforms = [
-            falling(8, 18, 3, 1),
-            falling(13, 18, 3, 1),
-            falling(18, 18, 3, 1),
-            falling(23, 16, 3, 1),
-            falling(28, 14, 3, 1),
-            falling(33, 16, 3, 1),
-            falling(38, 18, 3, 1),
-            falling(43, 18, 3, 1),
+            falling(10, 18, 4, 1),
+            falling(16, 18, 4, 1),
+            falling(22, 18, 4, 1),
+            falling(28, 17, 4, 1),
+            falling(34, 18, 4, 1),
+            falling(48, 18, 4, 1),
+            falling(54, 17, 4, 1),
+            falling(60, 18, 4, 1),
+            falling(66, 17, 4, 1),
+            falling(72, 18, 4, 1),
         ];
         spikes = [
-            spike(6, 19, 44, 1),
+            spike(8, 19, 72, 1),
         ];
         walls = [];
         movingPlatforms = [];
         boostPads = [];
-        checkpoints = [];
+        checkpoints = [
+            checkpoint(42, 16),
+        ];
     },
 
     // ----- LEVEL 7: Wall Climb Challenge -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(58, 3);
+        goalZone = goal(100, 17);
         platforms = [
-            plat(0, 18, 8, 2),
-            plat(15, 18, 3, 2),
-            plat(30, 18, 3, 2),
-            plat(55, 4, 6, 1),
+            plat(0, 18, 10, 2),
+            plat(18, 18, 5, 2),    // landing between wall pairs
+            plat(18, 10, 5, 1),    // top ledge
+            plat(32, 18, 5, 2),
+            plat(32, 10, 5, 1),
+            plat(46, 18, 5, 2),
+            plat(46, 10, 5, 1),
+            plat(60, 18, 5, 2),
+            plat(60, 10, 5, 1),
+            plat(74, 18, 8, 2),
+            plat(88, 18, 16, 2),
         ];
         walls = [
-            wall(10, 5, 13),
-            wall(13, 5, 13),
-            wall(25, 5, 13),
-            wall(28, 5, 13),
-            wall(40, 5, 13),
-            wall(43, 5, 13),
-            wall(52, 4, 5),
+            wall(12, 8, 10),
+            wall(15, 8, 10),
+            wall(26, 8, 10),
+            wall(29, 8, 10),
+            wall(40, 8, 10),
+            wall(43, 8, 10),
+            wall(54, 8, 10),
+            wall(57, 8, 10),
         ];
         spikes = [
-            spike(0, 19, 60, 1),
+            spike(10, 19, 5, 1),
+            spike(24, 19, 5, 1),
+            spike(38, 19, 5, 1),
+            spike(52, 19, 5, 1),
         ];
         movingPlatforms = [];
         fallingPlatforms = [];
         boostPads = [];
-        checkpoints = [];
+        checkpoints = [
+            checkpoint(34, 16),
+        ];
     },
 
     // ----- LEVEL 8: Boost Rush -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(90, 17);
+        goalZone = goal(120, 17);
         platforms = [
-            plat(0, 18, 10, 2),
-            plat(15, 18, 6, 2),
-            plat(26, 16, 4, 1),
-            plat(35, 18, 6, 2),
-            plat(46, 14, 4, 1),
-            plat(55, 18, 8, 2),
-            plat(68, 16, 4, 1),
-            plat(78, 18, 6, 2),
-            plat(88, 18, 6, 2),
+            plat(0, 18, 12, 2),
+            plat(18, 18, 8, 2),
+            plat(32, 16, 5, 1),
+            plat(43, 18, 8, 2),
+            plat(57, 14, 5, 1),
+            plat(68, 18, 10, 2),
+            plat(84, 16, 5, 1),
+            plat(95, 18, 8, 2),
+            plat(109, 18, 16, 2),
         ];
         boostPads = [
-            boost(3, 17, 3, 1),
-            boost(16, 17, 3, 1),
-            boost(36, 17, 3, 1),
-            boost(56, 17, 3, 1),
-            boost(79, 17, 3, 1),
+            boost(4, 17, 3, 1),
+            boost(20, 17, 3, 1),
+            boost(44, 17, 3, 1),
+            boost(70, 17, 3, 1),
+            boost(96, 17, 3, 1),
         ];
         spikes = [
-            spike(12, 19, 2, 1),
-            spike(32, 19, 2, 1),
-            spike(52, 19, 2, 1),
+            spike(14, 19, 3, 1),
+            spike(29, 19, 2, 1),
+            spike(40, 19, 2, 1),
             spike(65, 19, 2, 1),
-            spike(75, 19, 2, 1),
+            spike(80, 19, 3, 1),
+            spike(92, 19, 2, 1),
+            spike(106, 19, 2, 1),
         ];
         walls = [];
         movingPlatforms = [];
         fallingPlatforms = [];
-        checkpoints = [];
+        checkpoints = [
+            checkpoint(45, 16),
+        ];
     },
 
     // ----- LEVEL 9: The Gauntlet -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(95, 5);
+        goalZone = goal(120, 17);
         platforms = [
-            plat(0, 18, 6, 2),
-            plat(20, 18, 4, 2),
-            plat(35, 14, 4, 1),
-            plat(55, 18, 4, 2),
-            plat(70, 18, 3, 2),
-            plat(90, 6, 8, 1),
+            plat(0, 18, 8, 2),
+            plat(16, 18, 5, 2),
+            plat(16, 10, 5, 1),
+            plat(30, 18, 5, 2),
+            plat(42, 14, 5, 1),
+            plat(55, 18, 5, 2),
+            plat(68, 18, 5, 2),
+            plat(68, 10, 5, 1),
+            plat(82, 18, 5, 2),
+            plat(95, 16, 5, 1),
+            plat(108, 18, 16, 2),
         ];
         walls = [
             wall(10, 8, 10),
             wall(13, 8, 10),
-            wall(45, 6, 12),
-            wall(48, 6, 12),
-            wall(80, 3, 15),
-            wall(83, 3, 15),
+            wall(62, 8, 10),
+            wall(65, 8, 10),
         ];
         movingPlatforms = [
-            moving(25, 16, 3, 1, 1, 0, 1.2, 4),
-            moving(60, 14, 3, 1, 0, 1, 0.8, 4),
+            moving(24, 16, 4, 1, 1, 0, 0.8, 3),
+            moving(48, 14, 4, 1, 0, 1, 0.6, 3),
+            moving(76, 14, 4, 1, 1, 0, 0.7, 3),
+            moving(88, 16, 4, 1, 0, 1, 0.8, 4),
         ];
         fallingPlatforms = [
-            falling(72, 16, 3, 1),
-            falling(76, 14, 3, 1),
+            falling(36, 16, 4, 1),
+            falling(100, 14, 4, 1),
         ];
         spikes = [
-            spike(0, 19, 100, 1),
-            spike(38, 13, 2, 1),
+            spike(8, 19, 100, 1),
+            spike(44, 13, 2, 1),
         ];
         boostPads = [
-            boost(21, 17, 2, 1),
+            boost(17, 17, 2, 1),
+            boost(56, 17, 2, 1),
         ];
-        checkpoints = [];
+        checkpoints = [
+            checkpoint(56, 16),
+        ];
     },
 
     // ----- LEVEL 10: Parkour Master -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(120, 3);
+        goalZone = goal(140, 17);
         platforms = [
-            plat(0, 18, 5, 2),
-            plat(25, 18, 3, 2),
-            plat(40, 16, 3, 1),
-            plat(60, 18, 3, 2),
-            plat(80, 14, 3, 1),
-            plat(100, 18, 3, 2),
-            plat(115, 4, 8, 1),
+            plat(0, 18, 8, 2),
+            plat(16, 18, 5, 2),
+            plat(16, 10, 5, 1),
+            plat(28, 18, 5, 2),
+            plat(42, 16, 5, 1),
+            plat(55, 18, 5, 2),
+            plat(55, 10, 5, 1),
+            plat(68, 18, 5, 2),
+            plat(80, 14, 5, 1),
+            plat(92, 18, 5, 2),
+            plat(92, 10, 5, 1),
+            plat(106, 18, 5, 2),
+            plat(118, 16, 5, 1),
+            plat(130, 18, 16, 2),
         ];
         walls = [
-            wall(8, 5, 13),
-            wall(12, 5, 13),
-            wall(30, 5, 13),
-            wall(34, 5, 13),
-            wall(50, 5, 13),
-            wall(54, 5, 13),
-            wall(70, 5, 13),
-            wall(74, 5, 13),
-            wall(90, 5, 13),
-            wall(94, 5, 13),
-            wall(108, 2, 10),
-            wall(112, 2, 10),
+            wall(10, 8, 10),
+            wall(13, 8, 10),
+            wall(49, 8, 10),
+            wall(52, 8, 10),
+            wall(86, 8, 10),
+            wall(89, 8, 10),
         ];
         movingPlatforms = [
-            moving(15, 15, 3, 1, 1, 0, 1.5, 3),
-            moving(42, 14, 3, 1, 0, 1, 1, 3),
-            moving(65, 12, 3, 1, 1, 0, 1.2, 4),
-            moving(95, 10, 3, 1, 0, 1, 1, 4),
+            moving(22, 16, 4, 1, 1, 0, 1, 3),
+            moving(62, 14, 4, 1, 0, 1, 0.8, 3),
+            moving(100, 14, 4, 1, 1, 0, 0.9, 3),
+            moving(124, 14, 4, 1, 0, 1, 0.7, 4),
         ];
         fallingPlatforms = [
-            falling(82, 12, 3, 1),
-            falling(86, 10, 3, 1),
-            falling(102, 16, 3, 1),
-            falling(106, 14, 3, 1),
+            falling(36, 16, 4, 1),
+            falling(74, 16, 4, 1),
+            falling(112, 16, 4, 1),
         ];
         spikes = [
-            spike(0, 19, 130, 1),
-            spike(42, 15, 1, 1),
-            spike(83, 13, 1, 1),
+            spike(0, 19, 150, 1),
+            spike(44, 15, 2, 1),
+            spike(82, 13, 1, 1),
         ];
         boostPads = [
-            boost(26, 17, 2, 1),
-            boost(61, 17, 2, 1),
-            boost(101, 17, 2, 1),
+            boost(29, 17, 2, 1),
+            boost(69, 17, 2, 1),
+            boost(107, 17, 2, 1),
         ];
-        checkpoints = [];
+        checkpoints = [
+            checkpoint(56, 16),
+            checkpoint(93, 16),
+        ];
     },
 
     // ----- LEVEL 11: Sky Highway -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(85, 6);
+        goalZone = goal(120, 17);
         platforms = [
-            plat(0, 18, 6, 2),
-            plat(80, 8, 8, 1),
+            plat(0, 18, 8, 2),
+            plat(40, 14, 5, 1),    // mid rest
+            plat(78, 14, 5, 1),    // mid rest
+            plat(108, 18, 16, 2),
         ];
         movingPlatforms = [
-            moving(8, 16, 4, 1, 1, 0, 1, 4),
-            moving(20, 14, 4, 1, 1, 0, 0.8, 5),
-            moving(35, 12, 4, 1, 0, 1, 0.7, 3),
-            moving(48, 10, 4, 1, 1, 0, 1.2, 4),
-            moving(62, 8, 4, 1, 0, 1, 0.9, 3),
-            moving(72, 8, 3, 1, 1, 0, 1, 3),
+            moving(10, 17, 5, 1, 1, 0, 0.8, 4),
+            moving(22, 16, 5, 1, 0, 1, 0.6, 3),
+            moving(32, 14, 5, 1, 1, 0, 0.7, 3),
+            moving(48, 14, 5, 1, 0, 1, 0.5, 3),
+            moving(58, 15, 5, 1, 1, 0, 0.8, 4),
+            moving(68, 14, 5, 1, 0, 1, 0.6, 3),
+            moving(86, 14, 5, 1, 1, 0, 0.7, 4),
+            moving(96, 16, 5, 1, 0, 1, 0.6, 3),
         ];
         boostPads = [
             boost(2, 17, 3, 1),
-            boost(50, 9, 2, 1),
         ];
         spikes = [
-            spike(0, 19, 100, 1),
+            spike(8, 19, 100, 1),
         ];
         walls = [];
         fallingPlatforms = [];
         checkpoints = [
-            checkpoint(38, 10),
+            checkpoint(42, 12),
+            checkpoint(80, 12),
         ];
     },
 
     // ----- LEVEL 12: The Pit -----
     function() {
         spawnPoint = { x: 3 * TILE, y: 2 * TILE };
-        goalZone = goal(45, 17);
+        goalZone = goal(75, 17);
         platforms = [
-            plat(0, 4, 8, 1),
-            plat(40, 18, 10, 2),
+            plat(0, 4, 10, 1),
+            plat(18, 18, 5, 2),
+            plat(32, 18, 5, 2),
+            plat(46, 18, 5, 2),
+            plat(60, 18, 20, 2),
         ];
         walls = [
-            wall(10, 2, 8),
-            wall(14, 2, 8),
-            wall(18, 6, 8),
-            wall(22, 6, 8),
-            wall(26, 2, 8),
-            wall(30, 2, 8),
-            wall(34, 6, 8),
-            wall(38, 6, 8),
+            wall(12, 2, 8),
+            wall(15, 2, 8),
+            wall(24, 6, 8),
+            wall(27, 6, 8),
+            wall(38, 2, 8),
+            wall(41, 2, 8),
+            wall(52, 6, 8),
+            wall(55, 6, 8),
         ];
         spikes = [
-            spike(12, 19, 2, 1),
-            spike(20, 19, 2, 1),
-            spike(28, 19, 2, 1),
-            spike(36, 19, 2, 1),
+            spike(16, 19, 2, 1),
+            spike(30, 19, 2, 1),
+            spike(44, 19, 2, 1),
         ];
         movingPlatforms = [];
         fallingPlatforms = [];
         boostPads = [];
         checkpoints = [
-            checkpoint(20, 12),
+            checkpoint(34, 16),
         ];
     },
 
     // ----- LEVEL 13: Mirror Run -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(78, 17);
+        goalZone = goal(120, 17);
         platforms = [
-            plat(0, 18, 8, 2),
-            plat(10, 18, 12, 2),
-            plat(10, 15, 12, 1),
-            plat(24, 18, 6, 2),
-            plat(32, 18, 14, 2),
-            plat(32, 14, 14, 1),
-            plat(48, 18, 6, 2),
-            plat(56, 18, 10, 2),
-            plat(56, 15, 10, 1),
-            plat(68, 18, 14, 2),
+            plat(0, 18, 10, 2),
+            plat(14, 18, 14, 2),
+            plat(14, 15, 14, 1),    // low ceiling
+            plat(32, 18, 8, 2),
+            plat(44, 18, 16, 2),
+            plat(44, 14, 16, 1),    // low ceiling
+            plat(64, 18, 8, 2),
+            plat(76, 18, 12, 2),
+            plat(76, 15, 12, 1),    // low ceiling
+            plat(92, 18, 8, 2),
+            plat(104, 18, 20, 2),
         ];
         spikes = [
-            spike(12, 17, 8, 1),
-            spike(34, 17, 10, 1),
-            spike(58, 17, 6, 1),
+            spike(16, 17, 10, 1),
+            spike(46, 17, 12, 1),
+            spike(78, 17, 8, 1),
         ];
         boostPads = [
-            boost(25, 17, 2, 1),
-            boost(49, 17, 2, 1),
+            boost(33, 17, 3, 1),
+            boost(65, 17, 3, 1),
+            boost(93, 17, 3, 1),
         ];
         walls = [];
         movingPlatforms = [];
         fallingPlatforms = [];
         checkpoints = [
-            checkpoint(36, 16),
+            checkpoint(46, 16),
+            checkpoint(78, 16),
         ];
     },
 
     // ----- LEVEL 14: Momentum -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(100, 12);
+        goalZone = goal(135, 17);
         platforms = [
-            plat(0, 18, 6, 2),
-            plat(14, 18, 3, 1),
-            plat(24, 16, 3, 1),
-            plat(34, 14, 3, 1),
-            plat(44, 16, 3, 1),
-            plat(54, 18, 4, 2),
-            plat(66, 16, 3, 1),
-            plat(76, 14, 3, 1),
-            plat(86, 16, 3, 1),
-            plat(95, 14, 8, 1),
+            plat(0, 18, 8, 2),
+            plat(16, 18, 4, 1),
+            plat(27, 16, 4, 1),
+            plat(38, 14, 4, 1),
+            plat(49, 16, 4, 1),
+            plat(60, 18, 6, 2),
+            plat(74, 18, 4, 1),
+            plat(85, 16, 4, 1),
+            plat(96, 14, 4, 1),
+            plat(107, 16, 4, 1),
+            plat(118, 18, 22, 2),
         ];
         boostPads = [
             boost(2, 17, 3, 1),
-            boost(15, 17, 2, 1),
-            boost(25, 15, 2, 1),
-            boost(55, 17, 3, 1),
-            boost(67, 15, 2, 1),
-            boost(77, 13, 2, 1),
+            boost(17, 17, 2, 1),
+            boost(28, 15, 2, 1),
+            boost(62, 17, 3, 1),
+            boost(75, 17, 2, 1),
+            boost(86, 15, 2, 1),
+            boost(97, 13, 2, 1),
         ];
         spikes = [
-            spike(8, 19, 50, 1),
-            spike(60, 19, 40, 1),
+            spike(10, 19, 50, 1),
+            spike(68, 19, 50, 1),
         ];
         walls = [];
         movingPlatforms = [];
         fallingPlatforms = [];
         checkpoints = [
-            checkpoint(56, 16),
+            checkpoint(62, 16),
         ];
     },
 
     // ----- LEVEL 15: Final Rush -----
     function() {
         spawnPoint = { x: 2 * TILE, y: 16 * TILE };
-        goalZone = goal(148, 3);
+        goalZone = goal(180, 17);
         platforms = [
-            plat(0, 18, 6, 2),
-            plat(20, 18, 4, 2),
-            plat(35, 16, 3, 1),
-            plat(50, 18, 4, 2),
-            plat(70, 14, 3, 1),
-            plat(85, 18, 5, 2),
-            plat(85, 14, 5, 1),
-            plat(100, 18, 4, 2),
-            plat(118, 16, 3, 1),
-            plat(130, 18, 4, 2),
-            plat(143, 4, 8, 1),
+            plat(0, 18, 8, 2),
+            // Wall section 1
+            plat(18, 18, 5, 2),
+            plat(18, 10, 5, 1),
+            // Dash gap
+            plat(32, 18, 5, 2),
+            // Moving section
+            plat(54, 16, 5, 1),
+            // Wall section 2
+            plat(68, 18, 5, 2),
+            plat(68, 10, 5, 1),
+            // Falling section
+            plat(82, 18, 5, 2),
+            // Slide section
+            plat(104, 18, 14, 2),
+            plat(104, 15, 14, 1),
+            // Boost rush
+            plat(122, 18, 6, 2),
+            plat(135, 16, 4, 1),
+            plat(146, 18, 6, 2),
+            // Final stretch
+            plat(160, 18, 24, 2),
         ];
         walls = [
-            wall(10, 6, 12),
-            wall(13, 6, 12),
-            wall(42, 6, 12),
-            wall(45, 6, 12),
-            wall(60, 5, 13),
-            wall(63, 5, 13),
-            wall(108, 4, 14),
-            wall(112, 4, 14),
-            wall(135, 2, 10),
-            wall(140, 2, 10),
+            wall(12, 8, 10),
+            wall(15, 8, 10),
+            wall(62, 8, 10),
+            wall(65, 8, 10),
         ];
         movingPlatforms = [
-            moving(25, 16, 3, 1, 1, 0, 1.2, 3),
-            moving(75, 12, 3, 1, 0, 1, 1, 3),
-            moving(95, 14, 3, 1, 1, 0, 1, 4),
-            moving(122, 14, 3, 1, 0, 1, 0.8, 3),
+            moving(38, 16, 5, 1, 1, 0, 0.8, 3),
+            moving(46, 14, 5, 1, 0, 1, 0.7, 3),
+            moving(152, 16, 4, 1, 0, 1, 0.6, 3),
         ];
         fallingPlatforms = [
-            falling(55, 16, 3, 1),
-            falling(102, 16, 3, 1),
-            falling(106, 14, 3, 1),
-            falling(132, 16, 3, 1),
+            falling(88, 16, 4, 1),
+            falling(94, 17, 4, 1),
+            falling(100, 16, 4, 1),
         ];
         boostPads = [
-            boost(21, 17, 2, 1),
-            boost(51, 17, 2, 1),
-            boost(86, 17, 3, 1),
-            boost(101, 17, 2, 1),
+            boost(33, 17, 2, 1),
+            boost(83, 17, 2, 1),
+            boost(123, 17, 3, 1),
+            boost(147, 17, 3, 1),
         ];
         spikes = [
-            spike(0, 19, 155, 1),
-            spike(37, 15, 2, 1),
-            spike(72, 13, 1, 1),
-            spike(87, 17, 3, 1),
-            spike(120, 15, 2, 1),
+            spike(8, 19, 160, 1),
+            spike(106, 17, 10, 1),
+            spike(132, 19, 2, 1),
+            spike(143, 19, 2, 1),
         ];
         checkpoints = [
-            checkpoint(22, 16),
-            checkpoint(52, 16),
-            checkpoint(87, 12),
+            checkpoint(34, 16),
+            checkpoint(83, 16),
+            checkpoint(123, 16),
         ];
     },
 ];
@@ -2675,9 +2750,91 @@ function buildReplayPath(waypoints, totalFrames) {
 }
 
 function generateComputerRun(levelIndex) {
-    // Define waypoints for each level: {x, y, state, frame}
-    // frame = which frame to reach this point (at ~20fps recording rate, 3 frames per sample)
-    // So 1 second = ~20 frames of replay data
+    // Auto-generate a computer run from the level's platform layout
+    // This creates a path that runs across all platforms toward the goal
+    const T = TILE;
+
+    // Temporarily load the level to get geometry
+    const savedPlats = [...platforms];
+    const savedWalls = [...walls];
+    const savedSpawn = spawnPoint ? { ...spawnPoint } : null;
+    const savedGoal = goalZone ? { ...goalZone } : null;
+    const savedSpikes = [...spikes];
+    const savedMoving = [...movingPlatforms];
+    const savedFalling = [...fallingPlatforms];
+    const savedBoosts = [...boostPads];
+    const savedCheckpoints = [...checkpoints];
+    const savedOrbs = [...orbs];
+
+    if (levelIndex < 0 || levelIndex >= LEVELS.length) {
+        return { time: 30, username: 'COMPUTER', replay: [] };
+    }
+
+    // Load the level to get its platforms
+    platforms = []; spikes = []; movingPlatforms = []; fallingPlatforms = [];
+    boostPads = []; walls = []; checkpoints = []; orbs = [];
+    LEVELS[levelIndex]();
+
+    // Collect platform surfaces as waypoints
+    const allPlats = [...platforms, ...movingPlatforms.map(mp => ({ x: mp.startX, y: mp.startY, w: mp.w, h: mp.h }))];
+    allPlats.sort((a, b) => a.x - b.x);
+
+    const waypoints = [];
+    const startX = spawnPoint ? spawnPoint.x : 2 * T;
+    const startY = spawnPoint ? spawnPoint.y : 16 * T;
+    const endX = goalZone ? goalZone.x : 100 * T;
+    const endY = goalZone ? goalZone.y : 16 * T;
+
+    waypoints.push({ x: startX, y: startY, state: 'idle', frame: 0 });
+
+    let frame = 0;
+    let lastX = startX;
+    let lastY = startY;
+
+    // Visit each platform
+    for (const p of allPlats) {
+        const px = p.x + p.w / 2;
+        const py = p.y - PLAYER_H;
+        if (px <= lastX + T) continue; // skip if behind us
+
+        const dist = Math.abs(px - lastX) / T;
+        const yDiff = Math.abs(py - lastY) / T;
+        const frameStep = Math.max(8, Math.round(dist * 2 + yDiff * 1.5));
+        frame += frameStep;
+
+        // Determine state based on movement
+        let state = 'running';
+        if (py < lastY - 2 * T) state = 'jumping';
+        else if (py > lastY + 2 * T) state = 'falling';
+        else if (dist > 6) state = 'dashing';
+
+        waypoints.push({ x: px, y: py, state: state, frame: frame });
+        lastX = px;
+        lastY = py;
+    }
+
+    // Add goal
+    const finalDist = Math.abs(endX - lastX) / T;
+    frame += Math.max(6, Math.round(finalDist * 2));
+    waypoints.push({ x: endX, y: endY, state: 'running', frame: frame });
+    frame += 4;
+    waypoints.push({ x: endX, y: endY, state: 'idle', frame: frame });
+
+    const totalFrames = frame;
+    const totalTime = +(totalFrames / 20).toFixed(1);
+
+    // Restore level state
+    platforms = savedPlats; walls = savedWalls; spawnPoint = savedSpawn;
+    goalZone = savedGoal; spikes = savedSpikes; movingPlatforms = savedMoving;
+    fallingPlatforms = savedFalling; boostPads = savedBoosts;
+    checkpoints = savedCheckpoints; orbs = savedOrbs;
+
+    const replay = buildReplayPath(waypoints, totalFrames);
+    return { time: totalTime, username: 'COMPUTER', replay: replay };
+}
+
+function generateComputerRunLegacy(levelIndex) {
+    // Legacy manual waypoints - kept as fallback
     const T = TILE;
     const levelWaypoints = {
         // Level 1: Tutorial Run (~4.5s = 90 frames)
@@ -3345,9 +3502,11 @@ function loadLevel(index) {
     lastCheckpoint = null;
     ghostRecording = [];
     ghostFrame = 0;
+    ghostPlaybackCounter = 0;
     ghostRecordFrame = 0;
     deathCount = 0;
 
+    timerStarted = false;
     currentLevel = index;
     orbs = [];
     LEVELS[index]();
@@ -3943,6 +4102,20 @@ function killPlayer() {
             endlessBest = dist;
             try { localStorage.setItem('parkour_endless_best', endlessBest); } catch(e) {}
         }
+    }
+
+    // Editor test mode: auto-respawn (can't use loadLevel for custom levels)
+    if (currentLevel === -1) {
+        setTimeout(() => {
+            if (gameState === 'dead') {
+                buildEditorLevel();
+                resetPlayer();
+                camera.x = player.x - canvasW / 2;
+                camera.y = player.y - canvasH / 2;
+                gameState = 'playing';
+            }
+        }, 500);
+        return;
     }
 
     // Practice mode: auto-respawn quickly
@@ -5182,7 +5355,15 @@ function gameLoop(timestamp) {
     }
 
     if (gameState === 'playing') {
-        levelTimer += dt / 1000;
+        // Timer starts only when player first moves
+        if (!timerStarted) {
+            if (keys['KeyA'] || keys['KeyD'] || keys['ArrowLeft'] || keys['ArrowRight'] ||
+                keys['KeyW'] || keys['ArrowUp'] || keys['Space'] || keys['ShiftLeft'] || keys['ShiftRight'] ||
+                keys['KeyS'] || keys['ArrowDown']) {
+                timerStarted = true;
+            }
+        }
+        if (timerStarted) levelTimer += dt / 1000;
         updatePlayer(dtScale);
         updateMovingPlatforms(dtScale);
         updateFallingPlatforms(dtScale);
@@ -5265,10 +5446,14 @@ function gameLoop(timestamp) {
             }
         }
 
-        // Ghost playback frame
+        // Ghost playback frame — recording saves every 3rd frame, so advance 1 ghost frame per 3 game frames
         if (ghostPlayback.length > 0) {
-            ghostFrame++;
-            if (ghostFrame >= ghostPlayback.length) ghostFrame = ghostPlayback.length - 1;
+            ghostPlaybackCounter = (ghostPlaybackCounter || 0) + 1;
+            if (ghostPlaybackCounter >= 3) {
+                ghostPlaybackCounter = 0;
+                ghostFrame++;
+                if (ghostFrame >= ghostPlayback.length) ghostFrame = ghostPlayback.length - 1;
+            }
         }
 
         // Achievement popup timer
@@ -6448,6 +6633,7 @@ function initUI() {
         buildEditorLevel();
         resetPlayer();
         levelTimer = 0;
+        timerStarted = false;
         deathCount = 0;
         currentLevel = -1;
         camera.x = player.x - canvasW / 2;
