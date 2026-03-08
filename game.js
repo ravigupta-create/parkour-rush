@@ -273,6 +273,15 @@ const DIFFICULTIES = {
 // Helper to get current theme colors
 function getTheme() { return getDiff().theme; }
 
+// Helper to darken a hex color by a factor (0-1)
+function darkenColor(hex, factor) {
+    hex = hex.replace('#', '');
+    const r = Math.max(0, Math.floor(parseInt(hex.substring(0, 2), 16) * factor));
+    const g = Math.max(0, Math.floor(parseInt(hex.substring(2, 4), 16) * factor));
+    const b = Math.max(0, Math.floor(parseInt(hex.substring(4, 6), 16) * factor));
+    return '#' + r.toString(16).padStart(2, '0') + g.toString(16).padStart(2, '0') + b.toString(16).padStart(2, '0');
+}
+
 let difficulty = 'medium';
 let cheatMode = false;
 function getDiff() { return DIFFICULTIES[difficulty]; }
@@ -337,7 +346,13 @@ const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 // Player state
 let player = {};
-let particles = [];
+// Particle object pool — pre-allocated, zero GC pressure
+const PARTICLE_POOL_SIZE = 500;
+let particlePool = [];
+let particleCount = 0;
+for (let _pi = 0; _pi < PARTICLE_POOL_SIZE; _pi++) {
+    particlePool.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0, size: 0, color: '' });
+}
 let ambientParticles = [];
 let camera = { x: 0, y: 0 };
 
@@ -394,6 +409,24 @@ let dashTrail = [];
 let musicPlaying = false;
 let musicNodes = [];
 let musicInterval = null;
+
+// Floating text popups (2A)
+let floatingTexts = [];
+
+// Screen flash (2B)
+let screenFlash = { active: false, color: '#fff', alpha: 0, decay: 0 };
+
+// Streak system (2G)
+let currentStreak = 0;
+let bestStreak = 0;
+
+// Auto-restart countdown (2E)
+let autoRestartTimer = 0;
+let autoRestartActive = false;
+
+// Stats tracking
+let totalTimePlayed = 0;
+let totalCompletions = 0;
 
 // FPS tracking
 let fpsHistory = [];
@@ -667,11 +700,38 @@ function startMusic() {
             } catch(e) {}
         }
 
+        // Hi-hat
+        function playHihat() {
+            if (!musicPlaying || !audioCtx) return;
+            try {
+                const bufSize = Math.floor(audioCtx.sampleRate * 0.05);
+                const buffer = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(8000, audioCtx.currentTime);
+                filter.Q.setValueAtTime(1, audioCtx.currentTime);
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                source.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                source.start(audioCtx.currentTime);
+                source.stop(audioCtx.currentTime + 0.05);
+                musicNodes.push({ osc: source, gain });
+            } catch(e) {}
+        }
+
         let beatCount = 0;
         musicInterval = setInterval(() => {
             if (!musicPlaying) { clearInterval(musicInterval); return; }
             playBassNote();
             playKick();
+            playHihat();
             if (beatCount % 4 === 0) playPad();
             beatCount++;
         }, beatTime * 1000);
@@ -687,39 +747,45 @@ function stopMusic() {
     musicNodes = [];
 }
 
-// ---------- PARTICLE SYSTEM ----------
+// ---------- PARTICLE SYSTEM (Object Pool) ----------
 function spawnParticles(x, y, count, color, spread, speedMul) {
     for (let i = 0; i < count; i++) {
-        particles.push({
-            x: x, y: y,
-            vx: (Math.random() - 0.5) * spread * (speedMul || 1),
-            vy: (Math.random() - 0.8) * spread * (speedMul || 1),
-            life: 15 + Math.random() * 15,
-            maxLife: 30,
-            size: 2 + Math.random() * 3,
-            color: color
-        });
+        if (particleCount >= PARTICLE_POOL_SIZE) break;
+        const p = particlePool[particleCount];
+        p.x = x;
+        p.y = y;
+        p.vx = (Math.random() - 0.5) * spread * (speedMul || 1);
+        p.vy = (Math.random() - 0.8) * spread * (speedMul || 1);
+        p.life = 15 + Math.random() * 15;
+        p.maxLife = 30;
+        p.size = 2 + Math.random() * 3;
+        p.color = color;
+        particleCount++;
     }
 }
 
 function updateParticles(dt) {
     const s = dt;
-    for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
+    for (let i = particleCount - 1; i >= 0; i--) {
+        const p = particlePool[i];
         p.x += p.vx * s;
         p.y += p.vy * s;
         p.vy += 0.1 * s;
         p.life -= s;
         if (p.life <= 0) {
-            // Swap and pop
-            particles[i] = particles[particles.length - 1];
-            particles.pop();
+            particleCount--;
+            if (i < particleCount) {
+                const tmp = particlePool[i];
+                particlePool[i] = particlePool[particleCount];
+                particlePool[particleCount] = tmp;
+            }
         }
     }
 }
 
 function drawParticles() {
-    for (const p of particles) {
+    for (let i = 0; i < particleCount; i++) {
+        const p = particlePool[i];
         const alpha = Math.max(0, p.life / p.maxLife);
         ctx.globalAlpha = alpha;
         ctx.fillStyle = p.color;
@@ -839,6 +905,8 @@ function drawMenuBackground() {
 // ---------- PARALLAX CITYSCAPE ----------
 // Background stars — generated once
 let bgStars = [];
+let bgBuildings1 = [];  // far layer, parallax 0.02
+let bgBuildings2 = [];  // near layer, parallax 0.05
 
 function generateBackground() {
     bgStars = [];
@@ -852,6 +920,33 @@ function generateBackground() {
             parallax: 0.02 + Math.random() * 0.06
         });
     }
+
+    // Generate parallax buildings
+    bgBuildings1 = [];
+    bgBuildings2 = [];
+    let x1 = 0;
+    while (x1 < 4000) {
+        const w = 30 + Math.random() * 60;
+        const h = 40 + Math.random() * 120;
+        bgBuildings1.push({ x: x1, w, h });
+        x1 += w + Math.random() * 20;
+    }
+    let x2 = 0;
+    while (x2 < 4000) {
+        const w = 40 + Math.random() * 80;
+        const h = 60 + Math.random() * 160;
+        const windows = [];
+        for (let wy = 8; wy < h - 10; wy += 12) {
+            for (let wx = 6; wx < w - 6; wx += 10) {
+                if (Math.random() < 0.4) {
+                    windows.push({ x: wx, y: wy });
+                }
+            }
+        }
+        bgBuildings2.push({ x: x2, w, h, windows });
+        x2 += w + Math.random() * 30;
+    }
+
     bgGenerated = true;
 }
 
@@ -2100,7 +2195,7 @@ function loadLevel(index) {
     boostPads = [];
     walls = [];
     goalZone = null;
-    particles = [];
+    particleCount = 0;
     checkpoints = [];
     lastCheckpoint = null;
     ghostRecording = [];
@@ -2542,6 +2637,10 @@ function triggerCombo() {
     if (hudCombo && comboCount > 1) {
         hudCombo.textContent = 'COMBO x' + comboCount;
         hudCombo.classList.add('visible');
+        // Floating text for combo milestones
+        if (comboCount % 5 === 0) {
+            spawnFloatingText('COMBO x' + comboCount + '!', player.x + player.w / 2, player.y - 30, '#ffd700', 18);
+        }
     }
 }
 
@@ -2605,9 +2704,19 @@ function killPlayer() {
     gameState = 'dead';
     deathCount++;
     totalDeaths++;
+    saveStats();
     screenShake = 12;
     playSound('death');
     spawnParticles(player.x + player.w / 2, player.y + player.h / 2, 20, '#ff4444', 6, 2);
+    triggerScreenFlash('#ff0000', 0.4, 0.3);
+
+    // Break streak
+    if (currentStreak >= 2) {
+        spawnFloatingText('STREAK BROKEN!', player.x + player.w / 2, player.y - 20, '#ff4444', 18);
+    }
+    currentStreak = 0;
+    saveStreaks();
+    updateStreakHUD();
 
     const hudDeaths = document.getElementById('hud-deaths');
     if (hudDeaths) hudDeaths.textContent = 'Deaths: ' + deathCount;
@@ -2620,7 +2729,29 @@ function killPlayer() {
             }
         }, 600);
     } else {
+        // Near-miss death indicator
+        const deathProgress = document.getElementById('death-progress');
+        if (deathProgress && goalZone) {
+            const progress = Math.min(100, Math.max(0, Math.round(player.x / goalZone.x * 100)));
+            if (progress > 70) {
+                deathProgress.textContent = progress + '% COMPLETE - SO CLOSE!';
+                deathProgress.className = 'death-progress pulse';
+            } else if (progress > 30) {
+                deathProgress.textContent = progress + '% COMPLETE';
+                deathProgress.className = 'death-progress';
+            } else {
+                deathProgress.textContent = '';
+                deathProgress.className = 'death-progress';
+            }
+        }
+
         document.getElementById('death-overlay').classList.remove('hidden');
+
+        // Auto-restart countdown
+        autoRestartTimer = 1.5;
+        autoRestartActive = true;
+        const autoEl = document.getElementById('death-auto-restart');
+        if (autoEl) autoEl.textContent = 'Auto-restart in 1.5s...';
     }
 }
 
@@ -2647,7 +2778,26 @@ function completeLevel() {
     stopMusic();
 
     const time = levelTimer;
-    const isNewRecord = !bestTimes[currentLevel] || time < bestTimes[currentLevel];
+    const prevBest = bestTimes[currentLevel];
+    const isNewRecord = !prevBest || time < prevBest;
+
+    // Track stats
+    totalTimePlayed += time;
+    totalCompletions++;
+    saveStats();
+
+    // Streak
+    if (deathCount === 0) {
+        currentStreak++;
+        if (currentStreak > bestStreak) bestStreak = currentStreak;
+        saveStreaks();
+        if (currentStreak >= 2) {
+            spawnFloatingText('STREAK: ' + currentStreak + '!', player.x + player.w / 2, player.y - 40, '#ff4081', 20);
+        }
+    } else {
+        currentStreak = 0;
+        saveStreaks();
+    }
 
     if (isNewRecord) {
         bestTimes[currentLevel] = time;
@@ -2695,9 +2845,28 @@ function completeLevel() {
     const newRecordEl = document.getElementById('complete-new-record');
     if (isNewRecord) {
         newRecordEl.classList.remove('hidden');
+        triggerScreenFlash('#ffd700', 0.5, 0.5);
+        spawnFloatingText('NEW RECORD!', player.x + player.w / 2, player.y - 60, '#ffd700', 22);
+        // Show time delta
+        if (prevBest) {
+            const delta = time - prevBest;
+            spawnFloatingText(delta.toFixed(2) + 's', player.x + player.w / 2, player.y - 30, '#4caf50', 16);
+        }
     } else {
         newRecordEl.classList.add('hidden');
+        triggerScreenFlash('#ffffff', 0.3, 0.4);
+        if (prevBest) {
+            const delta = time - prevBest;
+            const sign = delta > 0 ? '+' : '';
+            const col = delta > 0 ? '#ff4444' : '#4caf50';
+            spawnFloatingText(sign + delta.toFixed(2) + 's', player.x + player.w / 2, player.y - 30, col, 16);
+        }
     }
+
+    // Floating text for grade
+    if (grade === 'gold') spawnFloatingText('GOLD!', player.x + player.w / 2, player.y - 80, '#ffd700', 24);
+    else if (grade === 'silver') spawnFloatingText('SILVER!', player.x + player.w / 2, player.y - 80, '#c0c0c0', 20);
+    else if (grade === 'bronze') spawnFloatingText('BRONZE!', player.x + player.w / 2, player.y - 80, '#cd7f32', 18);
 
     // Check if player beat the best run
     if (currentLevel >= 0 && bestRuns[currentLevel] && time < bestRuns[currentLevel].time) {
@@ -2753,8 +2922,8 @@ function drawBackground() {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    // Stars with parallax and twinkle — colored by theme
     if (bgGenerated) {
+        // Stars with parallax and twinkle — colored by theme
         const t = Date.now();
         for (const s of bgStars) {
             const sx = ((s.x - camera.x * s.parallax) % (canvasW + 200) + canvasW + 200) % (canvasW + 200) - 100;
@@ -2765,6 +2934,30 @@ function drawBackground() {
             ctx.fillRect(sx, sy, s.size, s.size);
         }
         ctx.globalAlpha = 1;
+
+        // Far buildings (parallax 0.02)
+        const farColor = darkenColor(th.bgBot, 0.6);
+        ctx.fillStyle = farColor;
+        for (const b of bgBuildings1) {
+            const bx = ((b.x - camera.x * 0.02) % 4000 + 4000) % 4000 - 200;
+            const by = canvasH - b.h;
+            if (bx + b.w < 0 || bx > canvasW) continue;
+            ctx.fillRect(bx, by, b.w, b.h);
+        }
+
+        // Near buildings (parallax 0.05) with window lights
+        const nearColor = darkenColor(th.bgBot, 0.4);
+        for (const b of bgBuildings2) {
+            const bx = ((b.x - camera.x * 0.05) % 4000 + 4000) % 4000 - 200;
+            const by = canvasH - b.h;
+            if (bx + b.w < 0 || bx > canvasW) continue;
+            ctx.fillStyle = nearColor;
+            ctx.fillRect(bx, by, b.w, b.h);
+            ctx.fillStyle = 'rgba(255, 220, 150, 0.25)';
+            for (const win of b.windows) {
+                ctx.fillRect(bx + win.x, by + win.y, 4, 4);
+            }
+        }
     }
 }
 
@@ -3130,7 +3323,7 @@ function startReplayMode(levelIndex) {
     boostPads = [];
     walls = [];
     goalZone = null;
-    particles = [];
+    particleCount = 0;
     checkpoints = [];
     lastCheckpoint = null;
 
@@ -3208,86 +3401,9 @@ function exitReplayMode() {
 }
 
 function drawReplayPlayer() {
-    const p = player;
-    const sx = p.x - camera.x;
-    const sy = p.y - camera.y;
-    const state = replayPlayerState;
-    const facing = replayPlayerFacing;
-    const currentH = state === 'sliding' ? PLAYER_H_SLIDE : PLAYER_H;
-    const centerX = sx + PLAYER_W / 2;
-    const bottomY = sy + currentH;
-    const th = getTheme();
-
-    ctx.save();
-    ctx.translate(centerX, bottomY);
-    ctx.scale(facing, 1);
-
-    if (state === 'sliding') {
-        ctx.fillStyle = th.playerArms;
-        ctx.fillRect(-10, -PLAYER_H_SLIDE, 20, PLAYER_H_SLIDE);
-        ctx.fillStyle = th.playerHead;
-        ctx.fillRect(-4, -PLAYER_H_SLIDE, 8, 6);
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(1, -PLAYER_H_SLIDE + 2, 2, 2);
-    } else {
-        let bodyColor = th.playerBody;
-        if (state === 'dashing') bodyColor = '#ff4081';
-        else if (state === 'jumping' || state === 'falling') bodyColor = th.playerHead;
-        else if (state === 'wall_sliding') bodyColor = th.playerArms;
-
-        // Head
-        ctx.fillStyle = bodyColor;
-        ctx.fillRect(-4, -PLAYER_H, 8, 8);
-        // Eyes
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(1, -PLAYER_H + 3, 2, 2);
-        // Torso
-        const breathOffset = state === 'idle' ? Math.sin(Date.now() * 0.003) * 0.5 : 0;
-        ctx.fillStyle = bodyColor;
-        ctx.fillRect(-6, -PLAYER_H + 8 + breathOffset, 12, 10);
-
-        // Arms
-        const animCycle = Math.floor(replayDistTraveled / 12) % 4;
-        let leftArmY = -PLAYER_H + 9;
-        let rightArmY = -PLAYER_H + 9;
-        if (state === 'running') {
-            const offsets = [0, -3, 0, 3];
-            leftArmY += offsets[animCycle];
-            rightArmY += offsets[(animCycle + 2) % 4];
-        } else if (state === 'jumping') {
-            leftArmY -= 4; rightArmY -= 4;
-        } else if (state === 'falling') {
-            leftArmY -= 2; rightArmY -= 2;
-        } else if (state === 'dashing') {
-            leftArmY += 2; rightArmY += 2;
-        }
-        ctx.fillRect(-10, leftArmY, 4, 8);
-        ctx.fillRect(6, rightArmY, 4, 8);
-
-        // Legs
-        let leftLegY = -PLAYER_H + 18;
-        let rightLegY = -PLAYER_H + 18;
-        let leftLegX = -5;
-        let rightLegX = 1;
-        if (state === 'running') {
-            const legOffsets = [0, -3, 0, 3];
-            leftLegY += legOffsets[animCycle];
-            rightLegY += legOffsets[(animCycle + 2) % 4];
-            leftLegX += (animCycle < 2 ? -1 : 1);
-            rightLegX += (animCycle < 2 ? 1 : -1);
-        } else if (state === 'jumping') {
-            leftLegY += 3; rightLegY += 3;
-            leftLegX -= 1; rightLegX += 1;
-        } else if (state === 'falling') {
-            leftLegX -= 2; rightLegX += 2;
-        } else if (state === 'wall_sliding') {
-            leftLegX = -3; rightLegX = -1;
-        }
-        ctx.fillRect(leftLegX, leftLegY, 4, 10);
-        ctx.fillRect(rightLegX, rightLegY, 4, 10);
-    }
-
-    ctx.restore();
+    const sx = player.x - camera.x;
+    const sy = player.y - camera.y;
+    drawPlayerSprite(sx, sy, PLAYER_W, PLAYER_H, replayPlayerFacing, replayPlayerState, replayDistTraveled, getTheme(), 1);
 }
 
 function populateBestRunGrid() {
@@ -3326,6 +3442,67 @@ function toggleGhost() {
     if (btn2) btn2.textContent = label;
 }
 
+// Shared animated sprite drawing for player/ghost/replay
+function drawPlayerSprite(screenX, screenY, w, h, facing, state, dist, theme, alpha) {
+    const currentH = state === 'sliding' ? PLAYER_H_SLIDE : PLAYER_H;
+    const centerX = screenX + w / 2;
+    const bottomY = screenY + currentH;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(centerX, bottomY);
+    ctx.scale(facing, 1);
+
+    if (state === 'sliding') {
+        ctx.fillStyle = theme.playerArms;
+        ctx.fillRect(-10, -PLAYER_H_SLIDE, 20, PLAYER_H_SLIDE);
+        ctx.fillStyle = theme.playerHead;
+        ctx.fillRect(-4, -PLAYER_H_SLIDE, 8, 6);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(1, -PLAYER_H_SLIDE + 2, 2, 2);
+    } else {
+        let bodyColor = theme.playerBody;
+        if (state === 'dashing') bodyColor = '#ff4081';
+        else if (state === 'jumping' || state === 'falling') bodyColor = theme.playerHead;
+        else if (state === 'wall_sliding') bodyColor = theme.playerArms;
+
+        ctx.fillStyle = bodyColor;
+        ctx.fillRect(-4, -PLAYER_H, 8, 8);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(1, -PLAYER_H + 3, 2, 2);
+
+        const breathOffset = state === 'idle' ? Math.sin(Date.now() * 0.003) * 0.5 : 0;
+        ctx.fillStyle = bodyColor;
+        ctx.fillRect(-6, -PLAYER_H + 8 + breathOffset, 12, 10);
+
+        const animCycle = Math.floor(dist / 12) % 4;
+        let leftArmY = -PLAYER_H + 9, rightArmY = -PLAYER_H + 9;
+        if (state === 'running') {
+            const offsets = [0, -3, 0, 3];
+            leftArmY += offsets[animCycle];
+            rightArmY += offsets[(animCycle + 2) % 4];
+        } else if (state === 'jumping') { leftArmY -= 4; rightArmY -= 4; }
+        else if (state === 'falling') { leftArmY -= 2; rightArmY -= 2; }
+        else if (state === 'dashing') { leftArmY += 2; rightArmY += 2; }
+        ctx.fillRect(-10, leftArmY, 4, 8);
+        ctx.fillRect(6, rightArmY, 4, 8);
+
+        let leftLegY = -PLAYER_H + 18, rightLegY = -PLAYER_H + 18;
+        let leftLegX = -5, rightLegX = 1;
+        if (state === 'running') {
+            const lo = [0, -3, 0, 3];
+            leftLegY += lo[animCycle]; rightLegY += lo[(animCycle + 2) % 4];
+            leftLegX += (animCycle < 2 ? -1 : 1); rightLegX += (animCycle < 2 ? 1 : -1);
+        } else if (state === 'jumping') { leftLegY += 3; rightLegY += 3; leftLegX -= 1; rightLegX += 1; }
+        else if (state === 'falling') { leftLegX -= 2; rightLegX += 2; }
+        else if (state === 'wall_sliding') { leftLegX = -3; rightLegX = -1; }
+        ctx.fillRect(leftLegX, leftLegY, 4, 10);
+        ctx.fillRect(rightLegX, rightLegY, 4, 10);
+    }
+
+    ctx.restore();
+}
+
 function drawGhost() {
     if (!ghostEnabled || ghostPlayback.length === 0 || gameState !== 'playing') return;
     const idx = Math.min(ghostFrame, ghostPlayback.length - 1);
@@ -3334,10 +3511,9 @@ function drawGhost() {
 
     const gx = g.x - camera.x;
     const gy = g.y - camera.y;
-    ctx.globalAlpha = 0.15;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(gx, gy, PLAYER_W, PLAYER_H);
-    ctx.globalAlpha = 1;
+    const prevG = idx > 0 ? ghostPlayback[idx - 1] : null;
+    const ghostFacing = prevG ? (g.x > prevG.x ? 1 : g.x < prevG.x ? -1 : 1) : 1;
+    drawPlayerSprite(gx, gy, PLAYER_W, PLAYER_H, ghostFacing, g.state || 'running', idx * 3, getTheme(), 0.2);
 }
 
 function drawPlayer() {
@@ -3494,6 +3670,191 @@ function drawVignette() {
     ctx.fillRect(0, 0, canvasW, canvasH);
 }
 
+// ---------- FLOATING TEXT POPUPS ----------
+function spawnFloatingText(text, x, y, color, size) {
+    floatingTexts.push({
+        text, x, y, vy: -1.5, life: 90, maxLife: 90,
+        color: color || '#fff', size: size || 16
+    });
+}
+
+function updateFloatingTexts(dt) {
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y += ft.vy * dt;
+        ft.life -= dt;
+        if (ft.life <= 0) floatingTexts.splice(i, 1);
+    }
+}
+
+function drawFloatingTexts() {
+    for (const ft of floatingTexts) {
+        const alpha = Math.max(0, ft.life / ft.maxLife);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold ' + ft.size + 'px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x - camera.x, ft.y - camera.y);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+}
+
+// ---------- SCREEN FLASH ----------
+function triggerScreenFlash(color, alpha, duration) {
+    screenFlash.active = true;
+    screenFlash.color = color;
+    screenFlash.alpha = alpha;
+    screenFlash.decay = alpha / (duration * 60);
+}
+
+function drawScreenFlash() {
+    if (!screenFlash.active) return;
+    ctx.globalAlpha = screenFlash.alpha;
+    ctx.fillStyle = screenFlash.color;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+    ctx.globalAlpha = 1;
+    screenFlash.alpha -= screenFlash.decay * dtScale;
+    if (screenFlash.alpha <= 0) {
+        screenFlash.active = false;
+        screenFlash.alpha = 0;
+    }
+}
+
+// ---------- SPLIT TIMER ----------
+function updateSplitTimer() {
+    if (!ghostEnabled || ghostPlayback.length === 0 || gameState !== 'playing') {
+        const hudDelta = document.getElementById('hud-delta');
+        if (hudDelta) hudDelta.textContent = '';
+        return;
+    }
+    const idx = Math.min(ghostFrame, ghostPlayback.length - 1);
+    const g = ghostPlayback[idx];
+    if (!g) return;
+    const gap = player.x - g.x;
+    const hudDelta = document.getElementById('hud-delta');
+    if (hudDelta) {
+        if (Math.abs(gap) < 20) {
+            hudDelta.textContent = '';
+        } else if (gap > 0) {
+            hudDelta.textContent = 'AHEAD';
+            hudDelta.style.color = '#4caf50';
+        } else {
+            hudDelta.textContent = 'BEHIND';
+            hudDelta.style.color = '#ff4444';
+        }
+    }
+}
+
+// ---------- STREAK SYSTEM ----------
+function loadStreaks() {
+    try {
+        currentStreak = parseInt(localStorage.getItem('parkour_streak') || '0');
+        bestStreak = parseInt(localStorage.getItem('parkour_best_streak') || '0');
+    } catch(e) { currentStreak = 0; bestStreak = 0; }
+}
+
+function saveStreaks() {
+    try {
+        localStorage.setItem('parkour_streak', currentStreak);
+        localStorage.setItem('parkour_best_streak', bestStreak);
+    } catch(e) {}
+}
+
+function updateStreakHUD() {
+    const el = document.getElementById('hud-streak');
+    if (!el) return;
+    if (currentStreak >= 2 && gameState === 'playing') {
+        el.textContent = 'STREAK: ' + currentStreak;
+        el.style.display = '';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+// ---------- MENU STARS ----------
+function updateMenuStars() {
+    const el = document.getElementById('menu-stars');
+    if (!el) return;
+    let totalStars = 0;
+    const maxStars = LEVELS.length * 3;
+    for (let i = 0; i < LEVELS.length; i++) {
+        const g = bestGrades[i];
+        if (g === 'gold') totalStars += 3;
+        else if (g === 'silver') totalStars += 2;
+        else if (g === 'bronze') totalStars += 1;
+    }
+    const pct = maxStars > 0 ? Math.round(totalStars / maxStars * 100) : 0;
+    const barLen = 10;
+    const filled = Math.round(totalStars / maxStars * barLen);
+    const bar = '\u2593'.repeat(filled) + '\u2591'.repeat(barLen - filled);
+    el.textContent = '\u2605 ' + totalStars + '/' + maxStars + ' [' + bar + '] ' + pct + '%';
+}
+
+// ---------- STATS DASHBOARD ----------
+function loadStats() {
+    try {
+        totalTimePlayed = parseFloat(localStorage.getItem('parkour_total_time') || '0');
+        totalCompletions = parseInt(localStorage.getItem('parkour_total_completions') || '0');
+        totalDeaths = parseInt(localStorage.getItem('parkour_total_deaths') || '0');
+    } catch(e) {}
+}
+
+function saveStats() {
+    try {
+        localStorage.setItem('parkour_total_time', totalTimePlayed);
+        localStorage.setItem('parkour_total_completions', totalCompletions);
+        localStorage.setItem('parkour_total_deaths', totalDeaths);
+    } catch(e) {}
+}
+
+function formatStatTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return h + 'h ' + m + 'm';
+    if (m > 0) return m + 'm ' + s + 's';
+    return s + 's';
+}
+
+function populateStats() {
+    const grid = document.getElementById('stats-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    let levelsCompleted = 0;
+    let goldCount = 0, silverCount = 0, bronzeCount = 0;
+    for (let i = 0; i < LEVELS.length; i++) {
+        if (bestTimes[i]) levelsCompleted++;
+        if (bestGrades[i] === 'gold') goldCount++;
+        else if (bestGrades[i] === 'silver') silverCount++;
+        else if (bestGrades[i] === 'bronze') bronzeCount++;
+    }
+
+    const avgTime = totalCompletions > 0 ? (totalTimePlayed / totalCompletions).toFixed(1) + 's' : '--';
+
+    const stats = [
+        { label: 'TOTAL DEATHS', value: totalDeaths, color: '#ff4444' },
+        { label: 'TIME PLAYED', value: formatStatTime(totalTimePlayed), color: '#00e5ff' },
+        { label: 'LEVELS BEATEN', value: levelsCompleted + '/' + LEVELS.length, color: '#4caf50' },
+        { label: 'COMPLETIONS', value: totalCompletions, color: '#cc99ff' },
+        { label: 'GOLD MEDALS', value: goldCount, color: '#ffd700' },
+        { label: 'SILVER MEDALS', value: silverCount, color: '#c0c0c0' },
+        { label: 'BRONZE MEDALS', value: bronzeCount, color: '#cd7f32' },
+        { label: 'BEST STREAK', value: bestStreak, color: '#ff4081' },
+        { label: 'CURRENT STREAK', value: currentStreak, color: '#ff4081' },
+        { label: 'AVG TIME/LEVEL', value: avgTime, color: '#888' },
+    ];
+
+    for (const s of stats) {
+        const card = document.createElement('div');
+        card.className = 'stat-card';
+        card.innerHTML = '<div class="stat-value" style="color:' + s.color + '">' + s.value + '</div>' +
+            '<div class="stat-label">' + s.label + '</div>';
+        grid.appendChild(card);
+    }
+}
+
 // ---------- MAIN GAME LOOP ----------
 function gameLoop(timestamp) {
     requestAnimationFrame(gameLoop);
@@ -3519,7 +3880,7 @@ function gameLoop(timestamp) {
     }
 
     // Menu background
-    if (currentScreen === 'menu' || currentScreen === 'level' || currentScreen === 'controls' || currentScreen === 'bestrun') {
+    if (currentScreen === 'menu' || currentScreen === 'level' || currentScreen === 'controls' || currentScreen === 'bestrun' || currentScreen === 'difficulty' || currentScreen === 'stats') {
         drawMenuBackground();
     }
 
@@ -3530,6 +3891,8 @@ function gameLoop(timestamp) {
         updateFallingPlatforms(dtScale);
         updateCamera(dtScale);
         updateCombo(dtScale);
+        updateSplitTimer();
+        updateStreakHUD();
 
         // Tutorial hint timer
         if (tutorialTimer > 0) {
@@ -3549,6 +3912,19 @@ function gameLoop(timestamp) {
         // Update HUD timer
         const hudTimer = document.getElementById('hud-timer');
         if (hudTimer) hudTimer.textContent = levelTimer.toFixed(2) + 's';
+    }
+
+    // Auto-restart countdown when dead
+    if (gameState === 'dead' && autoRestartActive && !lastCheckpoint) {
+        autoRestartTimer -= dt / 1000;
+        const autoEl = document.getElementById('death-auto-restart');
+        if (autoEl) autoEl.textContent = 'Auto-restart in ' + Math.max(0, autoRestartTimer).toFixed(1) + 's...';
+        if (autoRestartTimer <= 0) {
+            autoRestartActive = false;
+            document.getElementById('death-overlay').classList.add('hidden');
+            loadLevel(currentLevel);
+            gameState = 'playing';
+        }
     }
 
     // Replay mode update
@@ -3583,6 +3959,7 @@ function gameLoop(timestamp) {
     }
 
     updateParticles(dtScale);
+    updateFloatingTexts(dtScale);
 
     // Screen shake decay
     if (screenShake > 0.1) {
@@ -3622,10 +3999,12 @@ function gameLoop(timestamp) {
             drawPlayer();
         }
         drawParticles();
+        drawFloatingTexts();
         if (gameState !== 'replay') {
             drawSpeedLines();
         }
         drawVignette();
+        drawScreenFlash();
 
         ctx.restore();
     }
@@ -3641,6 +4020,14 @@ function gameLoop(timestamp) {
 document.addEventListener('keydown', (e) => {
     keys[e.code] = true;
     initAudio();
+
+    // R key to skip auto-restart or restart when dead
+    if (e.code === 'KeyR' && gameState === 'dead') {
+        autoRestartActive = false;
+        document.getElementById('death-overlay').classList.add('hidden');
+        loadLevel(currentLevel);
+        gameState = 'playing';
+    }
 
     if (e.code === 'KeyR' && gameState === 'playing') {
         const now = performance.now();
@@ -3778,6 +4165,8 @@ function loadBestTimes() {
         if (savedDiff && DIFFICULTIES[savedDiff]) difficulty = savedDiff;
     } catch(e) {}
     loadBestRuns();
+    loadStreaks();
+    loadStats();
 }
 
 // ---------- SCREEN MANAGEMENT ----------
@@ -4059,7 +4448,7 @@ function buildEditorLevel() {
     fallingPlatforms = [];
     boostPads = [];
     walls = [];
-    particles = [];
+    particleCount = 0;
     checkpoints = [];
     lastCheckpoint = null;
 
@@ -4164,6 +4553,18 @@ function initUI() {
     document.getElementById('btn-editor').addEventListener('click', () => {
         playSound('click');
         showScreen('editor');
+    });
+
+    // Stats button
+    document.getElementById('btn-stats').addEventListener('click', () => {
+        playSound('click');
+        populateStats();
+        showScreen('stats');
+    });
+
+    document.getElementById('btn-back-stats').addEventListener('click', () => {
+        playSound('click');
+        showScreen('menu');
     });
 
     // Difficulty select buttons
@@ -4276,6 +4677,7 @@ function initUI() {
         gameState = 'menu';
         stopMusic();
         showScreen('menu');
+        updateMenuStars();
     });
 
     // Complete overlay
@@ -4299,11 +4701,13 @@ function initUI() {
         gameState = 'menu';
         stopMusic();
         showScreen('menu');
+        updateMenuStars();
     });
 
     // Death overlay
     document.getElementById('btn-retry').addEventListener('click', () => {
         playSound('click');
+        autoRestartActive = false;
         document.getElementById('death-overlay').classList.add('hidden');
         loadLevel(currentLevel);
         gameState = 'playing';
@@ -4311,10 +4715,12 @@ function initUI() {
 
     document.getElementById('btn-quit3').addEventListener('click', () => {
         playSound('click');
+        autoRestartActive = false;
         document.getElementById('death-overlay').classList.add('hidden');
         gameState = 'menu';
         stopMusic();
         showScreen('menu');
+        updateMenuStars();
     });
 
     // Editor buttons
@@ -4442,6 +4848,7 @@ function init() {
     initUI();
     initEditor();
     initTouchControls();
+    updateMenuStars();
     showScreen('menu');
 
     lastTime = performance.now();

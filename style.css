@@ -85,7 +85,7 @@ body {
 }
 
 /* --- Menu --- */
-.menu-container, .level-container, .controls-container, .bestrun-container {
+.menu-container, .level-container, .controls-container, .bestrun-container, .stats-container {
     text-align: center;
     z-index: 2;
     position: relative;
@@ -768,6 +768,91 @@ body {
 #replay-hud-timer {
     color: #fff;
     font-size: 1.4rem;
+}
+
+/* --- Menu Stars --- */
+.menu-stars {
+    color: #ffd700;
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+    margin: 4px 0 20px;
+    text-shadow: 0 0 10px #ffd70044;
+}
+
+/* --- HUD Delta (Split Timer) --- */
+#hud-delta {
+    font-size: 0.85rem;
+    font-weight: bold;
+    letter-spacing: 0.15em;
+}
+
+/* --- HUD Streak --- */
+#hud-streak {
+    color: #ff4081;
+    font-size: 0.8rem;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+}
+
+/* --- Death Progress (Near-Miss) --- */
+.death-progress {
+    color: #ff8844;
+    font-size: 1.1rem;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+}
+
+.death-progress.pulse {
+    color: #ff4444;
+    animation: deathPulse 0.6s ease-in-out infinite;
+}
+
+@keyframes deathPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+/* --- Auto Restart Text --- */
+.auto-restart-text {
+    color: #666 !important;
+    font-size: 0.8rem !important;
+    margin-top: 8px;
+    letter-spacing: 0.1em;
+}
+
+/* --- Stats Screen --- */
+.stats-container {
+    text-align: center;
+    z-index: 2;
+    position: relative;
+    max-width: 500px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 24px 0;
+}
+
+.stat-card {
+    background: #0d0d1a;
+    border: 1px solid #1a1a2e;
+    padding: 16px 12px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 0.65rem;
+    color: #666;
+    letter-spacing: 0.2em;
 }
 
 /* --- Responsive --- */
