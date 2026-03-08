@@ -15,7 +15,7 @@ const WALL_JUMP_Y = -9;
 const DASH_SPEED = 10;
 const DASH_DURATION = 8;
 const DASH_COOLDOWN = 30;
-const SLIDE_SPEED = 3.5;
+const SLIDE_SPEED = RUN_SPEED + 1;
 const SLIDE_DURATION = 20;
 const PLAYER_W = 20;
 const PLAYER_H = 32;
@@ -3876,26 +3876,26 @@ function updatePlayer(dt) {
     }
 
     // ---- Slide ----
-    if ((keys['KeyS'] || keys['ArrowDown'] || keys['touchSlide']) &&
-        !(prevKeys['KeyS'] || prevKeys['ArrowDown'] || prevKeys['touchSlide']) &&
-        p.onGround && !p.isSliding && Math.abs(p.vx) > 1) {
+    const slideHeld = keys['KeyS'] || keys['ArrowDown'] || keys['touchSlide'];
+    // Start slide when key first pressed while moving on ground
+    if (slideHeld && !p.isSliding && p.onGround && Math.abs(p.vx) > 1) {
         p.isSliding = true;
-        p.slideTimer = SLIDE_DURATION;
-        // Use actual velocity direction so slide always matches movement
         p.slideDir = Math.sign(p.vx);
         p.y += PLAYER_H - PLAYER_H_SLIDE;
-        p.h = PLAYER_H_SLIDE; // Must update hitbox height immediately to avoid clipping into ground
+        p.h = PLAYER_H_SLIDE;
         playSound('slide');
         triggerCombo();
     }
 
-    if (p.slideTimer > 0 && p.isSliding) {
-        p.vx = SLIDE_SPEED * (p.slideDir || p.facing);
-        p.slideTimer -= s;
-        if (p.onGround) {
-            spawnParticles(p.x + p.w / 2, p.y + p.h, 1, '#00e5ff', 2, 0.3);
-        }
-        if (p.slideTimer <= 0) {
+    if (p.isSliding) {
+        // Continue sliding while key is held
+        if (slideHeld) {
+            p.vx = SLIDE_SPEED * (p.slideDir || p.facing);
+            if (p.onGround) {
+                spawnParticles(p.x + p.w / 2, p.y + p.h, 1, '#00e5ff', 2, 0.3);
+            }
+        } else {
+            // Key released — try to stand up
             p.isSliding = false;
             const testY = p.y - (PLAYER_H - PLAYER_H_SLIDE);
             const testBox = { x: p.x, y: testY, w: p.w, h: PLAYER_H };
@@ -3905,9 +3905,11 @@ function updatePlayer(dt) {
             }
             if (!blocked) {
                 p.y = testY;
+                p.h = PLAYER_H;
             } else {
+                // Can't stand up — stay sliding until there's room
                 p.isSliding = true;
-                p.slideTimer = 5;
+                p.vx = SLIDE_SPEED * (p.slideDir || p.facing);
             }
         }
     }
