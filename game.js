@@ -458,7 +458,15 @@ let endlessSegments = [];
 let endlessLastX = 0;
 let musicBeatCount = 0;
 let masterGainNode = null;
-let gameSettings = { volume: 100, particles: true, shake: true, minimap: true };
+let gameSettings = { volume: 100, particles: true, shake: true, minimap: true, colorblind: false, highContrast: false };
+let countdownTimer = 0; // 3-2-1-GO countdown
+let countdownActive = false;
+let bgClouds = []; // parallax cloud layer
+let editorHistory = []; // undo stack
+let editorRedoStack = []; // redo stack
+let endlessRuns = 0;
+let endlessTotalDist = 0;
+let starAnimTimer = 0; // animated star count-up on completion
 // Achievements
 const ACHIEVEMENTS = [
     { id: 'first_clear', name: 'First Steps', desc: 'Complete any level', icon: '1' },
@@ -742,6 +750,59 @@ function playSound(type) {
                 gain.gain.setValueAtTime(0.06, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
                 osc.start(now); osc.stop(now + 0.15);
+                break;
+            }
+            case 'victory': {
+                // Triumphant ascending fanfare — distinct from 'complete'
+                const melody = [523, 659, 784, 1047, 1319, 1568];
+                for (let i = 0; i < melody.length; i++) {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    const o2 = audioCtx.createOscillator();
+                    const g2 = audioCtx.createGain();
+                    o.connect(g); g.connect(audioDest());
+                    o2.connect(g2); g2.connect(audioDest());
+                    const t = now + i * 0.12;
+                    o.type = 'sine';
+                    o.frequency.setValueAtTime(melody[i], t);
+                    g.gain.setValueAtTime(0.07, t);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+                    o2.type = 'triangle';
+                    o2.frequency.setValueAtTime(melody[i] * 0.5, t);
+                    g2.gain.setValueAtTime(0.03, t);
+                    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+                    o.start(t); o.stop(t + 0.5);
+                    o2.start(t); o2.stop(t + 0.4);
+                }
+                break;
+            }
+            case 'countdown': {
+                const freq = arguments[1] === 'go' ? 880 : 440;
+                const dur = arguments[1] === 'go' ? 0.3 : 0.15;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                osc.start(now); osc.stop(now + dur);
+                break;
+            }
+            case 'milestone': {
+                // Brief ascending chime for endless milestones
+                const notes = [660, 880, 1100];
+                for (let i = 0; i < 3; i++) {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g); g.connect(audioDest());
+                    const t = now + i * 0.08;
+                    o.type = 'sine';
+                    o.frequency.setValueAtTime(notes[i], t);
+                    g.gain.setValueAtTime(0.06, t);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+                    o.start(t); o.stop(t + 0.2);
+                }
                 break;
             }
         }
@@ -1283,9 +1344,11 @@ function updateScarfTrail() {
 
 function drawScarfTrail() {
     if (scarfTrail.length < 2) return;
+    const skinC = getSkinColors(getTheme());
+    const scarfColor = skinC.body || '#ff4081';
     for (let i = 1; i < scarfTrail.length; i++) {
         const alpha = (1 - i / scarfTrail.length) * 0.6;
-        ctx.strokeStyle = '#ff4081';
+        ctx.strokeStyle = scarfColor;
         ctx.lineWidth = 3 - i * 0.3;
         ctx.globalAlpha = alpha;
         ctx.beginPath();
@@ -1763,6 +1826,164 @@ function recordDeathReplayFrame() {
     if (deathReplayBuffer.length > 60) deathReplayBuffer.shift();
 }
 
+// ---------- PARALLAX CLOUDS ----------
+function generateClouds() {
+    bgClouds = [];
+    for (let i = 0; i < 15; i++) {
+        bgClouds.push({
+            x: Math.random() * 5000,
+            y: 20 + Math.random() * 200,
+            w: 60 + Math.random() * 120,
+            h: 15 + Math.random() * 25,
+            speed: 0.1 + Math.random() * 0.2,
+            alpha: 0.03 + Math.random() * 0.05
+        });
+    }
+}
+
+function drawClouds() {
+    for (const c of bgClouds) {
+        const sx = ((c.x - camera.x * 0.03) % 5000 + 5000) % 5000 - 500;
+        const sy = c.y - camera.y * 0.01;
+        ctx.globalAlpha = c.alpha;
+        ctx.fillStyle = gameSettings.colorblind ? '#ffffff' : '#aabbcc';
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, c.w / 2, c.h / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(sx - c.w * 0.25, sy + 3, c.w * 0.3, c.h * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(sx + c.w * 0.25, sy + 2, c.w * 0.35, c.h * 0.45, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+}
+
+function updateClouds(dt) {
+    for (const c of bgClouds) {
+        c.x += c.speed * dt;
+        if (c.x > 5500) c.x = -200;
+    }
+}
+
+// ---------- COUNTDOWN SYSTEM ----------
+function startCountdown(callback) {
+    countdownActive = true;
+    countdownTimer = 3.5;
+    countdownLastSec = 4; // track which second we last beeped
+    gameState = 'countdown';
+    window._countdownCallback = callback;
+}
+
+let countdownLastSec = 4;
+
+function updateCountdown(dt) {
+    if (!countdownActive) return;
+    const prevSec = Math.ceil(countdownTimer - 0.5);
+    countdownTimer -= dt / 1000;
+    const curSec = Math.ceil(countdownTimer - 0.5);
+    // Beep on each new second (3, 2, 1)
+    if (curSec < prevSec && curSec >= 1 && curSec <= 3) {
+        playSound('countdown');
+    }
+    // "GO" beep
+    if (prevSec >= 1 && curSec < 1 && countdownTimer > 0) {
+        playSound('countdown', 'go');
+    }
+    if (countdownTimer <= 0) {
+        countdownActive = false;
+        gameState = 'playing';
+        if (window._countdownCallback) {
+            window._countdownCallback();
+            window._countdownCallback = null;
+        }
+    }
+}
+
+function drawCountdown() {
+    if (!countdownActive) return;
+    const sec = Math.ceil(countdownTimer - 0.5);
+    const text = sec >= 1 ? '' + sec : 'GO!';
+    const scale = 1 + (countdownTimer % 1) * 0.3;
+    ctx.save();
+    ctx.translate(canvasW / 2, canvasH / 2);
+    ctx.scale(scale, scale);
+    ctx.font = 'bold 80px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = sec >= 1 ? '#ffffff' : '#00ff88';
+    ctx.globalAlpha = 0.9;
+    ctx.shadowColor = sec >= 1 ? '#00e5ff' : '#00ff88';
+    ctx.shadowBlur = 20;
+    ctx.fillText(text, 0, 0);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+    ctx.globalAlpha = 1;
+}
+
+// ---------- COLORBLIND / HIGH CONTRAST MODE ----------
+function getColorblindColor(color) {
+    if (!gameSettings.colorblind) return color;
+    // Remap problematic colors: red→orange, green→blue, keep yellow/cyan
+    const map = {
+        '#ff4444': '#ff8800', '#ff0000': '#ff8800', // red → orange
+        '#ff4081': '#ff8800', // pink → orange
+        '#4caf50': '#4488ff', '#00ff88': '#4488ff', '#00ff66': '#4488ff', // green → blue
+        '#00e5ff': '#00e5ff', '#ffd700': '#ffd700', // keep cyan and gold
+    };
+    return map[color] || color;
+}
+
+// ---------- ENDLESS MILESTONES ----------
+let lastEndlessMilestone = 0;
+
+function checkEndlessMilestones() {
+    if (!endlessMode) return;
+    const dist = Math.floor(endlessDistance);
+    const milestone = Math.floor(dist / 50) * 50;
+    if (milestone > 0 && milestone > lastEndlessMilestone) {
+        lastEndlessMilestone = milestone;
+        spawnFloatingText(milestone + 'm!', player.x + player.w / 2, player.y - 50, '#ffd700', 22);
+        playSound('milestone');
+        // Check for new best
+        if (dist > endlessBest) {
+            spawnFloatingText('NEW BEST!', player.x + player.w / 2, player.y - 80, '#ff4081', 18);
+        }
+    }
+}
+
+// ---------- SPLIT TIMER ----------
+let splitTimes = [];
+let lastCheckpointTime = 0;
+
+function recordSplit(checkpointIndex) {
+    const split = levelTimer - lastCheckpointTime;
+    splitTimes.push({ cp: checkpointIndex, time: levelTimer, split: split });
+    lastCheckpointTime = levelTimer;
+    spawnFloatingText('+' + split.toFixed(2) + 's', player.x + player.w / 2, player.y - 40, '#00e5ff', 14);
+}
+
+// ---------- ANIMATED STAR REVEAL ----------
+function animateStarReveal(grade) {
+    const gradeEl = document.getElementById('complete-grade');
+    if (!gradeEl) return;
+    const starCount = grade === 'gold' ? 3 : grade === 'silver' ? 2 : grade === 'bronze' ? 1 : 0;
+    gradeEl.innerHTML = '';
+    const starClass = grade !== 'none' ? 'star-' + grade : 'star-none';
+    for (let i = 0; i < starCount; i++) {
+        setTimeout(() => {
+            const span = gradeEl.querySelector('.' + starClass) || document.createElement('span');
+            if (!gradeEl.querySelector('.' + starClass)) {
+                span.className = starClass;
+                gradeEl.appendChild(span);
+            }
+            span.textContent += '\u2605';
+            playSound('orb');
+        }, (i + 1) * 300);
+    }
+}
+
 // ---------- SAVE EXPORT / IMPORT ----------
 function exportSave() {
     const keys = [];
@@ -1826,6 +2047,7 @@ let bgBuildings1 = [];  // far layer, parallax 0.02
 let bgBuildings2 = [];  // near layer, parallax 0.05
 
 function generateBackground() {
+    generateClouds();
     bgStars = [];
     for (let i = 0; i < 120; i++) {
         bgStars.push({
@@ -3562,12 +3784,14 @@ function updatePlayer(dt) {
     }
 
     // ---- Checkpoint collision ----
-    for (const cp of checkpoints) {
+    for (let cpIdx = 0; cpIdx < checkpoints.length; cpIdx++) {
+        const cp = checkpoints[cpIdx];
         if (!cp.activated && aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, cp)) {
             cp.activated = true;
             lastCheckpoint = { x: cp.x, y: cp.y - PLAYER_H + TILE };
             playSound('checkpoint');
             spawnParticles(cp.x + cp.w / 2, cp.y, 12, '#00ffaa', 4, 1.5);
+            recordSplit(cpIdx);
         }
     }
 
@@ -3670,7 +3894,11 @@ function updateFallingPlatforms(dt) {
             } else {
                 if (fp.fallTimer >= fallDelay && fp.fallTimer < fallDelay + 1) {
                     // Spawn debris particles when first starting to fall
-                    spawnParticles(fp.x + fp.w / 2, fp.y + fp.h / 2, 6, '#7a5a3a', 3, 1);
+                    spawnParticles(fp.x + fp.w / 2, fp.y + fp.h / 2, 10, '#7a5a3a', 4, 1.5);
+                    spawnParticles(fp.x + fp.w * 0.2, fp.y, 4, '#8a6a4a', 3, 1);
+                    spawnParticles(fp.x + fp.w * 0.8, fp.y, 4, '#6a4a2a', 3, 1);
+                    if (gameSettings.shake) screenShake = Math.max(screenShake, 4);
+                    playSound('land');
                 }
                 fp.vy += GRAVITY * dt;
                 fp.y += fp.vy * dt;
@@ -3741,8 +3969,17 @@ function killPlayer() {
         if (deathProgress) {
             if (endlessMode) {
                 const dist = Math.floor(endlessDistance);
-                const bestStr = endlessBest > 0 ? ' (Best: ' + endlessBest + 'm)' : '';
-                deathProgress.textContent = 'DISTANCE: ' + dist + 'm' + bestStr;
+                const isNewBest = dist > endlessBest;
+                endlessRuns++;
+                endlessTotalDist += dist;
+                const lines = [];
+                lines.push('DISTANCE: ' + dist + 'm');
+                if (isNewBest) lines.push('NEW BEST!');
+                else if (endlessBest > 0) lines.push('Best: ' + endlessBest + 'm');
+                lines.push('Time: ' + levelTimer.toFixed(1) + 's');
+                lines.push('Deaths this session: ' + deathCount);
+                if (endlessRuns > 1) lines.push('Avg: ' + Math.round(endlessTotalDist / endlessRuns) + 'm/run');
+                deathProgress.innerHTML = lines.join('<br>');
                 deathProgress.className = 'death-progress pulse';
             } else if (goalZone) {
                 const progress = Math.min(100, Math.max(0, Math.round(player.x / goalZone.x * 100)));
@@ -3788,7 +4025,7 @@ function respawnAtCheckpoint() {
 
 function completeLevel() {
     gameState = 'complete';
-    playSound('complete');
+    playSound('victory');
     stopMusic();
 
     const time = levelTimer;
@@ -3847,15 +4084,8 @@ function completeLevel() {
     const deathEl = document.getElementById('death-count');
     if (deathEl) deathEl.textContent = deathCount > 0 ? 'Deaths: ' + deathCount : '';
 
-    // Grade display
-    const gradeEl = document.getElementById('complete-grade');
-    if (gradeEl) {
-        const starClass = grade !== 'none' ? 'star-' + grade : 'star-none';
-        const stars = grade === 'gold' ? '\u2605\u2605\u2605' :
-                      grade === 'silver' ? '\u2605\u2605' :
-                      grade === 'bronze' ? '\u2605' : '';
-        gradeEl.innerHTML = '<span class="' + starClass + '">' + stars + '</span>';
-    }
+    // Grade display — animated star reveal
+    animateStarReveal(grade);
 
     const newRecordEl = document.getElementById('complete-new-record');
     if (isNewRecord) {
@@ -4943,6 +5173,14 @@ function gameLoop(timestamp) {
         drawMenuBackground();
     }
 
+    // Countdown state — render level but don't update player
+    if (gameState === 'countdown') {
+        updateCountdown(dt);
+        updateWeather(dtScale);
+        updateClouds(dtScale);
+        updateCamera(dtScale);
+    }
+
     if (gameState === 'playing') {
         levelTimer += dt / 1000;
         updatePlayer(dtScale);
@@ -4953,6 +5191,7 @@ function gameLoop(timestamp) {
         updateSplitTimer();
         updateStreakHUD();
         updateWeather(dtScale);
+        updateClouds(dtScale);
         updateConfetti(dtScale);
         updateDeathAnim(dtScale);
         updateScarfTrail();
@@ -4966,6 +5205,7 @@ function gameLoop(timestamp) {
                 distEl.style.display = '';
                 distEl.textContent = Math.floor(endlessDistance) + 'm';
             }
+            checkEndlessMilestones();
         }
 
         // Speed multiplier HUD
@@ -5065,7 +5305,7 @@ function gameLoop(timestamp) {
                 startDailyChallenge();
             } else if (currentLevel >= 0) {
                 loadLevel(currentLevel);
-                gameState = 'playing';
+                startCountdown(() => {});
             }
         }
     }
@@ -5140,6 +5380,7 @@ function gameLoop(timestamp) {
         }
 
         drawBackground();
+        drawClouds();
         drawWeather();
         drawAmbientParticles();
         updateAmbientParticles(dtScale);
@@ -5182,6 +5423,21 @@ function gameLoop(timestamp) {
         if (gameState === 'playing') {
             drawProgressBar();
         }
+        // Countdown overlay (drawn on top of everything)
+        drawCountdown();
+        // Difficulty badge
+        if ((gameState === 'playing' || gameState === 'countdown') && difficulty) {
+            ctx.save();
+            ctx.font = 'bold 11px monospace';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            const diffColors = { easy: '#66aaff', medium: '#bb66ff', hard: '#ff6622', extreme: '#ff2222' };
+            ctx.fillStyle = diffColors[difficulty] || '#aaa';
+            ctx.globalAlpha = 0.7;
+            ctx.fillText(difficulty.toUpperCase(), 10, canvasH - 22);
+            ctx.globalAlpha = 1;
+            ctx.restore();
+        }
     }
 
     // Store previous keys for edge detection
@@ -5196,6 +5452,28 @@ document.addEventListener('keydown', (e) => {
     keys[e.code] = true;
     initAudio();
 
+    // Editor undo/redo
+    if (currentScreen === 'editor') {
+        if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey) {
+            e.preventDefault();
+            if (editorHistory.length > 0) {
+                editorRedoStack.push(JSON.stringify(editorObjects));
+                editorObjects = JSON.parse(editorHistory.pop());
+                playSound('click');
+            }
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) {
+            e.preventDefault();
+            if (editorRedoStack.length > 0) {
+                editorHistory.push(JSON.stringify(editorObjects));
+                editorObjects = JSON.parse(editorRedoStack.pop());
+                playSound('click');
+            }
+            return;
+        }
+    }
+
     // R key to skip auto-restart or restart when dead
     if (e.code === 'KeyR' && gameState === 'dead') {
         autoRestartActive = false;
@@ -5207,11 +5485,11 @@ document.addEventListener('keydown', (e) => {
             startDailyChallenge();
         } else if (currentLevel >= 0) {
             loadLevel(currentLevel);
-            gameState = 'playing';
+            startCountdown(() => {});
         }
     }
 
-    if (e.code === 'KeyR' && gameState === 'playing') {
+    if (e.code === 'KeyR' && (gameState === 'playing' || gameState === 'countdown')) {
         const now = performance.now();
         if (now - lastRPressTime < 500) {
             // Double-tap R: restart from Level 1
@@ -5229,7 +5507,7 @@ document.addEventListener('keydown', (e) => {
                 startDailyChallenge();
             } else if (currentLevel >= 0) {
                 loadLevel(currentLevel);
-                gameState = 'playing';
+                startCountdown(() => {});
             }
         }
     }
@@ -5237,8 +5515,10 @@ document.addEventListener('keydown', (e) => {
     if (e.code === 'Escape') {
         if (gameState === 'replay' || gameState === 'replay_done') {
             exitReplayMode();
-        } else if (gameState === 'playing') {
+        } else if (gameState === 'playing' || gameState === 'countdown') {
+            const wasCountdown = gameState === 'countdown';
             gameState = 'paused';
+            if (wasCountdown) countdownActive = false;
             stopMusic();
             document.getElementById('pause-overlay').classList.remove('hidden');
             const gpb = document.getElementById('btn-ghost-pause');
@@ -5483,9 +5763,11 @@ function populateLevelGrid() {
 function startLevel(index) {
     showScreen('game');
     loadLevel(index);
-    gameState = 'playing';
     startMusic();
     startWind();
+    splitTimes = [];
+    lastCheckpointTime = 0;
+    lastEndlessMilestone = 0;
     document.getElementById('pause-overlay').classList.add('hidden');
     document.getElementById('complete-overlay').classList.add('hidden');
     document.getElementById('death-overlay').classList.add('hidden');
@@ -5494,6 +5776,8 @@ function startLevel(index) {
         const distEl = document.getElementById('hud-distance');
         if (distEl) distEl.style.display = 'none';
     }
+    // 3-2-1-GO countdown
+    startCountdown(() => {});
 }
 
 // ---------- LEVEL EDITOR ----------
@@ -5528,6 +5812,8 @@ function initEditor() {
             editorGoal = { x: tx, y: ty };
             playSound('click');
         } else if (editorTool === 'erase') {
+            editorHistory.push(JSON.stringify(editorObjects));
+            editorRedoStack = [];
             editorObjects = editorObjects.filter(o => {
                 return !(tx >= o.tx && tx < o.tx + (o.tw || 1) &&
                          ty >= o.ty && ty < o.ty + (o.th || 1));
@@ -5564,6 +5850,9 @@ function initEditor() {
             const maxX = Math.max(dragStart.x, tx);
             const maxY = Math.max(dragStart.y, ty);
 
+            // Save undo state before adding
+            editorHistory.push(JSON.stringify(editorObjects));
+            editorRedoStack = [];
             editorObjects.push({
                 type: editorTool,
                 tx: minX, ty: minY,
@@ -5876,6 +6165,10 @@ function initUI() {
         if (shakeBtn) shakeBtn.textContent = gameSettings.shake ? 'ON' : 'OFF';
         const minimapBtn = document.getElementById('settings-minimap');
         if (minimapBtn) minimapBtn.textContent = gameSettings.minimap ? 'ON' : 'OFF';
+        const cbBtnUI = document.getElementById('settings-colorblind');
+        if (cbBtnUI) cbBtnUI.textContent = gameSettings.colorblind ? 'ON' : 'OFF';
+        const hcBtnUI = document.getElementById('settings-highcontrast');
+        if (hcBtnUI) hcBtnUI.textContent = gameSettings.highContrast ? 'ON' : 'OFF';
         showScreen('settings');
     });
 
@@ -5920,6 +6213,32 @@ function initUI() {
             playSound('click');
             gameSettings.minimap = !gameSettings.minimap;
             minimapBtn.textContent = gameSettings.minimap ? 'ON' : 'OFF';
+            try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
+        });
+    }
+
+    // Colorblind toggle
+    const cbBtn = document.getElementById('settings-colorblind');
+    if (cbBtn) {
+        cbBtn.textContent = gameSettings.colorblind ? 'ON' : 'OFF';
+        cbBtn.addEventListener('click', () => {
+            playSound('click');
+            gameSettings.colorblind = !gameSettings.colorblind;
+            cbBtn.textContent = gameSettings.colorblind ? 'ON' : 'OFF';
+            document.body.classList.toggle('colorblind-mode', gameSettings.colorblind);
+            try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
+        });
+    }
+
+    // High contrast toggle
+    const hcBtn = document.getElementById('settings-highcontrast');
+    if (hcBtn) {
+        hcBtn.textContent = gameSettings.highContrast ? 'ON' : 'OFF';
+        hcBtn.addEventListener('click', () => {
+            playSound('click');
+            gameSettings.highContrast = !gameSettings.highContrast;
+            hcBtn.textContent = gameSettings.highContrast ? 'ON' : 'OFF';
+            document.body.classList.toggle('high-contrast-mode', gameSettings.highContrast);
             try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
         });
     }
@@ -6025,7 +6344,12 @@ function initUI() {
     // Pause overlay
     document.getElementById('btn-resume').addEventListener('click', () => {
         playSound('click');
-        gameState = 'playing';
+        if (countdownTimer > 0) {
+            countdownActive = true;
+            gameState = 'countdown';
+        } else {
+            gameState = 'playing';
+        }
         startMusic();
         document.getElementById('pause-overlay').classList.add('hidden');
     });
@@ -6040,8 +6364,8 @@ function initUI() {
             startDailyChallenge();
         } else if (currentLevel >= 0) {
             loadLevel(currentLevel);
-            gameState = 'playing';
             startMusic();
+            startCountdown(() => {});
         }
     });
 
@@ -6096,7 +6420,7 @@ function initUI() {
             startDailyChallenge();
         } else if (currentLevel >= 0) {
             loadLevel(currentLevel);
-            gameState = 'playing';
+            startCountdown(() => {});
         }
     });
 
@@ -6115,6 +6439,12 @@ function initUI() {
     document.getElementById('btn-test-level').addEventListener('click', () => {
         initAudio();
         playSound('click');
+        // Validate: check for at least one platform
+        const hasPlatform = editorObjects.some(o => o.type === 'platform' || o.type === 'moving' || o.type === 'falling');
+        if (!hasPlatform) {
+            alert('Place at least one platform before testing!');
+            return;
+        }
         buildEditorLevel();
         resetPlayer();
         levelTimer = 0;
@@ -6240,6 +6570,9 @@ function init() {
     initEditor();
     initTouchControls();
     updateMenuStars();
+    // Apply saved accessibility modes
+    if (gameSettings.colorblind) document.body.classList.add('colorblind-mode');
+    if (gameSettings.highContrast) document.body.classList.add('high-contrast-mode');
     animateTitle();
     showScreen('menu');
 

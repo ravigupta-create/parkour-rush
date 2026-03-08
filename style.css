@@ -1172,3 +1172,59 @@ body {
     color: #4caf50;
     letter-spacing: 0.1em;
 }
+
+/* --- Colorblind Mode --- */
+body.colorblind-mode .star-gold { color: #ffd700 !important; }
+body.colorblind-mode .star-silver { color: #c0c0c0 !important; }
+body.colorblind-mode .star-bronze { color: #ff8800 !important; }
+body.colorblind-mode .menu-btn.primary { border-color: #4488ff; color: #4488ff; }
+body.colorblind-mode .diff-btn.diff-easy { border-color: #4488ff; }
+body.colorblind-mode .diff-btn.diff-hard { border-color: #ff8800; }
+body.colorblind-mode .diff-btn.diff-extreme { border-color: #ffdd00; }
+
+/* --- High Contrast Mode --- */
+body.high-contrast-mode {
+    background: #000000;
+    color: #ffffff;
+}
+body.high-contrast-mode .screen {
+    background: rgba(0, 0, 0, 0.95);
+}
+body.high-contrast-mode .menu-btn {
+    border-width: 2px;
+    border-color: #ffffff;
+    color: #ffffff;
+    font-weight: bold;
+}
+body.high-contrast-mode .menu-btn.primary {
+    border-color: #ffff00;
+    color: #ffff00;
+}
+body.high-contrast-mode .game-title {
+    color: #ffffff;
+    text-shadow: none;
+}
+body.high-contrast-mode .game-title span {
+    color: #ffff00;
+}
+body.high-contrast-mode h2, body.high-contrast-mode h3 {
+    color: #ffffff;
+}
+body.high-contrast-mode .small-btn {
+    border-color: #ffffff;
+    color: #ffffff;
+}
+body.high-contrast-mode .settings-label {
+    color: #ffffff;
+}
+body.high-contrast-mode .diff-btn {
+    border-width: 2px;
+    color: #ffffff;
+}
+body.high-contrast-mode .level-tile {
+    border-width: 2px;
+    color: #ffffff;
+}
+body.high-contrast-mode #hud {
+    text-shadow: 0 0 4px #000, 0 0 8px #000;
+}
