@@ -2902,11 +2902,15 @@ function completeLevel() {
 // ---------- CAMERA ----------
 function updateCamera(dt) {
     const targetX = player.x - canvasW / 2 + player.w / 2;
-    const targetY = player.y - canvasH / 2 + player.h / 2;
+    // Bias camera toward lower third — player at 40% from top, not centered
+    const targetY = player.y - canvasH * 0.4 + player.h / 2;
     const smooth = 1 - Math.pow(1 - CAM_SMOOTH, dt);
     camera.x += (targetX - camera.x) * smooth;
-    camera.y += (targetY - camera.y) * smooth;
+    // Use slower vertical smoothing to reduce jitter on jumps
+    const vSmooth = 1 - Math.pow(1 - CAM_SMOOTH * 0.6, dt);
+    camera.y += (targetY - camera.y) * vSmooth;
 
+    // Clamp bottom
     if (camera.y > (WORLD_H - 2) * TILE - canvasH) {
         camera.y = (WORLD_H - 2) * TILE - canvasH;
     }
