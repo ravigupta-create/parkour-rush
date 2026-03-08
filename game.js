@@ -6765,7 +6765,9 @@ function initUI() {
             // Highlight selected
             document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
-            if (pendingAction === 'play') {
+            if (pendingAction === 'endless') {
+                doScreenWipe(() => startEndlessMode(), 'ENDLESS');
+            } else if (pendingAction === 'play') {
                 doScreenWipe(() => startLevel(0), 'LEVEL 1');
             } else {
                 populateLevelGrid();
@@ -6998,11 +7000,12 @@ function initUI() {
         startDailyChallenge();
     });
 
-    // Endless mode button
+    // Endless mode button — show difficulty picker first
     document.getElementById('btn-endless').addEventListener('click', () => {
         initAudio();
         playSound('click');
-        startEndlessMode();
+        pendingAction = 'endless';
+        showScreen('difficulty');
     });
 
     // Practice mode toggle (pause menu)
