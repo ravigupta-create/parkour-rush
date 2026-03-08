@@ -2262,6 +2262,7 @@ function resetPlayer() {
         slideTimer: 0,
         canClimb: false, climbTimer: 0,
         isSliding: false, isDashing: false,
+        isBoosted: false, wasBoosted: false,
         wasOnGround: false,
         ridingPlatform: null
     };
@@ -3802,10 +3803,11 @@ function updatePlayer(dt) {
     if (keys['KeyA'] || keys['ArrowLeft']) inputX = -1;
     if (keys['KeyD'] || keys['ArrowRight']) inputX = 1;
 
-    if (!p.isDashing && !p.isSliding && p.climbTimer <= 0) {
+    if (!p.isDashing && !p.isSliding && !p.isBoosted && p.climbTimer <= 0) {
         p.vx = inputX * getCheatRunSpeed();
         if (inputX !== 0) p.facing = inputX;
     }
+    p.isBoosted = false;
 
     // Track distance for run animation
     playerDistTraveled += Math.abs(p.vx) * s;
@@ -4020,6 +4022,21 @@ function updatePlayer(dt) {
     if (jumpSquashTimer > 0) jumpSquashTimer -= s;
     if (landTimer > 0) landTimer -= s;
 
+    // ---- Boost pads (before collision so velocity is used this frame) ----
+    for (const bp of boostPads) {
+        if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, bp)) {
+            p.vx = DASH_SPEED * bp.dir;
+            p.facing = bp.dir;
+            p.isBoosted = true;
+            if (!p.wasBoosted) {
+                playSound('boost');
+                spawnParticles(bp.x + bp.w / 2, bp.y, 8, '#ffd700', 4, 1);
+                triggerCombo();
+            }
+        }
+    }
+    p.wasBoosted = p.isBoosted;
+
     // ---- Move & collide ----
     const solids = getAllSolids();
 
@@ -4114,17 +4131,6 @@ function updatePlayer(dt) {
         const fpBox = { x: fp.x, y: fp.y, w: fp.w, h: fp.h };
         if (aabb(standBox, fpBox)) {
             fp.triggered = true;
-        }
-    }
-
-    // ---- Boost pads ----
-    for (const bp of boostPads) {
-        if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, bp)) {
-            p.vx = DASH_SPEED * bp.dir;
-            p.facing = bp.dir;
-            playSound('boost');
-            spawnParticles(bp.x + bp.w / 2, bp.y, 8, '#ffd700', 4, 1);
-            triggerCombo();
         }
     }
 
@@ -6185,6 +6191,11 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
     keys[e.code] = false;
+});
+
+// Clear all keys when window loses focus to prevent stuck keys
+window.addEventListener('blur', () => {
+    for (const k in keys) keys[k] = false;
 });
 
 window.addEventListener('keydown', (e) => {
