@@ -12,10 +12,10 @@ const RUN_SPEED = 5;
 const JUMP_FORCE = -10.5;
 const WALL_JUMP_X = 7;
 const WALL_JUMP_Y = -9;
-const DASH_SPEED = 14;
+const DASH_SPEED = 10;
 const DASH_DURATION = 8;
 const DASH_COOLDOWN = 30;
-const SLIDE_SPEED = 6;
+const SLIDE_SPEED = 4.5;
 const SLIDE_DURATION = 20;
 const PLAYER_W = 20;
 const PLAYER_H = 32;
@@ -1526,31 +1526,23 @@ function drawMinimap() {
 // ---------- PROGRESS BAR ----------
 function drawProgressBar() {
     if (!goalZone || endlessMode) return;
-    const barW = canvasW * 0.6;
-    const barH = 3;
+    const barW = canvasW * 0.35;
+    const barH = 2;
     const barX = (canvasW - barW) / 2;
-    const barY = canvasH - 8;
+    const barY = canvasH - 3;
     const progress = Math.max(0, Math.min(1, player.x / goalZone.x));
     // Background
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = 0.15;
     ctx.fillStyle = '#333';
     ctx.fillRect(barX, barY, barW, barH);
-    // Fill
-    ctx.globalAlpha = 0.7;
-    const barColor = progress > 0.9 ? '#4caf50' : progress > 0.6 ? '#ffd700' : '#00e5ff';
-    ctx.fillStyle = barColor;
+    // Fill — very subtle
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(barX, barY, barW * progress, barH);
-    // Checkpoint markers on the bar
-    for (const cp of checkpoints) {
-        const cpProgress = Math.max(0, Math.min(1, cp.x / goalZone.x));
-        const cpX = barX + barW * cpProgress;
-        ctx.fillStyle = cp.activated ? '#00ffaa' : '#666';
-        ctx.fillRect(cpX - 1, barY - 2, 2, barH + 4);
-    }
-    // Player dot on bar
-    ctx.globalAlpha = 1;
+    // Player dot
+    ctx.globalAlpha = 0.5;
     ctx.fillStyle = '#ff4081';
-    ctx.fillRect(barX + barW * progress - 2, barY - 2, 4, barH + 4);
+    ctx.fillRect(barX + barW * progress - 1, barY - 1, 3, barH + 2);
     ctx.globalAlpha = 1;
 }
 
@@ -3889,7 +3881,8 @@ function updatePlayer(dt) {
         p.onGround && !p.isSliding && Math.abs(p.vx) > 1) {
         p.isSliding = true;
         p.slideTimer = SLIDE_DURATION;
-        p.slideDir = p.vx > 0 ? 1 : -1; // lock slide direction to actual velocity
+        // Use the direction keys the player is pressing, or fallback to facing
+        p.slideDir = inputX !== 0 ? inputX : p.facing;
         p.y += PLAYER_H - PLAYER_H_SLIDE;
         playSound('slide');
         triggerCombo();
@@ -4026,30 +4019,45 @@ function updatePlayer(dt) {
     // ---- Move & collide ----
     const solids = getAllSolids();
 
-    // Horizontal
-    p.x += p.vx * s;
+    // Horizontal — substep to prevent tunneling through thin walls
+    const hMove = p.vx * s;
+    const hSteps = Math.max(1, Math.ceil(Math.abs(hMove) / (TILE * 0.5)));
+    const hStep = hMove / hSteps;
     p.onWallLeft = false;
     p.onWallRight = false;
     p.canClimb = false;
 
-    const pBox = { x: p.x, y: p.y, w: p.w, h: p.h };
-
-    for (const sol of solids) {
-        if (aabb(pBox, sol)) {
-            if (p.vx > 0) {
-                p.x = sol.x - p.w;
-                p.onWallRight = true;
-            } else if (p.vx < 0) {
-                p.x = sol.x + sol.w;
-                p.onWallLeft = true;
+    for (let hsi = 0; hsi < hSteps; hsi++) {
+        p.x += hStep;
+        const pBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+        let hitWall = false;
+        for (const sol of solids) {
+            if (aabb(pBox, sol)) {
+                if (p.vx > 0) {
+                    p.x = sol.x - p.w;
+                    p.onWallRight = true;
+                } else if (p.vx < 0) {
+                    p.x = sol.x + sol.w;
+                    p.onWallLeft = true;
+                }
+                if (p.isDashing) {
+                    p.isDashing = false;
+                    p.dashTimer = 0;
+                }
+                if (p.isSliding) {
+                    p.isSliding = false;
+                    p.slideTimer = 0;
+                    p.y -= (PLAYER_H - PLAYER_H_SLIDE);
+                    p.h = PLAYER_H;
+                }
+                p.vx = 0;
+                hitWall = true;
+                break;
             }
-            if (p.isDashing) {
-                p.isDashing = false;
-                p.dashTimer = 0;
-            }
-            p.vx = 0;
         }
+        if (hitWall) break;
     }
+    const pBox = { x: p.x, y: p.y, w: p.w, h: p.h };
 
     // Check ledge climb availability
     if (p.onWallLeft || p.onWallRight) {
@@ -4212,18 +4220,55 @@ function updateMovingPlatforms(dt) {
     for (const mp of movingPlatforms) {
         const prevX = mp.x;
         const prevY = mp.y;
+        // Use smooth sine interpolation (unchanged)
         mp.t += mp.speed * 0.02 * dt;
-        mp.x = mp.startX + Math.sin(mp.t) * mp.range * mp.dx;
-        mp.y = mp.startY + Math.sin(mp.t) * mp.range * mp.dy;
+        const targetX = mp.startX + Math.sin(mp.t) * mp.range * mp.dx;
+        const targetY = mp.startY + Math.sin(mp.t) * mp.range * mp.dy;
+        // Smooth lerp to target to avoid jerk at direction changes
+        mp.x += (targetX - mp.x) * 0.4;
+        mp.y += (targetY - mp.y) * 0.4;
 
         // Trail
         mp.trail.push({ x: mp.x, y: mp.y });
         if (mp.trail.length > 5) mp.trail.shift();
 
+        // Carry player riding this platform
         if (player.ridingPlatform === mp) {
-            player.x += mp.x - prevX;
-            player.y += mp.y - prevY;
+            const dx = mp.x - prevX;
+            const dy = mp.y - prevY;
+            player.x += dx;
+            player.y += dy;
+            // After carrying, resolve any overlap with static platforms
+            const pBox = { x: player.x, y: player.y, w: player.w, h: player.h };
+            for (const plat of platforms) {
+                if (aabb(pBox, plat)) {
+                    // Push player out of static platform
+                    if (dy > 0) {
+                        player.y = plat.y - player.h;
+                    } else if (dy < 0) {
+                        player.y = plat.y + plat.h;
+                    }
+                    if (dx > 0) {
+                        player.x = plat.x - player.w;
+                    } else if (dx < 0) {
+                        player.x = plat.x + plat.w;
+                    }
+                    pBox.x = player.x;
+                    pBox.y = player.y;
+                }
+            }
+            for (const w of walls) {
+                if (aabb(pBox, w)) {
+                    if (dx > 0) player.x = w.x - player.w;
+                    else if (dx < 0) player.x = w.x + w.w;
+                    pBox.x = player.x;
+                }
+            }
         }
+
+        // Store velocity for arrow indicator
+        mp.vx = mp.x - prevX;
+        mp.vy = mp.y - prevY;
     }
 }
 
