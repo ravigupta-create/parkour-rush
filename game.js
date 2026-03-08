@@ -3884,6 +3884,7 @@ function updatePlayer(dt) {
         // Use actual velocity direction so slide always matches movement
         p.slideDir = Math.sign(p.vx);
         p.y += PLAYER_H - PLAYER_H_SLIDE;
+        p.h = PLAYER_H_SLIDE; // Must update hitbox height immediately to avoid clipping into ground
         playSound('slide');
         triggerCombo();
     }
