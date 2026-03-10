@@ -43,6 +43,11 @@ const GRADE_THRESHOLDS = [
     { gold: 18, silver: 26, bronze: 36 },     // L13: Mirror Run
     { gold: 20, silver: 30, bronze: 42 },     // L14: Momentum
     { gold: 35, silver: 50, bronze: 70 },     // L15: Final Rush
+    { gold: 22, silver: 32, bronze: 44 },     // L16: Frost Cavern
+    { gold: 20, silver: 30, bronze: 42 },     // L17: Laser Grid
+    { gold: 24, silver: 36, bronze: 50 },     // L18: Wind Tunnel
+    { gold: 26, silver: 38, bronze: 52 },     // L19: Gravity Shift
+    { gold: 40, silver: 55, bronze: 75 },     // L20: The Gauntlet II
 ];
 
 // ---------- TUTORIAL HINTS ----------
@@ -61,7 +66,12 @@ const TUTORIAL_HINTS = [
     "Descending through walls? Control your fall with wall slides.",
     "Slide under low ceilings where spikes block the top path.",
     "Boost chain! Hit each pad and jump at peak speed.",
-    "The final rush tests everything. Use checkpoints wisely!"
+    "The final rush tests everything. Use checkpoints wisely!",
+    "Ice is slippery! Momentum carries you — time your jumps carefully.",
+    "Watch the lasers! They cycle on and off — find the pattern.",
+    "Wind zones push you around — use conveyors to ride the current.",
+    "Gravity zones flip everything! Walk on ceilings to progress.",
+    "The ultimate gauntlet — every obstacle, every skill, no mercy."
 ];
 
 // ---------- DIFFICULTY SETTINGS ----------
@@ -919,7 +929,23 @@ const ACHIEVEMENTS = [
     { id: 'endless_500', name: 'Ultra Runner', desc: 'Reach 500m in endless mode', icon: 'U' },
     { id: 'combo_20', name: 'Combo Legend', desc: 'Reach a 20x combo', icon: 'L' },
     { id: 'orbs_200', name: 'Treasure Hunter', desc: 'Collect 200 orbs total', icon: '$' },
-    { id: 'deaths_500', name: 'Immortal Spirit', desc: 'Die 500 times total', icon: '+' }
+    { id: 'deaths_500', name: 'Immortal Spirit', desc: 'Die 500 times total', icon: '+' },
+    // New achievements
+    { id: 'combo_30', name: 'Combo God', desc: 'Reach a 30x combo', icon: '!' },
+    { id: 'prestige_1', name: 'Prestige I', desc: 'Prestige for the first time', icon: 'P' },
+    { id: 'all_stars', name: 'Star Collector', desc: 'Get all 3 stars on any level', icon: '★' },
+    { id: 'purist', name: 'Purist', desc: 'Clear any level without dashing', icon: 'N' },
+    { id: 'pogo_5', name: 'Pogo Master', desc: '5 bounce pad chain', icon: 'B' },
+    { id: 'speedrunner', name: 'Speedrunner', desc: 'Complete all 20 levels', icon: 'R' },
+    { id: 'midas', name: 'Midas Touch', desc: 'Collect 500 orbs total', icon: 'J' },
+    { id: 'phoenix', name: 'Phoenix', desc: 'Die 1000 times total', icon: 'Q' },
+    { id: 'ice_dancer', name: 'Ice Dancer', desc: 'Gold on Frost Cavern', icon: 'I' },
+    { id: 'boss_slayer', name: 'Boss Slayer', desc: 'Complete a boss level', icon: 'V' },
+    { id: 'mirror_master', name: 'Mirror Master', desc: 'Clear a level in mirror mode', icon: 'Z' },
+    { id: 'weekly_warrior', name: 'Weekly Warrior', desc: 'Complete a weekly challenge', icon: 'Y' },
+    { id: 'gauntlet_ii', name: 'Gauntlet Returns', desc: 'Complete Level 20', icon: '2' },
+    { id: 'veteran', name: 'Veteran', desc: 'Reach XP level 10', icon: 'v' },
+    { id: 'true_master', name: 'True Master', desc: 'Earn all mastery badges on any level', icon: 'T' },
 ];
 let unlockedAchievements = {};
 let achievementPopup = null;
@@ -933,7 +959,16 @@ const SKINS = [
     { id: 'gold_skin', name: 'Gold', cost: 30, body: '#ffd700', head: '#ffee44', arms: '#ddbb00', legs: '#ccaa00' },
     { id: 'shadow', name: 'Shadow', cost: 40, body: '#333344', head: '#444455', arms: '#222233', legs: '#111122' },
     { id: 'bubblegum', name: 'Bubblegum', cost: 50, body: '#ff66aa', head: '#ff88cc', arms: '#ff4488', legs: '#ee3377' },
-    { id: 'rainbow', name: 'Rainbow', cost: 100, body: 'rainbow', head: 'rainbow', arms: 'rainbow', legs: 'rainbow' }
+    { id: 'rainbow', name: 'Rainbow', cost: 100, body: 'rainbow', head: 'rainbow', arms: 'rainbow', legs: 'rainbow' },
+    // New skins
+    { id: 'lava', name: 'Lava', cost: 25, body: '#ff3300', head: '#ff5500', arms: '#dd2200', legs: '#cc1100' },
+    { id: 'ocean', name: 'Ocean', cost: 25, body: '#0066cc', head: '#0088ee', arms: '#0055aa', legs: '#004499' },
+    { id: 'forest', name: 'Forest', cost: 30, body: '#228b22', head: '#33aa33', arms: '#1a7a1a', legs: '#116611' },
+    { id: 'galaxy', name: 'Galaxy', cost: 35, body: '#4b0082', head: '#6a0dad', arms: '#3c006e', legs: '#2d0054' },
+    { id: 'cherry', name: 'Cherry Blossom', cost: 40, body: '#ffb7c5', head: '#ffc8d6', arms: '#ffa6b4', legs: '#ff95a3' },
+    { id: 'stealth', name: 'Stealth', cost: 50, body: '#1a1a1a', head: '#2a2a2a', arms: '#0f0f0f', legs: '#050505' },
+    { id: 'retro', name: 'Retro', cost: 60, body: '#00ff00', head: '#33ff33', arms: '#00dd00', legs: '#00bb00' },
+    { id: 'diamond', name: 'Diamond', cost: 150, body: '#b9f2ff', head: '#d4f7ff', arms: '#9ee8f5', legs: '#84dde8' },
 ];
 let currentSkin = 'default';
 let unlockedSkins = ['default'];
@@ -941,6 +976,138 @@ let totalOrbs = 0;
 let orbs = [];
 let totalWallJumps = 0;
 let totalDashes = 0;
+
+// --- New Block Type Arrays ---
+let icePlatforms = [];
+let conveyorBelts = [];
+let bouncePads = [];
+let toggleBlocksA = [];
+let toggleBlocksB = [];
+let toggleSwitches = [];
+let toggleState = false; // A=solid, B=transparent when false; flip when true
+let laserBeams = [];
+let gravityZones = [];
+let teleporterPads = [];
+let crumblingWalls = [];
+let ziplines = [];
+let windZones = [];
+
+// --- XP & Progression ---
+let playerXP = 0;
+let playerLevel = 0;
+let prestigeCount = 0;
+let starRatings = {}; // per level: { complete: bool, silverTime: bool, goldNoDeath: bool }
+let masteryBadges = {}; // per level: { zeroDeath, noDash, allOrbs, speedRecord }
+let dailyLoginStreak = 0;
+let lastLoginDate = '';
+
+// XP thresholds per level
+const XP_PER_LEVEL = [0, 100, 250, 500, 800, 1200, 1700, 2400, 3200, 4200, 5500];
+function getPlayerLevel() {
+    let lvl = 0;
+    for (let i = XP_PER_LEVEL.length - 1; i >= 0; i--) {
+        if (playerXP >= XP_PER_LEVEL[i]) { lvl = i; break; }
+    }
+    return lvl;
+}
+function addXP(amount) {
+    const prevLvl = getPlayerLevel();
+    playerXP += Math.floor(amount * (1 + prestigeCount * 0.05));
+    playerLevel = getPlayerLevel();
+    if (playerLevel > prevLvl) {
+        spawnFloatingText('LEVEL UP! Lv.' + playerLevel, player.x + player.w / 2, player.y - 60, '#00ff88', 22);
+        playSound('victory');
+    }
+    saveProgression();
+}
+
+// --- Player Abilities ---
+let doubleJumpUsed = false;
+let groundPoundActive = false;
+let airStallFuel = 60;
+const AIR_STALL_MAX = 60;
+let speedBurstActive = false;
+let speedBurstTimer = 0;
+let wallRunTimer = 0;
+let wallRunActive = false;
+
+// --- New Game Modes ---
+let timeAttackMode = false;
+let timeAttackTimer = 0;
+let timeAttackDeaths = 0;
+let mirrorMode = false;
+let challengeMode = false;
+let challengeModifiers = { noDash: false, invisiblePlatforms: false, doubleSpeed: false, oneHit: false, tinyPlayer: false };
+let weeklyChallenge = false;
+let bossMode = false;
+let bossState = null; // { type, x, y, hp, phase, timer }
+
+// --- Cosmetics ---
+const NEW_SKINS = [
+    { id: 'lava', name: 'Lava', cost: 25, body: '#ff3300', head: '#ff5500', arms: '#dd2200', legs: '#cc1100' },
+    { id: 'ocean', name: 'Ocean', cost: 25, body: '#0066cc', head: '#0088ee', arms: '#0055aa', legs: '#004499' },
+    { id: 'forest', name: 'Forest', cost: 30, body: '#228b22', head: '#33aa33', arms: '#1a7a1a', legs: '#116611' },
+    { id: 'galaxy', name: 'Galaxy', cost: 35, body: '#4b0082', head: '#6a0dad', arms: '#3c006e', legs: '#2d0054' },
+    { id: 'cherry', name: 'Cherry Blossom', cost: 40, body: '#ffb7c5', head: '#ffc8d6', arms: '#ffa6b4', legs: '#ff95a3' },
+    { id: 'stealth', name: 'Stealth', cost: 50, body: '#1a1a1a', head: '#2a2a2a', arms: '#0f0f0f', legs: '#050505' },
+    { id: 'retro', name: 'Retro', cost: 60, body: '#00ff00', head: '#33ff33', arms: '#00dd00', legs: '#00bb00' },
+    { id: 'diamond', name: 'Diamond', cost: 150, body: '#b9f2ff', head: '#d4f7ff', arms: '#9ee8f5', legs: '#84dde8' },
+];
+
+let currentTrail = 'none';
+let unlockedTrails = ['none'];
+const TRAIL_EFFECTS = [
+    { id: 'none', name: 'None', cost: 0, color: null },
+    { id: 'flame', name: 'Flame', cost: 20, color: '#ff4400' },
+    { id: 'ice_trail', name: 'Ice', cost: 20, color: '#88ddff' },
+    { id: 'stars', name: 'Stars', cost: 25, color: '#ffd700' },
+    { id: 'glitch', name: 'Glitch', cost: 30, color: '#00ff00' },
+    { id: 'rainbow_trail', name: 'Rainbow', cost: 50, color: 'rainbow' },
+];
+
+let currentHat = 'none';
+let unlockedHats = ['none'];
+const PLAYER_HATS = [
+    { id: 'none', name: 'None', cost: 0 },
+    { id: 'crown', name: 'Crown', cost: 30 },
+    { id: 'headband', name: 'Headband', cost: 15 },
+    { id: 'antenna', name: 'Antenna', cost: 20 },
+    { id: 'horns', name: 'Horns', cost: 25 },
+    { id: 'halo', name: 'Halo', cost: 35 },
+];
+
+let currentDeathEffect = 'shatter';
+let unlockedDeathEffects = ['shatter'];
+const DEATH_EFFECTS = [
+    { id: 'shatter', name: 'Shatter', cost: 0 },
+    { id: 'poof', name: 'Poof', cost: 15 },
+    { id: 'glitch_death', name: 'Glitch', cost: 25 },
+    { id: 'dissolve', name: 'Dissolve', cost: 30 },
+];
+
+let currentCelebration = 'default';
+let unlockedCelebrations = ['default'];
+const CELEBRATIONS = [
+    { id: 'default', name: 'Default', cost: 0 },
+    { id: 'backflip', name: 'Backflip', cost: 20 },
+    { id: 'fistpump', name: 'Fist Pump', cost: 15 },
+    { id: 'fireworks', name: 'Fireworks', cost: 30 },
+    { id: 'confetti_cannon', name: 'Confetti Cannon', cost: 25 },
+];
+
+// --- QoL State ---
+let quickRestart = false;
+let inputDisplayEnabled = false;
+let photoModeActive = false;
+let photoCam = { x: 0, y: 0, zoom: 1 };
+let levelDeathCounts = {}; // per level death counter for skip offer
+let skippedLevels = {};
+
+// --- Trail Particles ---
+let trailParticles = [];
+
+// --- Timer Splits vs PB ---
+let pbSplits = {}; // per level checkpoint splits
 
 // Editor state
 let editorTool = 'platform';
@@ -2151,6 +2318,36 @@ function checkAchievements() {
     if (totalOrbs >= 200) unlockAchievement('orbs_200');
     // Death milestones
     if (totalDeaths >= 500) unlockAchievement('deaths_500');
+    // New achievements
+    if (comboCount >= 30) unlockAchievement('combo_30');
+    if (prestigeCount >= 1) unlockAchievement('prestige_1');
+    if (totalOrbs >= 500) unlockAchievement('midas');
+    if (totalDeaths >= 1000) unlockAchievement('phoenix');
+    if (getPlayerLevel() >= 10) unlockAchievement('veteran');
+    // Level 16 gold
+    if (bestGrades[15] === 'gold') unlockAchievement('ice_dancer');
+    // Level 20 complete
+    if (gameState === 'complete' && currentLevel === 19) unlockAchievement('gauntlet_ii');
+    // All 20 levels complete
+    let all20 = true;
+    for (let i = 0; i < 20 && i < LEVELS.length; i++) { if (!bestTimes[i]) { all20 = false; break; } }
+    if (all20) unlockAchievement('speedrunner');
+    // Mirror mode clear
+    if (mirrorMode && gameState === 'complete') unlockAchievement('mirror_master');
+    // Weekly challenge
+    if (weeklyChallenge && gameState === 'complete') unlockAchievement('weekly_warrior');
+    // Boss slayer
+    if (bossMode && gameState === 'complete') unlockAchievement('boss_slayer');
+    // Star collector: check if any level has all 3 stars
+    for (const lvl in starRatings) {
+        const sr = starRatings[lvl];
+        if (sr && sr.complete && sr.silverTime && sr.goldNoDeath) unlockAchievement('all_stars');
+    }
+    // Mastery
+    for (const lvl in masteryBadges) {
+        const mb = masteryBadges[lvl];
+        if (mb && mb.zeroDeath && mb.noDash && mb.allOrbs && mb.speedRecord) unlockAchievement('true_master');
+    }
 }
 
 function populateAchievements() {
@@ -2258,6 +2455,11 @@ function generateDailyLevel() {
             fallingPlatforms.push(falling(cx, y, w, 1));
         }
         if (rng() > 0.6) orbs.push(orbHelper(cx + Math.floor(w / 2), y - 2));
+        // New block types in daily
+        if (rng() > 0.8) icePlatforms.push(icePlat(cx, y, w, 1));
+        if (rng() > 0.85) bouncePads.push(bouncePad(cx + 1, y, 2, 1, -13 - Math.floor(rng() * 3)));
+        if (rng() > 0.9) conveyorBelts.push(conveyor(cx, y, w, 1, rng() > 0.5 ? 1 : -1, 2));
+        if (rng() > 0.92) windZones.push(windZoneObj(cx, y - 6, w, 6, (rng() - 0.5) * 4, 0));
         cx += w + 3 + Math.floor(rng() * 4);
     }
     platforms.push(plat(cx, 18, 6, 2));
@@ -2270,6 +2472,9 @@ function startDailyChallenge() {
     boostPads = []; walls = []; goalZone = null; particleCount = 0;
     checkpoints = []; lastCheckpoint = null; ghostRecording = [];
     ghostFrame = 0; ghostRecordFrame = 0; deathCount = 0; orbs = [];
+    icePlatforms = []; conveyorBelts = []; bouncePads = []; toggleBlocksA = []; toggleBlocksB = [];
+    toggleSwitches = []; laserBeams = []; gravityZones = []; teleporterPads = [];
+    crumblingWalls = []; ziplines = []; windZones = []; toggleState = false;
     currentLevel = -2; // Special index for daily
     generateDailyLevel();
     resetPlayer();
@@ -2314,6 +2519,9 @@ function startEndlessMode() {
     spikes = []; movingPlatforms = []; fallingPlatforms = [];
     boostPads = []; walls = []; goalZone = null; particleCount = 0;
     checkpoints = []; lastCheckpoint = null; orbs = [];
+    icePlatforms = []; conveyorBelts = []; bouncePads = []; toggleBlocksA = []; toggleBlocksB = [];
+    toggleSwitches = []; laserBeams = []; gravityZones = []; teleporterPads = [];
+    crumblingWalls = []; ziplines = []; windZones = []; toggleState = false;
     currentLevel = -3;
     endlessLastX = 10 * TILE;
     for (let i = 0; i < 10; i++) generateEndlessSegment();
@@ -2366,6 +2574,12 @@ function generateEndlessSegment() {
     // More spikes as distance increases
     if (rng() > (0.7 - diffScale * 0.3)) spikes.push(spike(startX + Math.floor(w / 2), 19, 2, 1));
     if (rng() > 0.5) orbs.push(orbHelper(startX + Math.floor(w / 2), y - 2));
+    // New block types in endless
+    if (diffScale > 0.2 && rng() > 0.85) icePlatforms.push(icePlat(startX, y, w, 1));
+    if (diffScale > 0.3 && rng() > 0.88) bouncePads.push(bouncePad(startX + 1, y, 2, 1, -13));
+    if (diffScale > 0.4 && rng() > 0.9) conveyorBelts.push(conveyor(startX, y, w, 1, rng() > 0.5 ? 1 : -1, 2 + diffScale));
+    if (diffScale > 0.5 && rng() > 0.92) windZones.push(windZoneObj(startX, y - 5, w, 5, (rng() - 0.5) * 4, 0));
+    if (diffScale > 0.6 && rng() > 0.95) laserBeams.push(laser(startX + Math.floor(w / 2), y - 6, 1, 6, 50, 50));
     endlessLastX = (startX + w) * TILE;
 }
 
@@ -2725,6 +2939,51 @@ function goal(tx, ty) {
 
 function checkpoint(tx, ty) {
     return { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE * 2, activated: false };
+}
+
+// --- New Block Constructors ---
+function icePlat(tx, ty, tw, th) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: (th || 1) * TILE, isIce: true };
+}
+
+function conveyor(tx, ty, tw, dir, speed) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: TILE, dir: dir || 1, speed: speed || 2, animOffset: 0 };
+}
+
+function bouncePad(tx, ty, tw) {
+    return { x: tx * TILE, y: ty * TILE, w: (tw || 2) * TILE, h: TILE * 0.5, force: -14, animTimer: 0 };
+}
+
+function toggleBlock(tx, ty, tw, th, group) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: (th || 1) * TILE, group: group || 'A' };
+}
+
+function toggleSwitch(tx, ty) {
+    return { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE, hit: false };
+}
+
+function laser(tx, ty, tw, th, onTime, offTime) {
+    return { x: tx * TILE, y: ty * TILE, w: (tw || 1) * TILE, h: (th || 1) * TILE, onTime: onTime || 60, offTime: offTime || 40, timer: 0, active: true };
+}
+
+function gravZone(tx, ty, tw, th, grav) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: th * TILE, gravMod: grav || -1 };
+}
+
+function teleporter(tx1, ty1, tx2, ty2) {
+    return { x1: tx1 * TILE, y1: ty1 * TILE, x2: tx2 * TILE, y2: ty2 * TILE, w: TILE, h: TILE * 2, cooldown: 0 };
+}
+
+function crumbleWall(tx, ty, th) {
+    return { x: tx * TILE, y: ty * TILE, w: TILE, h: (th || 3) * TILE, hits: 0, maxHits: 2, broken: false, shakeTimer: 0 };
+}
+
+function ziplineObj(tx1, ty1, tx2, ty2) {
+    return { x1: tx1 * TILE, y1: ty1 * TILE, x2: tx2 * TILE, y2: ty2 * TILE, speed: 4 };
+}
+
+function windZoneObj(tx, ty, tw, th, fx, fy) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: th * TILE, forceX: fx || 0, forceY: fy || 0, particles: [] };
 }
 
 // ---------- LEVEL DEFINITIONS ----------
@@ -3285,6 +3544,237 @@ const LEVELS = [
             checkpoint(83, 16),
             checkpoint(123, 16),
         ];
+    },
+
+    // ----- LEVEL 16: Frost Cavern (ice platforms + bounce pads) -----
+    function() {
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = goal(160, 17);
+        platforms = [
+            plat(0, 18, 10, 2),
+            plat(50, 18, 6, 2),
+            plat(90, 18, 8, 2),
+            plat(130, 18, 6, 2),
+            plat(145, 18, 20, 2),
+        ];
+        icePlatforms = [
+            icePlat(14, 17, 8, 1),
+            icePlat(28, 15, 6, 1),
+            icePlat(40, 16, 6, 1),
+            icePlat(60, 14, 5, 1),
+            icePlat(72, 15, 6, 1),
+            icePlat(100, 13, 5, 1),
+            icePlat(112, 14, 6, 1),
+            icePlat(124, 15, 4, 1),
+        ];
+        bouncePads = [
+            bouncePad(18, 17, 2, 1, -14),
+            bouncePad(46, 17, 2, 1, -13),
+            bouncePad(78, 17, 2, 1, -15),
+            bouncePad(108, 17, 2, 1, -14),
+            bouncePad(138, 17, 2, 1, -12),
+        ];
+        spikes = [
+            spike(22, 19, 6, 1),
+            spike(56, 19, 12, 1),
+            spike(84, 19, 4, 1),
+            spike(118, 19, 10, 1),
+        ];
+        walls = [];
+        movingPlatforms = [];
+        fallingPlatforms = [];
+        boostPads = [];
+        checkpoints = [checkpoint(50, 16), checkpoint(90, 16)];
+    },
+
+    // ----- LEVEL 17: Laser Grid (lasers + toggle block puzzles) -----
+    function() {
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = goal(150, 17);
+        platforms = [
+            plat(0, 18, 10, 2),
+            plat(20, 18, 8, 2),
+            plat(40, 18, 8, 2),
+            plat(60, 18, 6, 2),
+            plat(80, 18, 8, 2),
+            plat(100, 18, 6, 2),
+            plat(120, 18, 6, 2),
+            plat(135, 18, 20, 2),
+        ];
+        laserBeams = [
+            laser(15, 10, 1, 8, 60, 40),
+            laser(35, 12, 1, 6, 50, 50),
+            laser(55, 10, 1, 8, 45, 55),
+            laser(75, 11, 1, 7, 55, 45),
+            laser(95, 10, 1, 8, 40, 60),
+            laser(115, 12, 1, 6, 50, 50),
+        ];
+        toggleBlocksA = [
+            toggleBlock(30, 15, 4, 1, 'A'),
+            toggleBlock(70, 14, 3, 1, 'A'),
+            toggleBlock(110, 15, 4, 1, 'A'),
+        ];
+        toggleBlocksB = [
+            toggleBlock(50, 15, 4, 1, 'B'),
+            toggleBlock(90, 14, 3, 1, 'B'),
+            toggleBlock(130, 15, 3, 1, 'B'),
+        ];
+        toggleSwitches = [
+            toggleSwitch(25, 17, 2, 1),
+            toggleSwitch(65, 17, 2, 1),
+            toggleSwitch(105, 17, 2, 1),
+        ];
+        spikes = [
+            spike(12, 19, 6, 1),
+            spike(48, 19, 10, 1),
+            spike(92, 19, 6, 1),
+        ];
+        walls = [wall(18, 10, 8), wall(58, 10, 8), wall(98, 10, 8)];
+        movingPlatforms = [];
+        fallingPlatforms = [];
+        boostPads = [];
+        checkpoints = [checkpoint(40, 16), checkpoint(80, 16), checkpoint(120, 16)];
+    },
+
+    // ----- LEVEL 18: Wind Tunnel (wind zones + conveyors) -----
+    function() {
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = goal(170, 17);
+        platforms = [
+            plat(0, 18, 10, 2),
+            plat(30, 18, 6, 2),
+            plat(55, 18, 8, 2),
+            plat(85, 18, 6, 2),
+            plat(110, 18, 8, 2),
+            plat(140, 18, 6, 2),
+            plat(155, 18, 20, 2),
+        ];
+        conveyorBelts = [
+            conveyor(12, 17, 8, 1, 1, 2),
+            conveyor(38, 17, 6, 1, 1, 3),
+            conveyor(65, 17, 8, 1, -1, 2),
+            conveyor(95, 17, 6, 1, 1, 2.5),
+            conveyor(120, 17, 8, 1, -1, 3),
+            conveyor(148, 17, 5, 1, 1, 2),
+        ];
+        windZones = [
+            windZoneObj(20, 5, 8, 13, 3, 0),
+            windZoneObj(48, 5, 5, 13, -2, -1),
+            windZoneObj(75, 5, 8, 13, 4, 0),
+            windZoneObj(105, 5, 4, 13, -3, 0),
+            windZoneObj(130, 5, 8, 13, 2, -1),
+        ];
+        spikes = [
+            spike(18, 19, 10, 1),
+            spike(50, 19, 4, 1),
+            spike(78, 19, 6, 1),
+            spike(100, 19, 8, 1),
+            spike(135, 19, 4, 1),
+        ];
+        walls = [];
+        movingPlatforms = [moving(42, 14, 4, 1, 0, 1, 0.6, 3)];
+        fallingPlatforms = [falling(70, 16, 4, 1)];
+        boostPads = [];
+        checkpoints = [checkpoint(55, 16), checkpoint(110, 16)];
+    },
+
+    // ----- LEVEL 19: Gravity Shift (gravity flip zones, ceiling running) -----
+    function() {
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = goal(160, 17);
+        platforms = [
+            plat(0, 18, 10, 2),
+            plat(0, 0, 200, 1), // ceiling to walk on
+            plat(25, 18, 6, 2),
+            plat(50, 18, 8, 2),
+            plat(80, 18, 6, 2),
+            plat(100, 18, 8, 2),
+            plat(130, 18, 6, 2),
+            plat(145, 18, 20, 2),
+        ];
+        gravityZones = [
+            gravZone(14, 2, 8, 16, -1),
+            gravZone(35, 2, 10, 16, -1),
+            gravZone(62, 2, 12, 16, -1),
+            gravZone(90, 2, 8, 16, -1),
+            gravZone(112, 2, 14, 16, 0.3),
+            gravZone(138, 2, 5, 16, -1),
+        ];
+        spikes = [
+            spike(20, 19, 4, 1),
+            spike(44, 19, 4, 1),
+            spike(74, 19, 4, 1),
+            spike(96, 1, 3, 1),
+            spike(108, 19, 4, 1),
+            spike(126, 1, 3, 1),
+        ];
+        walls = [wall(48, 5, 13), wall(76, 5, 13)];
+        movingPlatforms = [];
+        fallingPlatforms = [falling(30, 16, 3, 1), falling(88, 16, 3, 1)];
+        boostPads = [];
+        checkpoints = [checkpoint(50, 16), checkpoint(100, 16)];
+    },
+
+    // ----- LEVEL 20: The Gauntlet II (all new + old obstacles combined) -----
+    function() {
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = goal(190, 17);
+        platforms = [
+            plat(0, 18, 8, 2),
+            plat(20, 18, 6, 2),
+            plat(45, 18, 6, 2),
+            plat(70, 18, 8, 2),
+            plat(100, 18, 6, 2),
+            plat(125, 18, 6, 2),
+            plat(150, 18, 8, 2),
+            plat(175, 18, 20, 2),
+        ];
+        icePlatforms = [
+            icePlat(30, 15, 5, 1),
+            icePlat(110, 14, 4, 1),
+            icePlat(160, 15, 5, 1),
+        ];
+        conveyorBelts = [
+            conveyor(22, 17, 5, 1, 1, 3),
+            conveyor(130, 17, 4, 1, -1, 2),
+        ];
+        bouncePads = [
+            bouncePad(12, 17, 2, 1, -14),
+            bouncePad(55, 17, 2, 1, -15),
+            bouncePad(140, 17, 2, 1, -13),
+        ];
+        laserBeams = [
+            laser(38, 10, 1, 8, 50, 50),
+            laser(88, 12, 1, 6, 45, 45),
+            laser(145, 10, 1, 8, 55, 45),
+        ];
+        gravityZones = [
+            gravZone(60, 2, 8, 16, -1),
+            gravZone(115, 2, 8, 16, 0.3),
+        ];
+        windZones = [
+            windZoneObj(80, 5, 8, 13, 3, 0),
+            windZoneObj(135, 5, 6, 13, -2, 0),
+        ];
+        toggleBlocksA = [toggleBlock(52, 14, 3, 1, 'A'), toggleBlock(120, 14, 3, 1, 'A')];
+        toggleBlocksB = [toggleBlock(75, 14, 3, 1, 'B'), toggleBlock(155, 14, 3, 1, 'B')];
+        toggleSwitches = [toggleSwitch(48, 17, 2, 1), toggleSwitch(105, 17, 2, 1)];
+        spikes = [
+            spike(10, 19, 180, 1),
+            spike(35, 17, 4, 1),
+            spike(65, 19, 4, 1),
+            spike(95, 19, 4, 1),
+            spike(138, 17, 3, 1),
+        ];
+        walls = [wall(15, 10, 8), wall(58, 10, 8), wall(98, 10, 8), wall(148, 10, 8)];
+        movingPlatforms = [
+            moving(40, 14, 4, 1, 0, 1, 0.7, 3),
+            moving(82, 13, 5, 1, 1, 0, 0.8, 4),
+            moving(165, 14, 4, 1, 0, 1, 0.6, 3),
+        ];
+        fallingPlatforms = [falling(92, 16, 3, 1), falling(128, 15, 3, 1)];
+        boostPads = [boost(25, 17, 2, 1), boost(105, 17, 2, 1), boost(170, 17, 2, 1)];
+        checkpoints = [checkpoint(45, 16), checkpoint(100, 16), checkpoint(150, 16)];
     },
 ];
 
@@ -4071,6 +4561,29 @@ function loadLevel(index) {
     ghostPlaybackCounter = 0;
     ghostRecordFrame = 0;
     deathCount = 0;
+    // Reset new block arrays
+    icePlatforms = [];
+    conveyorBelts = [];
+    bouncePads = [];
+    toggleBlocksA = [];
+    toggleBlocksB = [];
+    toggleSwitches = [];
+    toggleState = false;
+    laserBeams = [];
+    gravityZones = [];
+    teleporterPads = [];
+    crumblingWalls = [];
+    ziplines = [];
+    windZones = [];
+    // Reset abilities
+    doubleJumpUsed = false;
+    groundPoundActive = false;
+    airStallFuel = AIR_STALL_MAX;
+    speedBurstActive = false;
+    speedBurstTimer = 0;
+    wallRunTimer = 0;
+    wallRunActive = false;
+    bossState = null;
 
     timerStarted = false;
     goalProximityNotified = false;
@@ -4094,6 +4607,19 @@ function loadLevel(index) {
 
     // Apply difficulty-based geometry modifications
     applyDifficultyGeometry();
+
+    // Apply mirror mode
+    if (mirrorMode) applyMirrorMode();
+
+    // Challenge mode modifiers
+    if (challengeMode && challengeModifiers.tinyPlayer) {
+        player.w = 12;
+        player.h = 20;
+    }
+
+    // Reset shockwaves and trail
+    shockwaves = [];
+    trailParticles = [];
 
     // Reset falling platforms state
     for (const fp of fallingPlatforms) {
@@ -4185,12 +4711,23 @@ function aabb(a, b) {
 }
 
 function getAllSolids() {
-    const solids = [...platforms, ...walls];
+    const solids = [...platforms, ...walls, ...icePlatforms, ...conveyorBelts];
     for (const mp of movingPlatforms) {
         solids.push(mp);
     }
     for (const fp of fallingPlatforms) {
         if (!fp.fallen) solids.push(fp);
+    }
+    // Toggle blocks: A solid when !toggleState, B solid when toggleState
+    for (const tb of toggleBlocksA) {
+        if (!toggleState) solids.push(tb);
+    }
+    for (const tb of toggleBlocksB) {
+        if (toggleState) solids.push(tb);
+    }
+    // Crumbling walls that aren't broken
+    for (const cw of crumblingWalls) {
+        if (!cw.broken) solids.push(cw);
     }
     return solids;
 }
@@ -4219,11 +4756,44 @@ function updatePlayer(dt) {
     if (keys['KeyA'] || keys['ArrowLeft']) inputX = -1;
     if (keys['KeyD'] || keys['ArrowRight']) inputX = 1;
 
+    // --- Ice platform friction ---
+    let onIce = false;
+    if (p.onGround) {
+        const footBox = { x: p.x, y: p.y + p.h, w: p.w, h: 2 };
+        for (const ip of icePlatforms) {
+            if (aabb(footBox, ip)) { onIce = true; break; }
+        }
+    }
+
     if (!p.isDashing && !p.isSliding && !p.isBoosted && p.climbTimer <= 0) {
-        p.vx = inputX * getCheatRunSpeed();
-        if (inputX !== 0) p.facing = inputX;
+        if (onIce) {
+            // Slippery: blend toward target velocity instead of instant
+            const target = inputX * getCheatRunSpeed();
+            p.vx += (target - p.vx) * 0.05;
+            if (inputX !== 0) p.facing = inputX;
+        } else {
+            p.vx = inputX * getCheatRunSpeed();
+            if (inputX !== 0) p.facing = inputX;
+        }
     }
     p.isBoosted = false;
+
+    // --- Speed Burst (10x combo → 2x speed for 3 seconds) ---
+    if (speedBurstActive) {
+        speedBurstTimer -= s;
+        if (speedBurstTimer <= 0) {
+            speedBurstActive = false;
+        } else {
+            p.vx *= 1.5;
+            if (Math.random() < 0.3) spawnParticles(p.x + p.w / 2, p.y + p.h, 1, '#ffd700', 3, 0.5);
+        }
+    }
+    if (!speedBurstActive && comboCount >= 10 && getPlayerLevel() >= 7) {
+        speedBurstActive = true;
+        speedBurstTimer = 180; // 3 seconds at 60fps
+        spawnFloatingText('SPEED BURST!', p.x + p.w / 2, p.y - 50, '#ffd700', 20);
+        playSound('boost');
+    }
 
     // Track distance for run animation
     playerDistTraveled += Math.abs(p.vx) * s;
@@ -4413,8 +4983,73 @@ function updatePlayer(dt) {
             triggerCombo();
             totalWallJumps++;
             try { localStorage.setItem('parkour_wall_jumps', totalWallJumps); } catch(e) {}
+        } else if (jumpPressed && !doubleJumpUsed && getPlayerLevel() >= 5) {
+            // ---- Double Jump (unlocked at XP level 5) ----
+            p.vy = cJumpForce * 0.85;
+            doubleJumpUsed = true;
+            p.jumpBuffer = 0;
+            jumpSquashTimer = 4;
+            playSound('jump');
+            spawnParticles(p.x + p.w / 2, p.y + p.h, 10, '#cc66ff', 3, 1.2);
+            triggerCombo();
         }
     }
+
+    // Reset double jump on ground
+    if (p.onGround) doubleJumpUsed = false;
+
+    // ---- Ground Pound (down + dash while airborne, level 3) ----
+    const downHeld = keys['KeyS'] || keys['ArrowDown'] || keys['touchSlide'];
+    if (downHeld && !p.onGround && !p.isDashing && !groundPoundActive && getPlayerLevel() >= 3 &&
+        (keys['ShiftLeft'] || keys['ShiftRight'] || keys['touchDash']) &&
+        !(prevKeys['ShiftLeft'] || prevKeys['ShiftRight'] || prevKeys['touchDash'])) {
+        groundPoundActive = true;
+        p.vx = 0;
+        p.vy = cMaxFall * 1.5;
+        playSound('dash');
+        spawnParticles(p.x + p.w / 2, p.y, 8, '#ff6600', 4, 1);
+    }
+    if (groundPoundActive && p.onGround) {
+        groundPoundActive = false;
+        if (gameSettings.shake) screenShake = Math.max(screenShake, 10);
+        spawnParticles(p.x + p.w / 2, p.y + p.h, 15, '#ff6600', 5, 2);
+        // Break falling platforms under player
+        for (const fp of fallingPlatforms) {
+            if (!fp.fallen && aabb({ x: p.x - 4, y: p.y + p.h, w: p.w + 8, h: 4 }, fp)) {
+                fp.triggered = true;
+                fp.fallTimer = 0;
+                fp.fallen = true;
+            }
+        }
+    }
+
+    // ---- Air Stall / Hover (hold jump while falling, level 4) ----
+    if (!p.onGround && p.vy > 0 && !p.isDashing && !groundPoundActive && getPlayerLevel() >= 4 &&
+        (keys['KeyW'] || keys['Space'] || keys['ArrowUp'] || keys['touchJump']) && airStallFuel > 0) {
+        p.vy *= 0.5;
+        airStallFuel -= s;
+        if (Math.random() < 0.3) spawnParticles(p.x + p.w / 2, p.y + p.h, 1, '#aaddff', 2, 0.3);
+    }
+    if (p.onGround) airStallFuel = AIR_STALL_MAX;
+
+    // ---- Wall Run (high speed + wall touch, level 8) ----
+    if (!p.onGround && (p.onWallLeft || p.onWallRight) && Math.abs(p.vx) > RUN_SPEED * 1.3 &&
+        getPlayerLevel() >= 8 && !wallRunActive && wallRunTimer <= 0) {
+        wallRunActive = true;
+        wallRunTimer = 20;
+    }
+    if (wallRunActive) {
+        wallRunTimer -= s;
+        p.vy = -4; // run upward along wall
+        if (Math.random() < 0.4) {
+            const wx = p.onWallLeft ? p.x : p.x + p.w;
+            spawnParticles(wx, p.y + p.h, 1, '#ffaa00', 2, 0.5);
+        }
+        if (wallRunTimer <= 0 || p.onGround || (!p.onWallLeft && !p.onWallRight)) {
+            wallRunActive = false;
+        }
+    }
+    if (p.onGround) wallRunTimer = 0;
 
     // ---- Wall slide ----
     if (!p.onGround && (p.onWallLeft || p.onWallRight) && p.vy > 1 && !p.isDashing) {
@@ -4544,6 +5179,7 @@ function updatePlayer(dt) {
                         const particleCount = 6 + Math.floor(impactForce * 8);
                         spawnParticles(p.x + p.w / 2, p.y + p.h, particleCount, '#fff', 3 + impactForce * 2, 0.8 + impactForce * 0.5);
                         landTimer = 4 + Math.floor(impactForce * 3);
+                        if (impactForce > 0.5) spawnShockwave(p.x + p.w / 2, p.y + p.h);
                         if (impactForce > 0.7 && gameSettings.shake) screenShake = Math.max(screenShake, 3 + impactForce * 4);
                     }
                 }
@@ -4634,6 +5270,8 @@ function triggerCombo() {
             spawnFloatingText('COMBO x' + comboCount + '!', player.x + player.w / 2, player.y - 30, '#ffd700', 18);
             playSound('milestone');
         }
+        // Combo sound escalation
+        playComboSound(comboCount);
     }
 }
 
@@ -4741,6 +5379,1040 @@ function updateFallingPlatforms(dt) {
     }
 }
 
+// ---------- NEW BLOCK UPDATE FUNCTIONS ----------
+function updateNewBlocks(dt) {
+    const p = player;
+    const pBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+
+    // --- Ice: handled in player physics (friction override) ---
+
+    // --- Conveyor Belts: push player while standing ---
+    for (const cb of conveyorBelts) {
+        cb.animOffset = (cb.animOffset + cb.speed * cb.dir * 0.05 * dt) % TILE;
+        const standBox = { x: p.x, y: p.y + p.h, w: p.w, h: 2 };
+        if (p.onGround && aabb(standBox, cb)) {
+            p.x += cb.speed * cb.dir * dt;
+        }
+    }
+
+    // --- Bounce Pads: launch player upward ---
+    let hitBounce = false;
+    for (const bp of bouncePads) {
+        if (bp.animTimer > 0) bp.animTimer -= dt;
+        if (p.vy > 0 && aabb(pBox, bp)) {
+            const landSpeed = Math.abs(p.vy);
+            p.vy = bp.force - landSpeed * 0.3;
+            p.onGround = false;
+            bp.animTimer = 10;
+            playSound('boost');
+            spawnParticles(bp.x + bp.w / 2, bp.y, 10, '#00ff88', 4, 1.5);
+            if (gameSettings.shake) screenShake = Math.max(screenShake, 5);
+            triggerCombo();
+            hitBounce = true;
+            if (!p._bounceChain) p._bounceChain = 0;
+            p._bounceChain++;
+            if (p._bounceChain >= 5) unlockAchievement('pogo_5');
+        }
+    }
+    if (p.onGround && !hitBounce) p._bounceChain = 0;
+
+    // --- Toggle Switches ---
+    for (const ts of toggleSwitches) {
+        if (!ts.hit && aabb(pBox, ts)) {
+            ts.hit = true;
+            toggleState = !toggleState;
+            playSound('checkpoint');
+            spawnParticles(ts.x + ts.w / 2, ts.y + ts.h / 2, 8, '#ff00ff', 3, 1);
+            setTimeout(() => { ts.hit = false; }, 500);
+        }
+    }
+
+    // --- Laser Beams: timed on/off ---
+    for (const lb of laserBeams) {
+        lb.timer += dt;
+        const period = lb.onTime + lb.offTime;
+        const phase = lb.timer % period;
+        lb.active = phase < lb.onTime;
+        if (lb.active && aabb({ x: p.x + 2, y: p.y + 2, w: p.w - 4, h: p.h - 4 }, lb)) {
+            killPlayer();
+            return;
+        }
+    }
+
+    // --- Gravity Zones ---
+    for (const gz of gravityZones) {
+        if (aabb(pBox, gz)) {
+            if (gz.gravMod < 0) {
+                // Reverse gravity
+                p.vy -= getCheatGravity() * dt * 2; // counteract normal + apply reverse
+            } else {
+                // Low gravity - already applied normal, reduce it
+                p.vy -= getCheatGravity() * dt * (1 - gz.gravMod);
+            }
+        }
+    }
+
+    // --- Teleporter Pads ---
+    for (const tp of teleporterPads) {
+        if (tp.cooldown > 0) { tp.cooldown -= dt; continue; }
+        const pad1 = { x: tp.x1, y: tp.y1, w: tp.w, h: tp.h };
+        const pad2 = { x: tp.x2, y: tp.y2, w: tp.w, h: tp.h };
+        if (aabb(pBox, pad1)) {
+            p.x = tp.x2 + tp.w / 2 - p.w / 2;
+            p.y = tp.y2;
+            tp.cooldown = 30;
+            playSound('checkpoint');
+            spawnParticles(tp.x1 + tp.w / 2, tp.y1, 12, '#cc00ff', 4, 1.5);
+            spawnParticles(tp.x2 + tp.w / 2, tp.y2, 12, '#cc00ff', 4, 1.5);
+        } else if (aabb(pBox, pad2)) {
+            p.x = tp.x1 + tp.w / 2 - p.w / 2;
+            p.y = tp.y1;
+            tp.cooldown = 30;
+            playSound('checkpoint');
+            spawnParticles(tp.x2 + tp.w / 2, tp.y2, 12, '#cc00ff', 4, 1.5);
+            spawnParticles(tp.x1 + tp.w / 2, tp.y1, 12, '#cc00ff', 4, 1.5);
+        }
+    }
+
+    // --- Crumbling Walls: break after wall jumps ---
+    for (const cw of crumblingWalls) {
+        if (cw.broken) continue;
+        if (cw.shakeTimer > 0) cw.shakeTimer -= dt;
+        if ((p.onWallLeft || p.onWallRight) && !p.onGround) {
+            const wallBox = { x: cw.x, y: cw.y, w: cw.w, h: cw.h };
+            const touchBox = { x: p.x - 2, y: p.y, w: p.w + 4, h: p.h };
+            if (aabb(touchBox, wallBox)) {
+                // Count wall jump hits
+                if ((keys['KeyW'] || keys['Space'] || keys['ArrowUp'] || keys['touchJump']) &&
+                    !(prevKeys['KeyW'] || prevKeys['Space'] || prevKeys['ArrowUp'] || prevKeys['touchJump'])) {
+                    cw.hits++;
+                    cw.shakeTimer = 8;
+                    spawnParticles(cw.x + cw.w / 2, p.y, 4, '#8a6a4a', 3, 1);
+                    if (cw.hits >= cw.maxHits) {
+                        cw.broken = true;
+                        spawnParticles(cw.x + cw.w / 2, cw.y + cw.h / 2, 15, '#6a4a2a', 5, 2);
+                        if (gameSettings.shake) screenShake = Math.max(screenShake, 6);
+                        playSound('land');
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Wind Zones: apply force ---
+    for (const wz of windZones) {
+        if (aabb(pBox, wz)) {
+            p.vx += wz.forceX * dt * 0.1;
+            p.vy += wz.forceY * dt * 0.1;
+        }
+        // Visual wind streaks
+        if (Math.random() < 0.15 * dt) {
+            wz.particles.push({
+                x: wz.x + Math.random() * wz.w,
+                y: wz.y + Math.random() * wz.h,
+                life: 20
+            });
+        }
+        for (let i = wz.particles.length - 1; i >= 0; i--) {
+            const wp = wz.particles[i];
+            wp.x += wz.forceX * 2 * dt;
+            wp.y += wz.forceY * 2 * dt;
+            wp.life -= dt;
+            if (wp.life <= 0) wz.particles.splice(i, 1);
+        }
+    }
+
+    // --- Ziplines: grab and slide ---
+    for (const zl of ziplines) {
+        if (p._onZipline === zl) {
+            // Slide along zipline
+            const dx = zl.x2 - zl.x1;
+            const dy = zl.y2 - zl.y1;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            const nx = dx / len;
+            const ny = dy / len;
+            p.x += nx * zl.speed * dt;
+            p.y += ny * zl.speed * dt;
+            p.vy = 0;
+            p.vx = nx * zl.speed;
+            p.onGround = false;
+            // Check if reached end
+            const endDist = Math.sqrt(Math.pow(p.x - zl.x2, 2) + Math.pow(p.y - zl.y2, 2));
+            if (endDist < TILE) {
+                p._onZipline = null;
+                p.vx = nx * zl.speed;
+                p.vy = ny * zl.speed * 0.5;
+            }
+            // Jump to detach
+            if ((keys['KeyW'] || keys['Space'] || keys['ArrowUp'] || keys['touchJump']) &&
+                !(prevKeys['KeyW'] || prevKeys['Space'] || prevKeys['ArrowUp'] || prevKeys['touchJump'])) {
+                p._onZipline = null;
+                p.vy = getCheatJumpForce() * 0.7;
+                p.vx = nx * zl.speed * 1.2;
+                playSound('jump');
+            }
+        } else if (!p.onGround && p.vy > 0 && !p._onZipline) {
+            // Check for zipline grab
+            const lineBox = { x: Math.min(zl.x1, zl.x2), y: Math.min(zl.y1, zl.y2), w: Math.abs(zl.x2 - zl.x1) || TILE, h: Math.abs(zl.y2 - zl.y1) || TILE };
+            if (aabb(pBox, lineBox)) {
+                p._onZipline = zl;
+                p.vy = 0;
+                playSound('walljump');
+                triggerCombo();
+            }
+        }
+    }
+
+    // --- Boss Updates ---
+    if (bossState) {
+        updateBoss(dt);
+    }
+}
+
+function updateBoss(dt) {
+    const b = bossState;
+    b.timer += dt;
+    if (b.type === 'spike_wall') {
+        // Spike wall chasing from left
+        b.x += (1.5 + b.timer * 0.005) * dt;
+        if (player.x < b.x + b.w) {
+            killPlayer();
+            return;
+        }
+    } else if (b.type === 'rising_lava') {
+        // Rising lava from below
+        b.y -= (0.8 + b.timer * 0.003) * dt;
+        if (player.y + player.h > b.y) {
+            killPlayer();
+            return;
+        }
+    } else if (b.type === 'laser_drone') {
+        // Tracking laser drone
+        const targetX = player.x + player.w / 2;
+        const targetY = player.y - 80;
+        b.x += (targetX - b.x) * 0.02 * dt;
+        b.y += (targetY - b.y) * 0.015 * dt;
+        // Fire laser every 120 frames
+        if (Math.floor(b.timer) % 120 < 3) {
+            const laserBox = { x: b.x - 2, y: b.y, w: 4, h: WORLD_H * TILE - b.y };
+            if (aabb({ x: player.x, y: player.y, w: player.w, h: player.h }, laserBox)) {
+                killPlayer();
+                return;
+            }
+        }
+    }
+}
+
+// ---------- DRAW NEW BLOCKS ----------
+function drawNewBlocks() {
+    const th = getTheme();
+
+    // --- Ice Platforms ---
+    for (const ip of icePlatforms) {
+        const sx = ip.x - camera.x;
+        const sy = ip.y - camera.y;
+        if (sx + ip.w < 0 || sx > canvasW || sy + ip.h < 0 || sy > canvasH) continue;
+        ctx.fillStyle = 'rgba(136, 220, 255, 0.15)';
+        ctx.fillRect(sx - 4, sy - 4, ip.w + 8, ip.h + 8);
+        ctx.fillStyle = '#88ddff';
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(sx, sy, ip.w, ip.h);
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#aaeeff';
+        ctx.fillRect(sx, sy, ip.w, 4);
+        // Shimmer
+        const shimmer = Math.sin(Date.now() * 0.003 + sx * 0.01) * 0.2 + 0.3;
+        ctx.globalAlpha = shimmer;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(sx + 4, sy + 2, ip.w * 0.3, 2);
+        ctx.fillRect(sx + ip.w * 0.5, sy + 2, ip.w * 0.2, 2);
+        ctx.globalAlpha = 1;
+    }
+
+    // --- Conveyor Belts ---
+    for (const cb of conveyorBelts) {
+        const sx = cb.x - camera.x;
+        const sy = cb.y - camera.y;
+        if (sx + cb.w < 0 || sx > canvasW) continue;
+        ctx.fillStyle = '#555566';
+        ctx.fillRect(sx, sy, cb.w, cb.h);
+        ctx.fillStyle = '#888899';
+        ctx.fillRect(sx, sy, cb.w, 3);
+        // Animated arrows
+        ctx.fillStyle = '#ffcc00';
+        const arrowSpacing = 20;
+        for (let ax = cb.animOffset; ax < cb.w; ax += arrowSpacing) {
+            const arrowX = sx + (ax % cb.w);
+            ctx.beginPath();
+            if (cb.dir > 0) {
+                ctx.moveTo(arrowX, sy + cb.h / 2 - 4);
+                ctx.lineTo(arrowX + 6, sy + cb.h / 2);
+                ctx.lineTo(arrowX, sy + cb.h / 2 + 4);
+            } else {
+                ctx.moveTo(arrowX + 6, sy + cb.h / 2 - 4);
+                ctx.lineTo(arrowX, sy + cb.h / 2);
+                ctx.lineTo(arrowX + 6, sy + cb.h / 2 + 4);
+            }
+            ctx.fill();
+        }
+    }
+
+    // --- Bounce Pads ---
+    for (const bp of bouncePads) {
+        const sx = bp.x - camera.x;
+        const sy = bp.y - camera.y;
+        if (sx + bp.w < 0 || sx > canvasW) continue;
+        const squash = bp.animTimer > 0 ? 0.7 : 1;
+        ctx.fillStyle = 'rgba(0, 255, 136, 0.3)';
+        ctx.fillRect(sx - 3, sy - 3, bp.w + 6, bp.h * squash + 6);
+        ctx.fillStyle = '#00ff88';
+        ctx.fillRect(sx, sy, bp.w, bp.h * squash);
+        ctx.fillStyle = '#44ffaa';
+        ctx.fillRect(sx, sy, bp.w, 3);
+        // Spring coils
+        ctx.strokeStyle = '#00cc66';
+        ctx.lineWidth = 2;
+        for (let cx = sx + 4; cx < sx + bp.w - 4; cx += 8) {
+            ctx.beginPath();
+            ctx.moveTo(cx, sy + bp.h * squash);
+            ctx.lineTo(cx + 4, sy + bp.h * squash - 4);
+            ctx.lineTo(cx + 8, sy + bp.h * squash);
+            ctx.stroke();
+        }
+    }
+
+    // --- Toggle Blocks ---
+    const tbAlpha = 0.3 + Math.sin(Date.now() * 0.005) * 0.1;
+    for (const tb of toggleBlocksA) {
+        const sx = tb.x - camera.x;
+        const sy = tb.y - camera.y;
+        if (sx + tb.w < 0 || sx > canvasW) continue;
+        ctx.globalAlpha = toggleState ? 0.2 : 0.9;
+        ctx.fillStyle = '#ff6688';
+        ctx.fillRect(sx, sy, tb.w, tb.h);
+        if (!toggleState) {
+            ctx.fillStyle = '#ff88aa';
+            ctx.fillRect(sx, sy, tb.w, 4);
+        }
+        ctx.globalAlpha = 1;
+    }
+    for (const tb of toggleBlocksB) {
+        const sx = tb.x - camera.x;
+        const sy = tb.y - camera.y;
+        if (sx + tb.w < 0 || sx > canvasW) continue;
+        ctx.globalAlpha = toggleState ? 0.9 : 0.2;
+        ctx.fillStyle = '#6688ff';
+        ctx.fillRect(sx, sy, tb.w, tb.h);
+        if (toggleState) {
+            ctx.fillStyle = '#88aaff';
+            ctx.fillRect(sx, sy, tb.w, 4);
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // --- Toggle Switches ---
+    for (const ts of toggleSwitches) {
+        const sx = ts.x - camera.x;
+        const sy = ts.y - camera.y;
+        ctx.fillStyle = toggleState ? '#6688ff' : '#ff6688';
+        ctx.fillRect(sx, sy, ts.w, ts.h);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(toggleState ? 'B' : 'A', sx + ts.w / 2, sy + ts.h / 2 + 3);
+        ctx.textAlign = 'left';
+    }
+
+    // --- Laser Beams ---
+    for (const lb of laserBeams) {
+        const sx = lb.x - camera.x;
+        const sy = lb.y - camera.y;
+        if (sx + lb.w < 0 || sx > canvasW) continue;
+        if (lb.active) {
+            const flicker = 0.7 + Math.random() * 0.3;
+            ctx.globalAlpha = flicker;
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(sx, sy, lb.w, lb.h);
+            ctx.fillStyle = '#ff6666';
+            ctx.globalAlpha = flicker * 0.5;
+            ctx.fillRect(sx - 2, sy - 2, lb.w + 4, lb.h + 4);
+            ctx.globalAlpha = 1;
+        } else {
+            ctx.globalAlpha = 0.15;
+            ctx.fillStyle = '#ff0000';
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(sx, sy, lb.w, lb.h);
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // --- Gravity Zones ---
+    for (const gz of gravityZones) {
+        const sx = gz.x - camera.x;
+        const sy = gz.y - camera.y;
+        if (sx + gz.w < 0 || sx > canvasW) continue;
+        const pulse = Math.sin(Date.now() * 0.003) * 0.05 + 0.1;
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = gz.gravMod < 0 ? '#cc00ff' : '#00ccff';
+        ctx.fillRect(sx, sy, gz.w, gz.h);
+        // Arrow indicators
+        ctx.globalAlpha = 0.3;
+        const arrowDir = gz.gravMod < 0 ? -1 : 1;
+        for (let ay = 10; ay < gz.h; ay += 30) {
+            for (let ax = 10; ax < gz.w; ax += 30) {
+                ctx.beginPath();
+                ctx.moveTo(sx + ax, sy + ay + 5 * arrowDir);
+                ctx.lineTo(sx + ax - 3, sy + ay - 5 * arrowDir);
+                ctx.lineTo(sx + ax + 3, sy + ay - 5 * arrowDir);
+                ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // --- Teleporter Pads ---
+    for (const tp of teleporterPads) {
+        for (const pos of [{ x: tp.x1, y: tp.y1 }, { x: tp.x2, y: tp.y2 }]) {
+            const sx = pos.x - camera.x;
+            const sy = pos.y - camera.y;
+            const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
+            ctx.fillStyle = `rgba(204, 0, 255, ${pulse * 0.3})`;
+            ctx.fillRect(sx - 4, sy - 4, tp.w + 8, tp.h + 8);
+            ctx.fillStyle = '#cc00ff';
+            ctx.globalAlpha = pulse;
+            ctx.fillRect(sx, sy, tp.w, tp.h);
+            // Swirl
+            ctx.strokeStyle = '#ff66ff';
+            ctx.lineWidth = 2;
+            const angle = Date.now() * 0.003;
+            ctx.beginPath();
+            ctx.arc(sx + tp.w / 2, sy + tp.h / 2, 8, angle, angle + Math.PI * 1.5);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // --- Crumbling Walls ---
+    for (const cw of crumblingWalls) {
+        if (cw.broken) continue;
+        const sx = cw.x - camera.x + (cw.shakeTimer > 0 ? (Math.random() - 0.5) * 3 : 0);
+        const sy = cw.y - camera.y;
+        const crackAlpha = cw.hits / cw.maxHits;
+        ctx.fillStyle = '#7a5a3a';
+        ctx.fillRect(sx, sy, cw.w, cw.h);
+        ctx.fillStyle = '#9a7a5a';
+        ctx.fillRect(sx, sy, 3, cw.h);
+        ctx.fillRect(sx + cw.w - 3, sy, 3, cw.h);
+        // Cracks
+        if (cw.hits > 0) {
+            ctx.strokeStyle = `rgba(0,0,0,${0.3 + crackAlpha * 0.4})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(sx + cw.w * 0.3, sy);
+            ctx.lineTo(sx + cw.w * 0.6, sy + cw.h);
+            ctx.stroke();
+        }
+    }
+
+    // --- Ziplines ---
+    for (const zl of ziplines) {
+        const sx1 = zl.x1 - camera.x;
+        const sy1 = zl.y1 - camera.y;
+        const sx2 = zl.x2 - camera.x;
+        const sy2 = zl.y2 - camera.y;
+        ctx.strokeStyle = '#aaaaaa';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(sx1, sy1);
+        ctx.lineTo(sx2, sy2);
+        ctx.stroke();
+        // Endpoints
+        ctx.fillStyle = '#cccccc';
+        ctx.beginPath(); ctx.arc(sx1, sy1, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx2, sy2, 4, 0, Math.PI * 2); ctx.fill();
+        // Handle on zipline
+        if (player._onZipline === zl) {
+            ctx.fillStyle = '#ffcc00';
+            ctx.beginPath(); ctx.arc(player.x + player.w / 2 - camera.x, player.y - camera.y, 5, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    // --- Wind Zones ---
+    for (const wz of windZones) {
+        const sx = wz.x - camera.x;
+        const sy = wz.y - camera.y;
+        // Semi-transparent zone
+        ctx.globalAlpha = 0.05;
+        ctx.fillStyle = '#aaddff';
+        ctx.fillRect(sx, sy, wz.w, wz.h);
+        ctx.globalAlpha = 1;
+        // Wind streaks
+        ctx.strokeStyle = 'rgba(170, 221, 255, 0.3)';
+        ctx.lineWidth = 1;
+        for (const wp of wz.particles) {
+            const wpx = wp.x - camera.x;
+            const wpy = wp.y - camera.y;
+            ctx.globalAlpha = wp.life / 20;
+            ctx.beginPath();
+            ctx.moveTo(wpx, wpy);
+            ctx.lineTo(wpx - wz.forceX * 8, wpy - wz.forceY * 8);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // --- Boss Drawing ---
+    if (bossState) drawBoss();
+}
+
+function drawBoss() {
+    const b = bossState;
+    if (b.type === 'spike_wall') {
+        const sx = b.x - camera.x;
+        ctx.fillStyle = '#ff2222';
+        ctx.fillRect(sx, 0, b.w, canvasH);
+        ctx.fillStyle = '#ff4444';
+        for (let y = 0; y < canvasH; y += 24) {
+            ctx.beginPath();
+            ctx.moveTo(sx + b.w, y);
+            ctx.lineTo(sx + b.w + 12, y + 12);
+            ctx.lineTo(sx + b.w, y + 24);
+            ctx.fill();
+        }
+    } else if (b.type === 'rising_lava') {
+        const sy = b.y - camera.y;
+        const pulse = Math.sin(Date.now() * 0.005) * 5;
+        ctx.fillStyle = '#ff4400';
+        ctx.fillRect(0, sy + pulse, canvasW, canvasH - sy);
+        ctx.fillStyle = '#ff6622';
+        ctx.fillRect(0, sy + pulse, canvasW, 8);
+        // Bubbles
+        ctx.fillStyle = '#ffaa00';
+        for (let bx = 0; bx < canvasW; bx += 40) {
+            const by = sy + pulse + Math.sin(Date.now() * 0.003 + bx) * 3;
+            ctx.beginPath(); ctx.arc(bx, by + 4, 3, 0, Math.PI * 2); ctx.fill();
+        }
+    } else if (b.type === 'laser_drone') {
+        const sx = b.x - camera.x;
+        const sy = b.y - camera.y;
+        // Drone body
+        ctx.fillStyle = '#444466';
+        ctx.fillRect(sx - 15, sy - 8, 30, 16);
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI * 2); ctx.fill();
+        // Laser
+        if (Math.floor(b.timer) % 120 < 3) {
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.6)';
+            ctx.fillRect(sx - 2, sy, 4, canvasH - sy);
+        } else if (Math.floor(b.timer) % 120 > 100) {
+            // Warning
+            ctx.globalAlpha = 0.2;
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(sx - 1, sy, 2, canvasH - sy);
+            ctx.globalAlpha = 1;
+        }
+    }
+}
+
+// ---------- PLAYER TRAIL EFFECTS ----------
+function updateTrailEffect() {
+    if (currentTrail === 'none' || gameState !== 'playing') return;
+    if (Math.abs(player.vx) > 1 || Math.abs(player.vy) > 1) {
+        let color;
+        if (currentTrail === 'flame') color = Math.random() > 0.5 ? '#ff4400' : '#ff8800';
+        else if (currentTrail === 'ice_trail') color = Math.random() > 0.5 ? '#88ddff' : '#aaeeff';
+        else if (currentTrail === 'stars') color = '#ffd700';
+        else if (currentTrail === 'glitch') color = `rgb(${Math.random()*255|0},${Math.random()*255|0},${Math.random()*255|0})`;
+        else if (currentTrail === 'rainbow_trail') {
+            const t = Date.now() * 0.01;
+            color = `hsl(${t % 360}, 100%, 60%)`;
+        }
+        if (color) {
+            trailParticles.push({
+                x: player.x + player.w / 2 + (Math.random() - 0.5) * 6,
+                y: player.y + player.h - 2,
+                color: color,
+                life: 15,
+                size: 2 + Math.random() * 2
+            });
+        }
+    }
+    for (let i = trailParticles.length - 1; i >= 0; i--) {
+        trailParticles[i].life -= 1;
+        if (trailParticles[i].life <= 0) trailParticles.splice(i, 1);
+    }
+    if (trailParticles.length > 100) trailParticles.splice(0, trailParticles.length - 100);
+}
+
+function drawTrailEffect() {
+    for (const tp of trailParticles) {
+        ctx.globalAlpha = tp.life / 15;
+        ctx.fillStyle = tp.color;
+        ctx.fillRect(tp.x - camera.x - tp.size / 2, tp.y - camera.y - tp.size / 2, tp.size, tp.size);
+    }
+    ctx.globalAlpha = 1;
+}
+
+// ---------- PLAYER HAT DRAWING ----------
+function drawPlayerHat(sx, sy) {
+    if (currentHat === 'none') return;
+    const hatY = sy - 6;
+    const cx = sx + PLAYER_W / 2;
+    if (currentHat === 'crown') {
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.moveTo(cx - 6, hatY);
+        ctx.lineTo(cx - 8, hatY - 8);
+        ctx.lineTo(cx - 3, hatY - 4);
+        ctx.lineTo(cx, hatY - 10);
+        ctx.lineTo(cx + 3, hatY - 4);
+        ctx.lineTo(cx + 8, hatY - 8);
+        ctx.lineTo(cx + 6, hatY);
+        ctx.fill();
+    } else if (currentHat === 'headband') {
+        ctx.fillStyle = '#ff4444';
+        ctx.fillRect(cx - 7, hatY, 14, 3);
+        ctx.fillRect(cx + 5, hatY - 4, 2, 6);
+    } else if (currentHat === 'antenna') {
+        ctx.strokeStyle = '#aaaaaa';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, hatY);
+        ctx.lineTo(cx, hatY - 12);
+        ctx.stroke();
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath(); ctx.arc(cx, hatY - 12, 3, 0, Math.PI * 2); ctx.fill();
+    } else if (currentHat === 'horns') {
+        ctx.fillStyle = '#cc3333';
+        ctx.beginPath();
+        ctx.moveTo(cx - 5, hatY);
+        ctx.lineTo(cx - 8, hatY - 10);
+        ctx.lineTo(cx - 2, hatY);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(cx + 5, hatY);
+        ctx.lineTo(cx + 8, hatY - 10);
+        ctx.lineTo(cx + 2, hatY);
+        ctx.fill();
+    } else if (currentHat === 'halo') {
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.7 + Math.sin(Date.now() * 0.005) * 0.3;
+        ctx.beginPath();
+        ctx.ellipse(cx, hatY - 6, 8, 3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+}
+
+// ---------- SAVE/LOAD PROGRESSION ----------
+function saveProgression() {
+    try {
+        localStorage.setItem('parkour_xp', playerXP);
+        localStorage.setItem('parkour_prestige', prestigeCount);
+        localStorage.setItem('parkour_star_ratings', JSON.stringify(starRatings));
+        localStorage.setItem('parkour_mastery', JSON.stringify(masteryBadges));
+        localStorage.setItem('parkour_trail', currentTrail);
+        localStorage.setItem('parkour_unlocked_trails', JSON.stringify(unlockedTrails));
+        localStorage.setItem('parkour_hat', currentHat);
+        localStorage.setItem('parkour_unlocked_hats', JSON.stringify(unlockedHats));
+        localStorage.setItem('parkour_death_effect', currentDeathEffect);
+        localStorage.setItem('parkour_unlocked_death_effects', JSON.stringify(unlockedDeathEffects));
+        localStorage.setItem('parkour_celebration', currentCelebration);
+        localStorage.setItem('parkour_unlocked_celebrations', JSON.stringify(unlockedCelebrations));
+        localStorage.setItem('parkour_login_streak', dailyLoginStreak);
+        localStorage.setItem('parkour_last_login', lastLoginDate);
+        localStorage.setItem('parkour_quick_restart', quickRestart);
+        localStorage.setItem('parkour_skipped_levels', JSON.stringify(skippedLevels));
+    } catch(e) {}
+}
+
+function loadProgression() {
+    try {
+        playerXP = parseInt(localStorage.getItem('parkour_xp') || '0');
+        prestigeCount = parseInt(localStorage.getItem('parkour_prestige') || '0');
+        playerLevel = getPlayerLevel();
+        const sr = localStorage.getItem('parkour_star_ratings');
+        if (sr) starRatings = JSON.parse(sr);
+        const mb = localStorage.getItem('parkour_mastery');
+        if (mb) masteryBadges = JSON.parse(mb);
+        currentTrail = localStorage.getItem('parkour_trail') || 'none';
+        const ut = localStorage.getItem('parkour_unlocked_trails');
+        if (ut) unlockedTrails = JSON.parse(ut);
+        currentHat = localStorage.getItem('parkour_hat') || 'none';
+        const uh = localStorage.getItem('parkour_unlocked_hats');
+        if (uh) unlockedHats = JSON.parse(uh);
+        currentDeathEffect = localStorage.getItem('parkour_death_effect') || 'shatter';
+        const ude = localStorage.getItem('parkour_unlocked_death_effects');
+        if (ude) unlockedDeathEffects = JSON.parse(ude);
+        currentCelebration = localStorage.getItem('parkour_celebration') || 'default';
+        const uc = localStorage.getItem('parkour_unlocked_celebrations');
+        if (uc) unlockedCelebrations = JSON.parse(uc);
+        dailyLoginStreak = parseInt(localStorage.getItem('parkour_login_streak') || '0');
+        lastLoginDate = localStorage.getItem('parkour_last_login') || '';
+        quickRestart = localStorage.getItem('parkour_quick_restart') === 'true';
+        const sl = localStorage.getItem('parkour_skipped_levels');
+        if (sl) skippedLevels = JSON.parse(sl);
+    } catch(e) {}
+    // Daily login streak
+    checkDailyLogin();
+}
+
+function checkDailyLogin() {
+    const today = getDailyDate();
+    if (lastLoginDate === today) return;
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    if (lastLoginDate === yesterdayStr) {
+        dailyLoginStreak++;
+    } else if (lastLoginDate !== '') {
+        dailyLoginStreak = 1;
+    } else {
+        dailyLoginStreak = 1;
+    }
+    lastLoginDate = today;
+    // Rewards
+    const streakOrbs = Math.min(dailyLoginStreak * 2, 20);
+    totalOrbs += streakOrbs;
+    try { localStorage.setItem('parkour_total_orbs', totalOrbs); } catch(e) {}
+    saveProgression();
+}
+
+// ---------- COSMETICS SHOP ----------
+function populateShop() {
+    const orbEl = document.getElementById('shop-orb-count');
+    if (orbEl) orbEl.textContent = 'Orbs: ' + totalOrbs;
+
+    // Helper to populate a cosmetic grid
+    function fillGrid(gridId, items, currentId, unlockedList, setFn) {
+        const grid = document.getElementById(gridId);
+        if (!grid) return;
+        grid.innerHTML = '';
+        for (const item of items) {
+            const card = document.createElement('div');
+            const owned = unlockedList.includes(item.id);
+            const equipped = currentId === item.id;
+            card.className = 'skin-card' + (equipped ? ' equipped' : '') + (!owned ? ' locked' : '');
+            card.innerHTML =
+                '<div class="skin-name">' + item.name + '</div>' +
+                (owned ? (equipped ? '<div class="skin-status">EQUIPPED</div>' : '<div class="skin-status" style="color:#00e5ff">EQUIP</div>') :
+                '<div class="skin-cost">' + item.cost + ' orbs</div>');
+            card.addEventListener('click', () => {
+                if (owned) {
+                    setFn(item.id);
+                    populateShop();
+                    playSound('click');
+                } else if (totalOrbs >= item.cost) {
+                    totalOrbs -= item.cost;
+                    unlockedList.push(item.id);
+                    setFn(item.id);
+                    try { localStorage.setItem('parkour_total_orbs', totalOrbs); } catch(e) {}
+                    saveProgression();
+                    populateShop();
+                    playSound('complete');
+                } else {
+                    playSound('death');
+                }
+            });
+            grid.appendChild(card);
+        }
+    }
+
+    fillGrid('trails-grid', TRAIL_EFFECTS, currentTrail, unlockedTrails, (id) => { currentTrail = id; saveProgression(); });
+    fillGrid('hats-grid', PLAYER_HATS, currentHat, unlockedHats, (id) => { currentHat = id; saveProgression(); });
+    fillGrid('death-effects-grid', DEATH_EFFECTS, currentDeathEffect, unlockedDeathEffects, (id) => { currentDeathEffect = id; saveProgression(); });
+    fillGrid('celebrations-grid', CELEBRATIONS, currentCelebration, unlockedCelebrations, (id) => { currentCelebration = id; saveProgression(); });
+}
+
+// ---------- TIME ATTACK MODE ----------
+function startTimeAttack() {
+    timeAttackMode = true;
+    timeAttackTimer = 0;
+    timeAttackDeaths = 0;
+    startLevel(0);
+}
+function timeAttackNextLevel() {
+    if (currentLevel + 1 < LEVELS.length) {
+        startLevel(currentLevel + 1);
+    } else {
+        timeAttackMode = false;
+        spawnFloatingText('TIME ATTACK COMPLETE: ' + timeAttackTimer.toFixed(2) + 's', player.x + player.w / 2, player.y - 60, '#ffd700', 24);
+    }
+}
+
+// ---------- MIRROR MODE ----------
+function applyMirrorMode() {
+    if (!mirrorMode) return;
+    // Flip all x positions
+    const worldW = WORLD_W * TILE;
+    const flipX = (obj) => { obj.x = worldW - obj.x - obj.w; };
+    platforms.forEach(flipX);
+    walls.forEach(flipX);
+    spikes.forEach(flipX);
+    movingPlatforms.forEach(mp => { flipX(mp); mp.startX = worldW - mp.startX - mp.w; mp.dx = -mp.dx; mp.vx = -mp.vx; });
+    fallingPlatforms.forEach(flipX);
+    boostPads.forEach(bp => { flipX(bp); bp.dir = -bp.dir; });
+    checkpoints.forEach(flipX);
+    orbs.forEach(flipX);
+    icePlatforms.forEach(flipX);
+    conveyorBelts.forEach(cb => { flipX(cb); cb.dir = -cb.dir; });
+    bouncePads.forEach(flipX);
+    if (goalZone) flipX(goalZone);
+    if (spawnPoint) spawnPoint.x = worldW - spawnPoint.x - PLAYER_W;
+}
+
+// ---------- CHALLENGE MODE ----------
+function startChallengeMode(levelIdx, modifiers) {
+    challengeMode = true;
+    challengeModifiers = modifiers;
+    startLevel(levelIdx);
+}
+
+// ---------- WEEKLY CHALLENGE ----------
+function getWeeklyDate() {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day;
+    const weekStart = new Date(now.setDate(diff));
+    return weekStart.toISOString().split('T')[0];
+}
+
+function startWeeklyChallenge() {
+    weeklyChallenge = true;
+    const weekStr = getWeeklyDate();
+    const rng = seededRandom('weekly_' + weekStr);
+    // Generate a longer level
+    showScreen('game');
+    platforms = [plat(0, 18, 8, 2)]; spikes = []; movingPlatforms = []; fallingPlatforms = [];
+    boostPads = []; walls = []; goalZone = null; particleCount = 0;
+    checkpoints = []; lastCheckpoint = null; ghostRecording = []; orbs = [];
+    icePlatforms = []; conveyorBelts = []; bouncePads = []; toggleBlocksA = []; toggleBlocksB = [];
+    toggleSwitches = []; laserBeams = []; gravityZones = []; teleporterPads = [];
+    crumblingWalls = []; ziplines = []; windZones = []; toggleState = false;
+    currentLevel = -4;
+    spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+    let cx = 12;
+    const segments = 15 + Math.floor(rng() * 8);
+    for (let i = 0; i < segments; i++) {
+        const type = Math.floor(rng() * 6);
+        const w = 3 + Math.floor(rng() * 5);
+        const y = 13 + Math.floor(rng() * 5);
+        if (type === 0) platforms.push(plat(cx, y, w, 1));
+        else if (type === 1) movingPlatforms.push(moving(cx, y, w, 1, rng() > 0.5 ? 1 : 0, rng() > 0.5 ? 1 : 0, 0.5 + rng(), 2 + Math.floor(rng() * 3)));
+        else if (type === 2) fallingPlatforms.push(falling(cx, y, w, 1));
+        else if (type === 3) { platforms.push(plat(cx, y, w, 1)); icePlatforms.push(icePlat(cx, y, w, 1)); }
+        else if (type === 4) { platforms.push(plat(cx, y, w, 1)); bouncePads.push(bouncePad(cx + 1, y, 2, 1, -13)); }
+        else { platforms.push(plat(cx, y, w, 1)); conveyorBelts.push(conveyor(cx, y, w, 1, rng() > 0.5 ? 1 : -1, 2)); }
+        if (rng() > 0.5) spikes.push(spike(cx + 1, y - 1, Math.min(w - 2, 2), 1));
+        if (rng() > 0.5) orbs.push(orbHelper(cx + Math.floor(w / 2), y - 2));
+        if (i % 5 === 4) checkpoints.push(checkpoint(cx + 2, y - 2));
+        cx += w + 3 + Math.floor(rng() * 5);
+    }
+    platforms.push(plat(cx, 18, 6, 2));
+    goalZone = goal(cx + 3, 17);
+    resetPlayer();
+    levelTimer = 0; timerStarted = false; deathCount = 0;
+    camera.x = player.x - canvasW / 2; camera.y = player.y - canvasH / 2;
+    comboCount = 0; comboTimer = 0; ghostPlayback = [];
+    const hudLevel = document.getElementById('hud-level');
+    if (hudLevel) hudLevel.textContent = 'WEEKLY [' + getDiff().label + ']';
+    gameState = 'playing';
+    startMusic(); startWind(); initWeather();
+    scarfTrail = []; deathReplayBuffer = [];
+    document.getElementById('pause-overlay').classList.add('hidden');
+    document.getElementById('complete-overlay').classList.add('hidden');
+    document.getElementById('death-overlay').classList.add('hidden');
+}
+
+// ---------- PRESTIGE SYSTEM ----------
+function doPrestige() {
+    if (unlockedLevel < LEVELS.length - 1) return; // must clear all levels
+    prestigeCount++;
+    // Reset progress but keep cosmetics
+    bestTimes = {};
+    bestGrades = {};
+    unlockedLevel = 0;
+    starRatings = {};
+    masteryBadges = {};
+    try {
+        localStorage.setItem('parkour_best', '{}');
+        localStorage.setItem('parkour_grades', '{}');
+        localStorage.setItem('parkour_unlocked', '0');
+    } catch(e) {}
+    saveProgression();
+    spawnFloatingText('PRESTIGE ' + prestigeCount + '! +5% Speed Bonus', player.x + player.w / 2, player.y - 60, '#ffd700', 22);
+    checkAchievements();
+}
+
+// ---------- QoL: INPUT DISPLAY ----------
+function drawInputDisplay() {
+    if (!inputDisplayEnabled) return;
+    const keyNames = ['←', '→', '↑', '↓', 'DASH', 'JUMP'];
+    const keyStates = [
+        keys['KeyA'] || keys['ArrowLeft'],
+        keys['KeyD'] || keys['ArrowRight'],
+        keys['KeyW'] || keys['ArrowUp'],
+        keys['KeyS'] || keys['ArrowDown'],
+        keys['ShiftLeft'] || keys['ShiftRight'],
+        keys['Space']
+    ];
+    const startX = 10;
+    const startY = canvasH - 40;
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < keyNames.length; i++) {
+        const x = startX + i * 35 + 15;
+        ctx.fillStyle = keyStates[i] ? 'rgba(0, 229, 255, 0.8)' : 'rgba(100, 100, 100, 0.4)';
+        ctx.fillRect(x - 14, startY, 28, 24);
+        ctx.fillStyle = keyStates[i] ? '#ffffff' : '#888888';
+        ctx.fillText(keyNames[i], x, startY + 16);
+    }
+}
+
+// ---------- QoL: LEVEL SKIP ----------
+function offerLevelSkip() {
+    if (!levelDeathCounts[currentLevel]) levelDeathCounts[currentLevel] = 0;
+    levelDeathCounts[currentLevel]++;
+    if (levelDeathCounts[currentLevel] >= 20 && !skippedLevels[currentLevel]) {
+        const skipEl = document.getElementById('death-skip-btn');
+        if (skipEl) skipEl.style.display = '';
+    }
+}
+function skipLevel() {
+    skippedLevels[currentLevel] = true;
+    saveProgression();
+    if (currentLevel + 1 < LEVELS.length) {
+        if (currentLevel + 1 > unlockedLevel) {
+            unlockedLevel = currentLevel + 1;
+            try { localStorage.setItem('parkour_unlocked', unlockedLevel); } catch(e) {}
+        }
+        startLevel(currentLevel + 1);
+    }
+}
+
+// ---------- VISUAL: IMPACT SHOCKWAVE ----------
+let shockwaves = [];
+function spawnShockwave(x, y) {
+    shockwaves.push({ x, y, radius: 5, maxRadius: 80, life: 1 });
+}
+function updateShockwaves(dt) {
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.radius += 3 * dt;
+        sw.life -= 0.03 * dt;
+        if (sw.life <= 0 || sw.radius >= sw.maxRadius) shockwaves.splice(i, 1);
+    }
+}
+function drawShockwaves() {
+    for (const sw of shockwaves) {
+        const sx = sw.x - camera.x;
+        const sy = sw.y - camera.y;
+        ctx.strokeStyle = `rgba(0, 229, 255, ${sw.life * 0.5})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sw.radius, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+}
+
+// ---------- VISUAL: NEAR-DEATH DISTORTION ----------
+function drawNearDeathDistortion() {
+    let minDist = Infinity;
+    for (const sp of spikes) {
+        const dx = player.x + player.w / 2 - (sp.x + sp.w / 2);
+        const dy = player.y + player.h / 2 - (sp.y + sp.h / 2);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDist) minDist = dist;
+    }
+    for (const lb of laserBeams) {
+        if (!lb.active) continue;
+        const dx = player.x + player.w / 2 - (lb.x + lb.w / 2);
+        const dy = player.y + player.h / 2 - (lb.y + lb.h / 2);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDist) minDist = dist;
+    }
+    if (minDist < 60) {
+        const intensity = (1 - minDist / 60) * 0.15;
+        // Red tint overlay
+        ctx.fillStyle = `rgba(255, 0, 0, ${intensity})`;
+        ctx.fillRect(0, 0, canvasW, canvasH);
+    }
+}
+
+// ---------- VISUAL: ENHANCED PARALLAX ----------
+let parallaxLayers = [];
+function initParallax() {
+    parallaxLayers = [];
+    // Mountains
+    for (let i = 0; i < 8; i++) {
+        parallaxLayers.push({ type: 'mountain', x: i * 300, h: 80 + Math.random() * 60, speed: 0.02 });
+    }
+    // Buildings
+    for (let i = 0; i < 12; i++) {
+        parallaxLayers.push({ type: 'building', x: i * 200, w: 30 + Math.random() * 40, h: 40 + Math.random() * 80, speed: 0.05 });
+    }
+}
+function drawParallax() {
+    for (const layer of parallaxLayers) {
+        const sx = ((layer.x - camera.x * layer.speed) % 3000 + 3000) % 3000 - 500;
+        const sy = canvasH - layer.h;
+        if (layer.type === 'mountain') {
+            ctx.fillStyle = 'rgba(30, 40, 60, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(sx - 80, canvasH);
+            ctx.lineTo(sx, sy);
+            ctx.lineTo(sx + 80, canvasH);
+            ctx.fill();
+        } else {
+            ctx.fillStyle = 'rgba(20, 30, 50, 0.5)';
+            ctx.fillRect(sx, sy, layer.w || 40, layer.h);
+            // Windows
+            ctx.fillStyle = 'rgba(255, 200, 100, 0.15)';
+            for (let wy = sy + 8; wy < canvasH - 10; wy += 15) {
+                for (let wx = sx + 5; wx < sx + (layer.w || 40) - 5; wx += 10) {
+                    ctx.fillRect(wx, wy, 4, 4);
+                }
+            }
+        }
+    }
+}
+
+// ---------- AUDIO: COMBO SOUND ESCALATION ----------
+function playComboSound(comboNum) {
+    if (!audioCtx || !masterGainNode) return;
+    // Rising pitch chromatic scale
+    const baseFreq = 440;
+    const semitone = Math.pow(2, 1 / 12);
+    const freq = baseFreq * Math.pow(semitone, (comboNum - 1) % 12);
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = comboNum % 5 === 0 ? 'triangle' : 'sine';
+    osc.frequency.value = freq;
+    gain.gain.value = 0.08;
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(masterGainNode);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.15);
+    // Chord at milestones (5, 10, 15...)
+    if (comboNum % 5 === 0) {
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.value = freq * 1.5;
+        gain2.gain.value = 0.06;
+        gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+        osc2.connect(gain2);
+        gain2.connect(masterGainNode);
+        osc2.start();
+        osc2.stop(audioCtx.currentTime + 0.25);
+    }
+}
+
 function killPlayer() {
     gameState = 'dead';
     deathCount++;
@@ -4755,6 +6427,9 @@ function killPlayer() {
     // Death animation
     startDeathAnim(player.x + player.w / 2, player.y + player.h / 2);
     deathZoom = 20; // zoom effect frames
+
+    // Level skip offer
+    offerLevelSkip();
 
     // Break streak
     if (currentStreak >= 2) {
@@ -5005,8 +6680,46 @@ function completeLevel() {
         }
     }
 
+    // --- XP Rewards ---
+    let xpGain = 50; // base completion XP
+    if (grade === 'gold') xpGain += 100;
+    else if (grade === 'silver') xpGain += 50;
+    else if (grade === 'bronze') xpGain += 25;
+    if (deathCount === 0) xpGain += 75;
+    xpGain += comboCount * 2;
+    addXP(xpGain);
+    spawnFloatingText('+' + xpGain + ' XP', player.x + player.w / 2, player.y - 100, '#88ff88', 16);
+
+    // --- 3-Star Rating ---
+    if (currentLevel >= 0) {
+        if (!starRatings[currentLevel]) starRatings[currentLevel] = {};
+        starRatings[currentLevel].complete = true;
+        if (currentLevel < GRADE_THRESHOLDS.length) {
+            if (time <= GRADE_THRESHOLDS[currentLevel].silver) starRatings[currentLevel].silverTime = true;
+            if (time <= GRADE_THRESHOLDS[currentLevel].gold && deathCount === 0) starRatings[currentLevel].goldNoDeath = true;
+        }
+        // --- Mastery Badges ---
+        if (!masteryBadges[currentLevel]) masteryBadges[currentLevel] = {};
+        if (deathCount === 0) masteryBadges[currentLevel].zeroDeath = true;
+        if (totalDashes === 0 || (typeof levelDashes !== 'undefined' && levelDashes === 0)) {
+            masteryBadges[currentLevel].noDash = true;
+            unlockAchievement('purist');
+        }
+        if (currentLevel < GRADE_THRESHOLDS.length && time <= GRADE_THRESHOLDS[currentLevel].gold) {
+            masteryBadges[currentLevel].speedRecord = true;
+        }
+        saveProgression();
+    }
+
     // Check achievements
     checkAchievements();
+
+    // Time Attack: auto-advance to next level
+    if (timeAttackMode) {
+        timeAttackTimer += time;
+        timeAttackDeaths += deathCount;
+        setTimeout(() => { timeAttackNextLevel(); }, 1000);
+    }
 
     document.getElementById('btn-next').style.display =
         (currentLevel < 0 || currentLevel + 1 >= LEVELS.length) ? 'none' : '';
@@ -5888,6 +7601,19 @@ function drawPlayer() {
 
     ctx.restore();
 
+    // Draw hat
+    if (currentHat !== 'none') {
+        drawPlayerHat(sx + p.w / 2, sy);
+    }
+
+    // Speed burst glow
+    if (speedBurstActive) {
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+        ctx.beginPath();
+        ctx.arc(sx + p.w / 2, sy + p.h / 2, 25, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
     // Climb indicator
     if (p.canClimb) {
         ctx.fillStyle = '#ffd700';
@@ -6156,6 +7882,11 @@ function populateStats() {
         { label: 'SKINS UNLOCKED', value: unlockedSkins.length + '/' + SKINS.length, color: '#ff66aa' },
         { label: 'DIFFICULTY', value: (difficulty || 'medium').toUpperCase(), color: { easy: '#66aaff', medium: '#bb66ff', hard: '#ff6622', extreme: '#ff2222' }[difficulty] || '#bb66ff' },
         { label: 'GAMEPAD', value: gamepadConnected ? 'CONNECTED' : 'NONE', color: gamepadConnected ? '#4caf50' : '#666' },
+        { label: 'XP LEVEL', value: 'Lv.' + getPlayerLevel() + ' (' + playerXP + ' XP)', color: '#88ff88' },
+        { label: 'PRESTIGE', value: prestigeCount > 0 ? 'P' + prestigeCount : 'NONE', color: '#ffd700' },
+        { label: 'LOGIN STREAK', value: dailyLoginStreak + ' days', color: '#ff8c00' },
+        { label: 'TRAILS', value: unlockedTrails.length + '/' + TRAIL_EFFECTS.length, color: '#ff4400' },
+        { label: 'HATS', value: unlockedHats.length + '/' + PLAYER_HATS.length, color: '#cc99ff' },
     ];
 
     for (const s of stats) {
@@ -6288,6 +8019,9 @@ function gameLoop(timestamp) {
         updatePlayer(dtScale);
         updateMovingPlatforms(dtScale);
         updateFallingPlatforms(dtScale);
+        updateNewBlocks(dtScale);
+        updateTrailEffect();
+        updateShockwaves(dtScale);
         updateCamera(dtScale);
         updateCombo(dtScale);
         updateSplitTimer();
@@ -6403,6 +8137,9 @@ function gameLoop(timestamp) {
             const hudTimer = document.getElementById('hud-timer');
             if (hudTimer) hudTimer.textContent = 'PRACTICE';
         }
+        // Update XP HUD
+        const xpEl = document.getElementById('hud-xp');
+        if (xpEl) xpEl.textContent = 'Lv.' + getPlayerLevel();
     }
 
     // Auto-restart countdown when dead
@@ -6495,6 +8232,7 @@ function gameLoop(timestamp) {
         }
 
         drawBackground();
+        drawParallax();
         drawClouds();
         drawWeather();
         drawAmbientParticles();
@@ -6510,7 +8248,9 @@ function gameLoop(timestamp) {
         drawMovingPlatforms();
         drawFallingPlatforms();
         drawBoostPads();
+        drawNewBlocks();
         drawOrbs();
+        drawTrailEffect();
         if (gameState === 'replay') {
             drawReplayPlayer();
         } else if (!deathAnim.active) {
@@ -6525,6 +8265,8 @@ function gameLoop(timestamp) {
         if (gameState !== 'replay') {
             drawSpeedLines();
         }
+        drawShockwaves();
+        drawNearDeathDistortion();
         drawVignette();
         drawScreenFlash();
         drawPostProcessing();
@@ -6537,6 +8279,7 @@ function gameLoop(timestamp) {
         }
         if (gameState === 'playing') {
             drawProgressBar();
+            drawInputDisplay();
         }
         // Countdown overlay (drawn on top of everything)
         drawCountdown();
@@ -6821,6 +8564,10 @@ function loadBestTimes() {
         const d = localStorage.getItem('parkour_dashes');
         if (d) totalDashes = parseInt(d);
     } catch(e) {}
+
+    // Load new progression data
+    loadProgression();
+    checkDailyLogin();
 }
 
 // ---------- SCREEN MANAGEMENT ----------
@@ -6887,6 +8634,7 @@ function populateLevelGrid() {
         if (i > unlockedLevel) tile.classList.add('locked');
         if (bestTimes[i]) tile.classList.add('completed');
         if (bestGrades[i] === 'gold') tile.classList.add('gold-completed');
+        if (skippedLevels[i]) tile.classList.add('skipped');
 
         let gradeHTML = '';
         if (bestGrades[i]) {
@@ -7163,6 +8911,21 @@ function buildEditorLevel() {
             case 'wall':
                 walls.push({ x: px, y: py, w: TILE, h: ph });
                 break;
+            case 'ice':
+                icePlatforms.push({ x: px, y: py, w: pw, h: ph });
+                break;
+            case 'conveyor':
+                conveyorBelts.push({ x: px, y: py, w: pw, h: ph, dir: 1, speed: 2, animOffset: 0 });
+                break;
+            case 'bouncepad':
+                bouncePads.push({ x: px, y: py, w: pw, h: ph, force: -14, animTimer: 0 });
+                break;
+            case 'laser':
+                laserBeams.push({ x: px, y: py, w: TILE, h: ph, onTime: 60, offTime: 40, timer: 0, active: true });
+                break;
+            case 'wind':
+                windZones.push({ x: px, y: py, w: pw, h: ph, forceX: 3, forceY: 0, particles: [] });
+                break;
         }
     }
 }
@@ -7262,6 +9025,8 @@ function initUI() {
             btn.classList.add('selected');
             if (pendingAction === 'endless') {
                 doScreenWipe(() => startEndlessMode(), 'ENDLESS');
+            } else if (pendingAction === 'time_attack') {
+                doScreenWipe(() => startTimeAttack(), 'TIME ATTACK');
             } else if (pendingAction === 'play') {
                 doScreenWipe(() => startLevel(0), 'LEVEL 1');
             } else {
@@ -7715,6 +9480,101 @@ function initUI() {
         showScreen('menu');
     });
 
+    // --- New Mode Buttons ---
+    document.getElementById('btn-time-attack').addEventListener('click', () => {
+        initAudio(); playSound('click');
+        pendingAction = 'time_attack';
+        showScreen('difficulty');
+    });
+
+    document.getElementById('btn-weekly').addEventListener('click', () => {
+        initAudio(); playSound('click');
+        doScreenWipe(() => startWeeklyChallenge(), 'WEEKLY');
+    });
+
+    // Mirror mode toggle
+    const mirrorBtn = document.getElementById('btn-mirror-toggle');
+    if (mirrorBtn) {
+        mirrorBtn.addEventListener('click', () => {
+            playSound('click');
+            mirrorMode = !mirrorMode;
+            mirrorBtn.textContent = 'MIRROR: ' + (mirrorMode ? 'ON' : 'OFF');
+        });
+    }
+
+    // Challenge mode
+    const challengeBtn = document.getElementById('btn-challenge-mode');
+    if (challengeBtn) {
+        challengeBtn.addEventListener('click', () => {
+            playSound('click');
+            showScreen('challenge');
+        });
+    }
+    const challengeToggles = ['challenge-nodash', 'challenge-invisible', 'challenge-speed', 'challenge-onehit', 'challenge-tiny'];
+    const challengeKeys = ['noDash', 'invisiblePlatforms', 'doubleSpeed', 'oneHit', 'tinyPlayer'];
+    challengeToggles.forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', () => {
+            playSound('click');
+            challengeModifiers[challengeKeys[i]] = !challengeModifiers[challengeKeys[i]];
+            el.textContent = challengeModifiers[challengeKeys[i]] ? 'ON' : 'OFF';
+        });
+    });
+    const startChallengeBtn = document.getElementById('btn-start-challenge');
+    if (startChallengeBtn) {
+        startChallengeBtn.addEventListener('click', () => {
+            playSound('click');
+            startChallengeMode(0, challengeModifiers);
+        });
+    }
+    const backChallengeBtn = document.getElementById('btn-back-challenge');
+    if (backChallengeBtn) {
+        backChallengeBtn.addEventListener('click', () => {
+            playSound('click'); showScreen('difficulty');
+        });
+    }
+
+    // Shop button
+    document.getElementById('btn-shop').addEventListener('click', () => {
+        playSound('click');
+        populateShop();
+        showScreen('shop');
+    });
+    const backShopBtn = document.getElementById('btn-back-shop');
+    if (backShopBtn) {
+        backShopBtn.addEventListener('click', () => {
+            playSound('click'); showScreen('menu');
+        });
+    }
+
+    // Skip level button
+    const skipBtn = document.getElementById('death-skip-btn');
+    if (skipBtn) {
+        skipBtn.addEventListener('click', () => {
+            playSound('click');
+            document.getElementById('death-overlay').classList.add('hidden');
+            skipLevel();
+        });
+    }
+
+    // QoL settings
+    const qrBtn = document.getElementById('settings-quickrestart');
+    if (qrBtn) {
+        qrBtn.addEventListener('click', () => {
+            playSound('click');
+            quickRestart = !quickRestart;
+            qrBtn.textContent = quickRestart ? 'ON' : 'OFF';
+        });
+    }
+    const idBtn = document.getElementById('settings-inputdisplay');
+    if (idBtn) {
+        idBtn.addEventListener('click', () => {
+            playSound('click');
+            inputDisplayEnabled = !inputDisplayEnabled;
+            idBtn.textContent = inputDisplayEnabled ? 'ON' : 'OFF';
+        });
+    }
+
     // Cheat mode
     const cheatInput = document.getElementById('cheat-input');
     const cheatStatus = document.getElementById('cheat-status');
@@ -7792,6 +9652,7 @@ function init() {
     generateBackground();
     initMenuParticles();
     initAmbientParticles();
+    initParallax();
     initUI();
     initEditor();
     initTouchControls();

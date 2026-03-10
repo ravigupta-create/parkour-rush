@@ -31,6 +31,9 @@
                 <button id="btn-stats" class="menu-btn" aria-label="View statistics">STATS</button>
                 <button id="btn-achievements" class="menu-btn" aria-label="View achievements">ACHIEVEMENTS</button>
                 <button id="btn-skins" class="menu-btn" aria-label="Customize player skins">SKINS</button>
+                <button id="btn-shop" class="menu-btn" aria-label="Cosmetics shop">SHOP</button>
+                <button id="btn-time-attack" class="menu-btn" aria-label="Time attack mode">TIME ATTACK</button>
+                <button id="btn-weekly" class="menu-btn" aria-label="Weekly challenge">WEEKLY</button>
                 <button id="btn-editor" class="menu-btn" aria-label="Open level editor">LEVEL EDITOR</button>
                 <button id="btn-controls" class="menu-btn" aria-label="View controls guide">CONTROLS</button>
             </nav>
@@ -71,7 +74,27 @@
                     <span class="diff-desc">Tiny platforms, zero mercy, pixel-perfect &mdash; blood red hell</span>
                 </button>
             </div>
+            <div class="mode-toggles" style="margin:16px 0;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+                <button id="btn-mirror-toggle" class="small-btn">MIRROR: OFF</button>
+                <button id="btn-challenge-mode" class="small-btn">CHALLENGE MODE</button>
+            </div>
             <button id="btn-back-diff" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Challenge Mode Select -->
+    <div id="challenge-screen" class="screen">
+        <div class="difficulty-container">
+            <h2>CHALLENGE MODIFIERS</h2>
+            <div class="settings-rows">
+                <div class="settings-row"><span class="settings-label">NO DASH</span><button id="challenge-nodash" class="small-btn">OFF</button></div>
+                <div class="settings-row"><span class="settings-label">INVISIBLE PLATFORMS</span><button id="challenge-invisible" class="small-btn">OFF</button></div>
+                <div class="settings-row"><span class="settings-label">2x SPEED</span><button id="challenge-speed" class="small-btn">OFF</button></div>
+                <div class="settings-row"><span class="settings-label">ONE HIT</span><button id="challenge-onehit" class="small-btn">OFF</button></div>
+                <div class="settings-row"><span class="settings-label">TINY PLAYER</span><button id="challenge-tiny" class="small-btn">OFF</button></div>
+            </div>
+            <button id="btn-start-challenge" class="menu-btn primary">START CHALLENGE</button>
+            <button id="btn-back-challenge" class="menu-btn">BACK</button>
         </div>
     </div>
 
@@ -148,7 +171,7 @@
                     <h3 class="section-title system-title">GAME MODES</h3>
                     <div class="control-item">
                         <div class="control-keys" style="font-size:0.7em">CAMPAIGN</div>
-                        <div class="control-desc">15 levels across 4 difficulties with grades and ghosts</div>
+                        <div class="control-desc">20 levels across 4 difficulties with grades, ghosts, and XP</div>
                     </div>
                     <div class="control-item">
                         <div class="control-keys" style="font-size:0.7em">DAILY</div>
@@ -203,6 +226,7 @@
                 <div id="hud-dash" aria-label="Dash cooldown">DASH <span class="dash-bar"><span id="dash-bar-fill" class="dash-bar-fill" style="width:100%"></span></span></div>
                 <div id="hud-streak" style="display:none" aria-label="Streak counter"></div>
                 <div id="hud-distance" class="hud-distance" style="display:none" aria-label="Distance"></div>
+                <div id="hud-xp" class="hud-xp" aria-label="XP Level">Lv.0</div>
             </div>
         </div>
         <div id="practice-badge" class="practice-badge hidden">PRACTICE MODE</div>
@@ -234,6 +258,7 @@
             <h2>WIPEOUT!</h2>
             <div id="death-progress" class="death-progress"></div>
             <button id="btn-retry" class="menu-btn primary">RETRY</button>
+            <button id="death-skip-btn" class="menu-btn" style="display:none;border-color:#ffaa00;color:#ffaa00">SKIP LEVEL</button>
             <button id="btn-quit3" class="menu-btn">MENU</button>
             <p id="death-auto-restart" class="auto-restart-text"></p>
         </div>
@@ -304,6 +329,14 @@
                     <span class="settings-label">AUTO RESTART</span>
                     <button id="settings-autorestart" class="small-btn">ON</button>
                 </div>
+                <div class="settings-row">
+                    <span class="settings-label">QUICK RESTART</span>
+                    <button id="settings-quickrestart" class="small-btn">OFF</button>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">INPUT DISPLAY</span>
+                    <button id="settings-inputdisplay" class="small-btn">OFF</button>
+                </div>
             </div>
             <div class="settings-actions">
                 <button id="btn-export-save" class="menu-btn">EXPORT SAVE</button>
@@ -322,6 +355,23 @@
             <div id="orb-count" class="orb-count">Orbs: 0</div>
             <div id="skins-grid" class="skins-grid"></div>
             <button id="btn-back-skins" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Cosmetics Shop Screen -->
+    <div id="shop-screen" class="screen">
+        <div class="skins-container">
+            <h2>COSMETICS SHOP</h2>
+            <div id="shop-orb-count" class="orb-count">Orbs: 0</div>
+            <h3 style="color:#00e5ff;margin:10px 0 5px">TRAIL EFFECTS</h3>
+            <div id="trails-grid" class="skins-grid"></div>
+            <h3 style="color:#00e5ff;margin:10px 0 5px">HATS</h3>
+            <div id="hats-grid" class="skins-grid"></div>
+            <h3 style="color:#00e5ff;margin:10px 0 5px">DEATH EFFECTS</h3>
+            <div id="death-effects-grid" class="skins-grid"></div>
+            <h3 style="color:#00e5ff;margin:10px 0 5px">CELEBRATIONS</h3>
+            <div id="celebrations-grid" class="skins-grid"></div>
+            <button id="btn-back-shop" class="menu-btn">BACK</button>
         </div>
     </div>
 
@@ -350,6 +400,11 @@
                 <button class="tool-btn" data-tool="falling">Falling</button>
                 <button class="tool-btn" data-tool="boost">Boost Pad</button>
                 <button class="tool-btn" data-tool="wall">Wall</button>
+                <button class="tool-btn" data-tool="ice">Ice</button>
+                <button class="tool-btn" data-tool="conveyor">Conveyor</button>
+                <button class="tool-btn" data-tool="bouncepad">Bounce</button>
+                <button class="tool-btn" data-tool="laser">Laser</button>
+                <button class="tool-btn" data-tool="wind">Wind</button>
                 <button class="tool-btn" data-tool="spawn">Spawn</button>
                 <button class="tool-btn" data-tool="goal">Goal</button>
                 <button class="tool-btn" data-tool="erase">Eraser</button>

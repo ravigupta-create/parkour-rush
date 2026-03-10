@@ -1518,3 +1518,48 @@ button:focus-visible, .level-tile:focus-visible, .diff-btn:focus-visible {
 .skip-link:focus {
     top: 0;
 }
+
+/* --- New Features Styles --- */
+
+/* XP HUD */
+.hud-xp {
+    color: #88ff88;
+    font-size: 0.8em;
+    margin-top: 2px;
+}
+
+/* Skipped level */
+.level-tile.skipped {
+    opacity: 0.5;
+    border-color: #666 !important;
+}
+.level-tile.skipped::after {
+    content: 'SKIPPED';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.5em;
+    color: #888;
+}
+
+/* Shop screen */
+#shop-screen .skins-container {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+#shop-screen h3 {
+    text-align: center;
+    font-family: 'Courier New', monospace;
+}
+
+/* Challenge screen */
+#challenge-screen .settings-rows {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+/* Mode toggles */
+.mode-toggles .small-btn {
+    min-width: 120px;
+}
