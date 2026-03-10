@@ -3550,9 +3550,10 @@ function loadBestRuns() {
             bestRuns[i] = generateComputerRun(i);
         }
     }
-    // Level 12 default name
-    if (bestRuns[11] && bestRuns[11].username === 'COMPUTER') {
-        bestRuns[11].username = 'TheGoat';
+    // Level 12 name override
+    if (bestRuns[11] && (bestRuns[11].username === 'COMPUTER' || bestRuns[11].username === 'PLAYER')) {
+        bestRuns[11].username = 'THEGOAT';
+        try { localStorage.setItem('parkour_best_runs', JSON.stringify(bestRuns)); } catch(e) {}
     }
 }
 
