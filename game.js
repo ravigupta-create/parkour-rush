@@ -3709,12 +3709,20 @@ function loadLevel(index) {
         cp.activated = false;
     }
 
-    // Load ghost
+    // Load ghost — use computer-generated optimal run as default,
+    // only use player's saved ghost if they beat the computer time
+    const computerRun = generateComputerRun(index);
+    ghostPlayback = computerRun.replay || [];
     try {
         const saved = localStorage.getItem('parkour_ghost_' + index);
-        if (saved) ghostPlayback = JSON.parse(saved);
-        else ghostPlayback = [];
-    } catch (e) { ghostPlayback = []; }
+        if (saved) {
+            const playerGhost = JSON.parse(saved);
+            // Player's ghost is faster if it has fewer frames (recorded every 3rd frame)
+            if (playerGhost.length > 0 && playerGhost.length < ghostPlayback.length) {
+                ghostPlayback = playerGhost;
+            }
+        }
+    } catch (e) {}
 
     resetPlayer();
     levelTimer = 0;
@@ -5921,7 +5929,7 @@ function gameLoop(timestamp) {
         }
 
         // Ghost playback frame — recording saves every 3rd frame, so advance 1 ghost frame per 3 game frames
-        if (ghostPlayback.length > 0) {
+        if (ghostPlayback.length > 0 && timerStarted) {
             ghostPlaybackCounter = (ghostPlaybackCounter || 0) + 1;
             if (ghostPlaybackCounter >= 3) {
                 ghostPlaybackCounter = 0;
