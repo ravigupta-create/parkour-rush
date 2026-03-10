@@ -7549,7 +7549,7 @@ function initUI() {
                 gameSettings.volume = preMuteVolume || 100;
             }
             if (masterGainNode) masterGainNode.gain.value = gameSettings.volume / 100;
-            muteBtn.textContent = audioMuted ? 'AUDIO: OFF' : 'AUDIO: ON';
+            muteBtn.textContent = audioMuted ? 'AUDIO: MUTED' : 'AUDIO: ON';
             try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
         });
     }
