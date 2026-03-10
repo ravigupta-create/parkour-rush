@@ -5151,6 +5151,15 @@ function startReplayMode(levelIndex) {
     currentLevel = levelIndex;
     LEVELS[levelIndex]();
 
+    // Reset falling platforms state
+    for (const fp of fallingPlatforms) {
+        fp.triggered = false;
+        fp.fallTimer = 0;
+        fp.fallen = false;
+        fp.y = fp.origY;
+        fp.vy = 0;
+    }
+
     // Reset moving platform timers
     for (const mp of movingPlatforms) {
         mp.t = 0;
@@ -5159,13 +5168,27 @@ function startReplayMode(levelIndex) {
         mp.trail = [];
     }
 
-    // Set initial player position
+    // Reset checkpoints
+    for (const cp of checkpoints) {
+        cp.activated = false;
+    }
+
+    // Reset player fully (prevents NaN camera from undefined vx/vy)
+    resetPlayer();
+
+    // Override position with replay data
     player.x = replayData[0].x;
     player.y = replayData[0].y;
     player.w = PLAYER_W;
     player.h = PLAYER_H;
+
+    // Reset camera zoom and position
+    cameraZoom = 1;
     camera.x = player.x - canvasW / 2;
     camera.y = player.y - canvasH / 2;
+
+    // Initialize weather for visual fidelity
+    initWeather();
 
     // Show game screen
     showScreen('game');
