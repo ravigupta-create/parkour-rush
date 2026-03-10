@@ -7458,7 +7458,7 @@ function initUI() {
             if (code === 'srg2') {
                 cheatMode = true;
                 autoPlay = true;
-                cheatStatus.textContent = 'AUTO-PLAY ACTIVE';
+                cheatStatus.textContent = 'VERIFIED';
                 cheatStatus.className = 'cheat-status active';
                 cheatInput.value = '';
                 playSound('checkpoint');
@@ -7467,7 +7467,7 @@ function initUI() {
             } else {
                 cheatMode = false;
                 autoPlay = false;
-                cheatStatus.textContent = 'WRONG';
+                cheatStatus.textContent = 'INVALID';
                 cheatStatus.className = 'cheat-status wrong';
                 setTimeout(() => {
                     if (!cheatMode) {
