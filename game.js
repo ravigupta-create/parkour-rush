@@ -6150,6 +6150,10 @@ function gameLoop(timestamp) {
             if (keys['Space'] && !prevKeys['Space']) {
                 autoPlay = !autoPlay;
                 keys['Space'] = false;
+                if (!autoPlay) {
+                    // Clear all keys so player regains full control immediately
+                    for (const k in keys) keys[k] = false;
+                }
                 spawnFloatingText(autoPlay ? 'AUTO-PLAY ON' : 'AUTO-PLAY OFF',
                     player.x + player.w / 2, player.y - 30, autoPlay ? '#00ff88' : '#ff4444', 18);
             }
