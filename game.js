@@ -4040,6 +4040,18 @@ function updatePlayer(dt) {
     // ---- Move & collide ----
     const solids = getAllSolids();
 
+    // Safety: if player is already overlapping a solid (e.g. from height change),
+    // resolve vertically first to prevent horizontal collision from teleporting
+    // the player to the platform edge
+    const preBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+    for (const sol of solids) {
+        if (aabb(preBox, sol)) {
+            // Push player up out of the solid
+            p.y = sol.y - p.h;
+            preBox.y = p.y;
+        }
+    }
+
     // Horizontal — substep to prevent tunneling through thin walls
     const hMove = p.vx * s;
     const hSteps = Math.max(1, Math.ceil(Math.abs(hMove) / (TILE * 0.5)));
