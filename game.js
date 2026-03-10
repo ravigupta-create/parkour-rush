@@ -4121,13 +4121,15 @@ function updatePlayer(dt) {
                     if (mp === sol) p.ridingPlatform = mp;
                 }
                 // Landing effects
-                if (!p.wasOnGround && p.vy > 3) {
-                    const impactForce = Math.min(p.vy / MAX_FALL, 1);
-                    const particleCount = 6 + Math.floor(impactForce * 8);
-                    spawnParticles(p.x + p.w / 2, p.y + p.h, particleCount, '#fff', 3 + impactForce * 2, 0.8 + impactForce * 0.5);
-                    landTimer = 4 + Math.floor(impactForce * 3);
-                    if (impactForce > 0.7 && gameSettings.shake) screenShake = Math.max(screenShake, 3 + impactForce * 4);
+                if (!p.wasOnGround) {
                     playSound('land');
+                    if (p.vy > 3) {
+                        const impactForce = Math.min(p.vy / MAX_FALL, 1);
+                        const particleCount = 6 + Math.floor(impactForce * 8);
+                        spawnParticles(p.x + p.w / 2, p.y + p.h, particleCount, '#fff', 3 + impactForce * 2, 0.8 + impactForce * 0.5);
+                        landTimer = 4 + Math.floor(impactForce * 3);
+                        if (impactForce > 0.7 && gameSettings.shake) screenShake = Math.max(screenShake, 3 + impactForce * 4);
+                    }
                 }
             } else if (p.vy < 0) {
                 p.y = sol.y + sol.h;
