@@ -7535,6 +7535,25 @@ function initUI() {
         });
     }
 
+    // Audio mute toggle
+    let audioMuted = false;
+    let preMuteVolume = gameSettings.volume;
+    const muteBtn = document.getElementById('btn-mute');
+    if (muteBtn) {
+        muteBtn.addEventListener('click', () => {
+            audioMuted = !audioMuted;
+            if (audioMuted) {
+                preMuteVolume = gameSettings.volume;
+                gameSettings.volume = 0;
+            } else {
+                gameSettings.volume = preMuteVolume || 100;
+            }
+            if (masterGainNode) masterGainNode.gain.value = gameSettings.volume / 100;
+            muteBtn.textContent = audioMuted ? 'AUDIO: OFF' : 'AUDIO: ON';
+            try { localStorage.setItem('parkour_settings', JSON.stringify(gameSettings)); } catch(e) {}
+        });
+    }
+
     // Pause overlay
     document.getElementById('btn-resume').addEventListener('click', () => {
         playSound('click');
