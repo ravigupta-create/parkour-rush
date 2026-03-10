@@ -3550,6 +3550,10 @@ function loadBestRuns() {
             bestRuns[i] = generateComputerRun(i);
         }
     }
+    // Level 12 default name
+    if (bestRuns[11] && bestRuns[11].username === 'COMPUTER') {
+        bestRuns[11].username = 'TheGoat';
+    }
 }
 
 // ---------- GRADE SYSTEM ----------
