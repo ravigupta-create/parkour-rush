@@ -296,6 +296,7 @@ function darkenColor(hex, factor) {
 let difficulty = 'medium';
 let cheatMode = false;
 let autoPlay = false;
+let autoPlayWallFrames = 0; // frames spent on current wall (for realistic wall-slide delay)
 function getDiff() { return DIFFICULTIES[difficulty]; }
 
 // Cheat mode overrides — applied on top of difficulty settings
@@ -324,7 +325,7 @@ function getCheatWallSlideMax() { return (cheatMode && !autoPlay) ? CHEAT_OVERRI
 function getCheatRunSpeed() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.runSpeed : (getDiff().runSpeed || RUN_SPEED); }
 
 // ---------- AUTO-PLAY AI ----------
-// Physics-based AI that uses normal difficulty physics for realistic movement
+// Physics-based AI using real difficulty physics for human-realistic movement
 function updateAutoPlay() {
     const p = player;
     const diff = getDiff();
@@ -342,11 +343,9 @@ function updateAutoPlay() {
     // Horizontal jump reach accounting for height difference
     function jumpReach(heightDiff) {
         if (heightDiff >= 0) {
-            // Target at same level or below — extra fall time
             const fallTime = Math.sqrt(2 * (maxJumpH + heightDiff) / grav);
             return runSpeed * (peakTime + fallTime);
         }
-        // Target above — solve quadratic for time to reach that height
         const need = -heightDiff;
         if (need > maxJumpH) return 0;
         const disc = jForce * jForce + 2 * grav * need;
@@ -369,11 +368,14 @@ function updateAutoPlay() {
 
     const playerR = p.x + p.w;
     const playerB = p.y + p.h;
+    const playerCX = p.x + p.w / 2;
 
-    // --- Collect landable surfaces (platforms, moving, falling) ---
+    // --- Collect landable surfaces with metadata ---
     const surfs = [...platforms];
-    for (const mp of movingPlatforms) surfs.push({ x: mp.x, y: mp.y, w: mp.w, h: mp.h });
-    for (const fp of fallingPlatforms) { if (!fp.fallen) surfs.push({ x: fp.x, y: fp.y, w: fp.w, h: fp.h }); }
+    for (const mp of movingPlatforms) surfs.push({ x: mp.x, y: mp.y, w: mp.w, h: mp.h, _moving: mp });
+    for (const fp of fallingPlatforms) {
+        if (!fp.fallen) surfs.push({ x: fp.x, y: fp.y, w: fp.w, h: fp.h, _falling: fp });
+    }
 
     // --- Current platform ---
     let standPlat = null;
@@ -385,13 +387,61 @@ function updateAutoPlay() {
         }
     }
 
-    // --- Target platform (nearest reachable surface ahead) ---
+    // --- Falling platform urgency: detect if we're on a triggered falling platform ---
+    let onTriggeredFalling = false;
+    if (standPlat && standPlat._falling && standPlat._falling.triggered) {
+        onTriggeredFalling = true;
+    }
+
+    // --- Spike scanning (ground-level and ceiling) ---
+    let nearSpike = null, nearSpikeDist = Infinity;
+    let spikeAbove = false;
+    for (const sp of spikes) {
+        const dx = sp.x - p.x;
+        if (dx > -TILE && dx < 6 * TILE) {
+            // Ground-level spikes (on path or in gaps)
+            if (sp.y > p.y - 2 * TILE && sp.y < playerB + TILE) {
+                if (dx < nearSpikeDist) { nearSpike = sp; nearSpikeDist = dx; }
+            }
+            // Ceiling spikes (above player — don't jump into these)
+            if (sp.y + sp.h <= p.y && sp.y > p.y - 3 * TILE && dx < 4 * TILE) {
+                spikeAbove = true;
+            }
+        }
+    }
+
+    // --- Target platform (smart selection) ---
+    // Score platforms by reachability and preference
     let targetPlat = null, targetDist = Infinity;
+    let bestScore = -Infinity;
     for (const s of surfs) {
         const d = s.x - playerR;
-        if (d > -TILE && s !== standPlat && d < 18 * TILE) {
+        if (d > -TILE && s !== standPlat && d < 20 * TILE) {
             if (s.y > p.y - maxJumpH - 4 * TILE && s.y < p.y + 14 * TILE) {
-                if (d < targetDist) { targetPlat = s; targetDist = d; }
+                const heightDiff = s.y - (standPlat ? standPlat.y : playerB);
+                const reach = jumpReach(heightDiff);
+                const gap = standPlat ? s.x - (standPlat.x + standPlat.w) : d;
+
+                // Skip unreachable platforms (gap > jump + dash range with margin)
+                if (gap > reach + dashRange + TILE * 2 && gap > 0) continue;
+
+                // Score: prefer closer, reachable, not-behind-spikes
+                let score = 1000 - d;
+
+                // Penalize platforms that require jumping through spike ceilings
+                if (spikeAbove && s.y < (standPlat ? standPlat.y : p.y)) score -= 500;
+
+                // Prefer platforms at similar or lower height (natural flow)
+                if (heightDiff >= 0) score += 50;
+
+                // Avoid falling platforms if alternatives exist
+                if (s._falling) score -= 30;
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    targetPlat = s;
+                    targetDist = d;
+                }
             }
         }
     }
@@ -406,16 +456,7 @@ function updateAutoPlay() {
         }
     }
 
-    // --- Spike scanning ---
-    let nearSpike = null, nearSpikeDist = Infinity;
-    for (const sp of spikes) {
-        const dx = sp.x - p.x;
-        if (dx > -TILE && dx < 6 * TILE && sp.y > p.y - 2 * TILE && sp.y < playerB + TILE) {
-            if (dx < nearSpikeDist) { nearSpike = sp; nearSpikeDist = dx; }
-        }
-    }
-
-    // --- Low ceiling detection (for sliding) ---
+    // --- Low ceiling detection (solids + spikes above creating tight passage) ---
     let lowCeiling = false;
     if (p.onGround && standPlat) {
         const allSolids = [...surfs, ...walls];
@@ -423,49 +464,77 @@ function updateAutoPlay() {
             if (s === standPlat) continue;
             const ceilBot = s.y + s.h;
             const gap = standPlat.y - ceilBot;
-            if (gap >= PLAYER_H_SLIDE && gap < PLAYER_H &&
+            // Slightly relaxed tolerance (+2px) for edge cases
+            if (gap >= PLAYER_H_SLIDE - 2 && gap < PLAYER_H + 2 &&
                 s.x < playerR + 3.5 * TILE && s.x + s.w > p.x) {
                 lowCeiling = true; break;
             }
         }
+        // Also check spikes above as ceiling hazards (daily mode places spikes at y-1)
+        if (!lowCeiling) {
+            for (const sp of spikes) {
+                const ceilBot = sp.y + sp.h;
+                const gap = standPlat.y - ceilBot;
+                if (gap >= PLAYER_H_SLIDE - 2 && gap < PLAYER_H + 2 &&
+                    sp.x < playerR + 3.5 * TILE && sp.x + sp.w > p.x) {
+                    lowCeiling = true; break;
+                }
+            }
+        }
     }
 
-    // --- Platform continuation check ---
+    // --- Platform continuation check (improved: overlapping or adjacent at similar height) ---
     function platContinues(sp) {
         for (const s of surfs) {
-            if (s !== sp && Math.abs(s.x - (sp.x + sp.w)) < TILE * 0.5 &&
-                Math.abs(s.y - sp.y) < TILE * 0.5) return true;
+            if (s === sp) continue;
+            // Adjacent or overlapping horizontally, similar height
+            if (s.x < sp.x + sp.w + TILE * 0.5 && s.x + s.w > sp.x + sp.w - TILE * 0.5 &&
+                Math.abs(s.y - sp.y) < TILE) return true;
         }
         return false;
+    }
+
+    // --- Wall slide timing (track frames on wall for realistic delay) ---
+    if (!p.onGround && (p.onWallLeft || p.onWallRight)) {
+        autoPlayWallFrames++;
+    } else {
+        autoPlayWallFrames = 0;
     }
 
     // ======================
     // 1. WALL SECTION BEHAVIOR
     // ======================
     if (!p.onGround && (p.onWallLeft || p.onWallRight)) {
-        // Ledge climb takes priority at top of wall section
+        // Ledge climb at top of wall section
         if (p.canClimb) {
             doClimb = true;
             moveDir = p.onWallLeft ? -1 : 1;
         } else {
-            // Wall jump and move toward opposite wall
-            doJump = true;
+            // Brief wall-slide before jumping (2-4 frames, like a real player)
+            const wallDelay = 3;
+            if (autoPlayWallFrames >= wallDelay) {
+                doJump = true;
+            }
+
+            // Direction: move toward opposite wall or platform
             if (p.onWallLeft) {
                 moveDir = 1;
-                // Check if there's actually a right wall to jump to
                 let hasOpposite = false;
                 for (const w of walls) {
                     if (w.x > p.x + p.w && w.x < p.x + 6 * TILE &&
                         p.y >= w.y && p.y < w.y + w.h) { hasOpposite = true; break; }
                 }
-                // If no opposite wall, check for platform to land on to the right
+                // No opposite wall — look for platform to land on
                 if (!hasOpposite) {
+                    let bestPlat = null, bestDist = Infinity;
                     for (const s of surfs) {
-                        if (s.x > p.x && s.x < p.x + 8 * TILE &&
-                            s.y > p.y - 4 * TILE && s.y < p.y + 2 * TILE) {
-                            moveDir = 1; break;
+                        const d = s.x - playerR;
+                        if (d > -TILE && d < 10 * TILE && s.y > p.y - 5 * TILE && s.y < p.y + 3 * TILE) {
+                            if (d < bestDist) { bestPlat = s; bestDist = d; }
                         }
                     }
+                    if (bestPlat) moveDir = bestPlat.x + bestPlat.w / 2 > playerCX ? 1 : -1;
+                    else moveDir = 1;
                 }
             } else {
                 moveDir = -1;
@@ -475,9 +544,16 @@ function updateAutoPlay() {
                         p.y >= w.y && p.y < w.y + w.h) { hasOpposite = true; break; }
                 }
                 if (!hasOpposite) {
-                    // No left wall — move toward best platform
-                    if (targetPlat && targetPlat.x + targetPlat.w / 2 > p.x) moveDir = 1;
-                    else moveDir = 1; // default right
+                    // No left wall — head toward best platform
+                    let bestPlat = null, bestDist = Infinity;
+                    for (const s of surfs) {
+                        const d = s.x - p.x;
+                        if (d > -4 * TILE && d < 10 * TILE && s.y > p.y - 5 * TILE && s.y < p.y + 3 * TILE) {
+                            if (Math.abs(d) < bestDist) { bestPlat = s; bestDist = Math.abs(d); }
+                        }
+                    }
+                    if (bestPlat) moveDir = bestPlat.x + bestPlat.w / 2 > playerCX ? 1 : -1;
+                    else moveDir = 1;
                 }
             }
         }
@@ -490,42 +566,67 @@ function updateAutoPlay() {
         const edgeDist = (standPlat.x + standPlat.w) - playerR;
         const continues = platContinues(standPlat);
 
-        // Spike ahead on ground — jump over it
-        if (nearSpike && nearSpikeDist > 0 && nearSpikeDist < TILE * 2.5) {
-            doJump = true;
+        // --- Falling platform urgency: jump off ASAP ---
+        if (onTriggeredFalling) {
+            // Don't wait for edge — jump immediately to escape
+            if (targetPlat) {
+                doJump = true;
+            } else {
+                // No target — just jump and hope
+                doJump = true;
+            }
         }
 
-        // Low ceiling — slide under
-        if (lowCeiling && !doJump) {
+        // --- Spike ahead on ground — jump over ---
+        else if (nearSpike && nearSpikeDist > 0 && nearSpikeDist < TILE * 2.5) {
+            // Don't jump if there are spikes above too (slide instead)
+            if (spikeAbove) {
+                doSlide = true;
+            } else {
+                doJump = true;
+            }
+        }
+
+        // --- Low ceiling — slide under ---
+        else if (lowCeiling && !doJump) {
             doSlide = true;
         }
 
-        // At platform edge with a real gap
-        if (!continues && edgeDist > 0 && edgeDist < TILE * 2 && !doSlide) {
+        // --- At platform edge ---
+        else if (!continues && edgeDist > 0 && !doSlide) {
             if (targetPlat) {
                 const gap = targetPlat.x - (standPlat.x + standPlat.w);
-                if (gap > TILE * 0.3 || targetPlat.y < standPlat.y - TILE * 0.3) {
-                    doJump = true;
+                const heightDiff = targetPlat.y - standPlat.y;
+                const reach = jumpReach(heightDiff);
+
+                // DROP-DOWN: if target is below and close, walk off naturally (don't jump)
+                if (heightDiff > TILE && gap < TILE * 2 && gap >= -TILE) {
+                    // Just keep moving right — player will walk off and fall to the lower platform
+                    if (edgeDist < TILE * 0.5) {
+                        // Very close to edge — let natural fall happen (no jump)
+                    }
                 }
-            } else {
+                // JUMP: gap exists or target is higher
+                else if (edgeDist < TILE * 2) {
+                    if (gap > TILE * 0.3 || heightDiff < -TILE * 0.3) {
+                        // Adaptive timing: jump later for long gaps (maximize reach)
+                        const gapRatio = gap / Math.max(reach, 1);
+                        const jumpWindow = gapRatio > 0.6 ? TILE * 1.3 : TILE * 2;
+                        if (edgeDist < jumpWindow) {
+                            doJump = true;
+                        }
+                    }
+                }
+            } else if (edgeDist < TILE * 1.5) {
                 // No target but at edge — jump to survive
                 doJump = true;
             }
         }
 
-        // Higher platform ahead — jump to reach it
-        if (targetPlat && targetPlat.y < standPlat.y - TILE && !doSlide &&
+        // --- Higher platform ahead (not at edge yet) ---
+        if (!doJump && !doSlide && targetPlat && targetPlat.y < standPlat.y - TILE &&
             targetDist < TILE * 4 && edgeDist > 0 && edgeDist < TILE * 2.5) {
             doJump = true;
-        }
-
-        // Wall section ahead — run into it (don't jump, just approach)
-        for (const w of walls) {
-            const wDist = w.x - playerR;
-            if (wDist > 0 && wDist < TILE * 1.5 && w.y < playerB && w.y + w.h > p.y) {
-                // Wall is right ahead — just keep running, we'll wall-jump on contact
-                break;
-            }
         }
     }
 
@@ -533,15 +634,14 @@ function updateAutoPlay() {
     // 3. AIRBORNE BEHAVIOR
     // ======================
     else if (!p.onGround && !p.onWallLeft && !p.onWallRight) {
-        // Dash decision: only when physics require it
+        // --- Dash when physics require it ---
         if (targetPlat && !p.isDashing && p.dashTimer <= 0 && p.dashCooldown <= 0) {
             const gap = targetPlat.x - playerR;
             const hDiff = targetPlat.y - p.y;
 
-            // Estimate remaining air distance at current velocity
+            // Estimate remaining reachable distance from current state
             let remainDist = 0;
             if (hDiff >= 0) {
-                // Target below or level — solve time to fall to target height
                 const a = 0.5 * grav, b = p.vy, c = -hDiff;
                 const disc = b * b - 4 * a * c;
                 if (disc >= 0) {
@@ -549,7 +649,6 @@ function updateAutoPlay() {
                     remainDist = runSpeed * Math.max(0, t);
                 }
             } else if (p.vy < 0) {
-                // Target above — check if still ascending enough
                 const maxMore = (p.vy * p.vy) / (2 * grav);
                 if (maxMore >= -hDiff) {
                     const disc = p.vy * p.vy + 2 * grav * hDiff;
@@ -560,17 +659,17 @@ function updateAutoPlay() {
                 }
             }
 
-            // Need dash if gap exceeds what physics alone can cover
-            if (gap > 0 && gap > remainDist * 0.85 && gap < 22 * TILE) {
-                // Dash near jump peak or early descent for max horizontal gain
+            // Dash if gap exceeds remaining reach (with safety margin)
+            if (gap > 0 && gap > remainDist * 0.8 && gap < 22 * TILE) {
+                // Dash near peak or early descent for maximum horizontal gain
                 if (p.vy >= -1.5) {
                     doDash = true;
                 }
             }
         }
 
-        // Emergency dash: falling fast with no ground below
-        if (p.vy > 3.5 && !p.isDashing && p.dashTimer <= 0 && p.dashCooldown <= 0) {
+        // --- Emergency dash: falling fast with nothing below ---
+        if (p.vy > 3 && !p.isDashing && p.dashTimer <= 0 && p.dashCooldown <= 0) {
             let groundBelow = false;
             for (const s of surfs) {
                 if (playerR > s.x - TILE && p.x < s.x + s.w + TILE &&
@@ -579,7 +678,6 @@ function updateAutoPlay() {
                 }
             }
             if (!groundBelow) {
-                // Only dash if there's actually something to reach
                 for (const s of surfs) {
                     if (s.x > playerR - TILE && s.x < playerR + 14 * TILE &&
                         s.y > p.y - 2 * TILE && s.y < playerB + 10 * TILE) {
@@ -589,18 +687,34 @@ function updateAutoPlay() {
             }
         }
 
-        // Air steering toward target platform
+        // --- Mid-air spike avoidance: if about to land on spikes, try to dash over ---
+        if (p.vy > 0 && !p.isDashing && !doDash) {
+            for (const sp of spikes) {
+                const dx = sp.x - p.x;
+                if (dx > -p.w && dx < p.w + TILE &&
+                    sp.y > playerB && sp.y < playerB + 3 * TILE) {
+                    // About to land on spikes — dash forward if possible
+                    if (p.dashTimer <= 0 && p.dashCooldown <= 0) {
+                        doDash = true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // --- Air steering toward target platform ---
         if (targetPlat && !p.isDashing) {
             const tCenter = targetPlat.x + targetPlat.w / 2;
-            const pCenter = p.x + p.w / 2;
-            // Only steer left if target is noticeably to the left
-            if (tCenter < pCenter - TILE * 1.5) {
+            // Steer toward target center
+            if (tCenter < playerCX - TILE) {
                 moveDir = -1;
+            } else if (tCenter > playerCX + TILE) {
+                moveDir = 1;
             }
         }
     }
 
-    // General ledge climb (backup check)
+    // --- General ledge climb (backup) ---
     if (p.canClimb && !p.onGround && (p.onWallLeft || p.onWallRight) && !doClimb) {
         doClimb = true;
     }
