@@ -4619,9 +4619,9 @@ function updateCamera(dt) {
     const vSmooth = 1 - Math.pow(1 - CAM_SMOOTH * 0.6, dt);
     camera.y += (targetY - camera.y) * vSmooth;
 
-    // Clamp bottom
-    if (camera.y > (WORLD_H - 2) * TILE - canvasH) {
-        camera.y = (WORLD_H - 2) * TILE - canvasH;
+    // Clamp bottom — ensure the full floor is always visible
+    if (camera.y > WORLD_H * TILE - canvasH) {
+        camera.y = WORLD_H * TILE - canvasH;
     }
 }
 
