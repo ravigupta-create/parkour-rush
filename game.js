@@ -295,6 +295,7 @@ function darkenColor(hex, factor) {
 
 let difficulty = 'medium';
 let cheatMode = false;
+let autoPlay = false;
 function getDiff() { return DIFFICULTIES[difficulty]; }
 
 // Cheat mode overrides — applied on top of difficulty settings
@@ -321,6 +322,169 @@ function getCheatDashCooldown() { return cheatMode ? CHEAT_OVERRIDES.dashCooldow
 function getCheatSpikeInset() { return cheatMode ? CHEAT_OVERRIDES.spikeInset : getDiff().spikeInset; }
 function getCheatWallSlideMax() { return cheatMode ? CHEAT_OVERRIDES.wallSlideMax : getDiff().wallSlideMax; }
 function getCheatRunSpeed() { return cheatMode ? CHEAT_OVERRIDES.runSpeed : RUN_SPEED; }
+
+// ---------- AUTO-PLAY AI ----------
+function updateAutoPlay() {
+    const p = player;
+    const speed = getCheatRunSpeed();
+
+    // Override all input keys — AI has full control
+    keys['KeyD'] = true;
+    keys['ArrowRight'] = true;
+    keys['KeyA'] = false;
+    keys['ArrowLeft'] = false;
+    keys['KeyS'] = false;
+    keys['ArrowDown'] = false;
+    keys['Space'] = false;
+    keys['KeyW'] = false;
+    keys['ArrowUp'] = false;
+    keys['ShiftLeft'] = false;
+    keys['ShiftRight'] = false;
+    keys['KeyE'] = false;
+    keys['touchJump'] = false;
+    keys['touchDash'] = false;
+    keys['touchSlide'] = false;
+    keys['touchClimb'] = false;
+
+    const playerR = p.x + p.w;
+    const playerB = p.y + p.h;
+
+    // Collect all solid surfaces
+    const surfs = [...platforms];
+    for (const mp of movingPlatforms) surfs.push({ x: mp.x, y: mp.y, w: mp.w, h: mp.h });
+    for (const fp of fallingPlatforms) { if (!fp.fallen) surfs.push({ x: fp.x, y: fp.y, w: fp.w, h: fp.h }); }
+
+    // Find what the player is currently standing on
+    let standPlat = null;
+    if (p.onGround) {
+        for (const s of surfs) {
+            if (playerR > s.x && p.x < s.x + s.w && Math.abs(playerB - s.y) < 6) {
+                standPlat = s;
+                break;
+            }
+        }
+    }
+
+    // Find next platform ahead to target
+    let nextPlat = null;
+    let nextDist = Infinity;
+    for (const s of surfs) {
+        const dist = s.x - playerR;
+        if (dist > -TILE * 2 && s !== standPlat && dist < nextDist) {
+            // Must be reachable vertically (within jump range)
+            if (s.y > p.y - 8 * TILE && s.y < p.y + 12 * TILE) {
+                nextPlat = s;
+                nextDist = dist;
+            }
+        }
+    }
+
+    // Scan for spikes on our path
+    let spikeAhead = false;
+    let spikeDist = Infinity;
+    for (const sp of spikes) {
+        const dx = sp.x - p.x;
+        if (dx > -TILE && dx < 8 * TILE) {
+            if (sp.y > p.y - 2 * TILE && sp.y < playerB + TILE) {
+                spikeAhead = true;
+                spikeDist = Math.min(spikeDist, dx);
+            }
+        }
+    }
+
+    // Check for ceiling/low passage ahead (for sliding)
+    let lowCeiling = false;
+    if (p.onGround) {
+        const headCheck = { x: playerR, y: p.y, w: TILE * 3, h: PLAYER_H };
+        for (const s of surfs) {
+            if (s.y > p.y - PLAYER_H && s.y < p.y + PLAYER_H_SLIDE &&
+                s.x > p.x && s.x < p.x + 4 * TILE &&
+                playerR > s.x - 2 * TILE) {
+                lowCeiling = true;
+                break;
+            }
+        }
+    }
+
+    let jump = false;
+    let dash = false;
+    let climb = false;
+    let slide = false;
+
+    // 1. Wall jump — always jump off walls
+    if (!p.onGround && (p.onWallLeft || p.onWallRight)) {
+        jump = true;
+    }
+
+    // 2. Ledge climb — use it when available
+    if (p.canClimb && (p.onWallLeft || p.onWallRight) && !p.onGround) {
+        climb = true;
+    }
+
+    // 3. Jump near platform edge (gap ahead)
+    if (p.onGround && standPlat) {
+        const edgeDist = (standPlat.x + standPlat.w) - playerR;
+        if (edgeDist > 0 && edgeDist < TILE * 2) {
+            // Verify there's actually a gap (no continuation)
+            let continues = false;
+            for (const s of surfs) {
+                if (s !== standPlat &&
+                    s.x <= standPlat.x + standPlat.w + TILE * 0.5 &&
+                    s.x + s.w > standPlat.x + standPlat.w &&
+                    Math.abs(s.y - standPlat.y) < TILE) {
+                    continues = true;
+                    break;
+                }
+            }
+            if (!continues) jump = true;
+        }
+    }
+
+    // 4. Jump over spikes
+    if (p.onGround && spikeAhead && spikeDist < 3.5 * TILE && spikeDist > -TILE) {
+        jump = true;
+    }
+
+    // 5. Jump to reach higher platform
+    if (p.onGround && standPlat && nextPlat && nextPlat.y < standPlat.y - TILE * 0.5) {
+        const edgeDist = (standPlat.x + standPlat.w) - playerR;
+        if (edgeDist < TILE * 3.5 && edgeDist > 0) {
+            jump = true;
+        }
+    }
+
+    // 6. Dash over long gaps while airborne
+    if (!p.onGround && p.vy >= 0 && !p.isDashing && p.dashTimer <= 0 && p.dashCooldown <= 0) {
+        if (nextPlat) {
+            const gap = nextPlat.x - playerR;
+            if (gap > 4 * TILE) dash = true;
+        }
+    }
+
+    // 7. Emergency dash — falling with nothing below
+    if (!p.onGround && p.vy > 2 && !p.isDashing && p.dashTimer <= 0 && p.dashCooldown <= 0) {
+        let groundBelow = false;
+        for (const s of surfs) {
+            if (playerR > s.x - TILE && p.x < s.x + s.w + TILE &&
+                s.y > playerB && s.y < playerB + 5 * TILE) {
+                groundBelow = true;
+                break;
+            }
+        }
+        if (!groundBelow) dash = true;
+    }
+
+    // 8. Slide under low ceilings
+    if (lowCeiling && p.onGround && Math.abs(p.vx) > 1) {
+        slide = true;
+    }
+
+    // Apply decisions
+    if (jump) keys['Space'] = true;
+    if (dash) keys['ShiftLeft'] = true;
+    if (climb) keys['KeyE'] = true;
+    if (slide) { keys['KeyS'] = true; keys['ArrowDown'] = true; }
+}
 
 // ---------- GAME STATE ----------
 let canvas, ctx, editorCanvas, editorCtx, menuBgCanvas, menuBgCtx;
@@ -5851,6 +6015,19 @@ function gameLoop(timestamp) {
     }
 
     if (gameState === 'playing') {
+        // Auto-play toggle (spacebar when cheat mode active)
+        if (cheatMode) {
+            if (keys['Space'] && !prevKeys['Space']) {
+                autoPlay = !autoPlay;
+                keys['Space'] = false;
+                spawnFloatingText(autoPlay ? 'AUTO-PLAY ON' : 'AUTO-PLAY OFF',
+                    player.x + player.w / 2, player.y - 30, autoPlay ? '#00ff88' : '#ff4444', 18);
+            }
+            if (autoPlay) {
+                updateAutoPlay();
+            }
+        }
+
         // Timer starts only when player first moves
         if (!timerStarted) {
             if (keys['KeyA'] || keys['KeyD'] || keys['ArrowLeft'] || keys['ArrowRight'] ||
@@ -6125,6 +6302,20 @@ function gameLoop(timestamp) {
             ctx.fillStyle = diffColors[difficulty] || '#aaa';
             ctx.globalAlpha = 0.7;
             ctx.fillText(difficulty.toUpperCase(), 10, canvasH - 22);
+            ctx.globalAlpha = 1;
+            ctx.restore();
+        }
+
+        // Auto-play indicator
+        if (autoPlay && gameState === 'playing') {
+            ctx.save();
+            ctx.font = 'bold 13px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            const pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.004);
+            ctx.globalAlpha = pulse;
+            ctx.fillStyle = '#00ff88';
+            ctx.fillText('AUTO-PLAY', canvasW / 2, canvasH - 8);
             ctx.globalAlpha = 1;
             ctx.restore();
         }
@@ -7266,7 +7457,8 @@ function initUI() {
             const code = cheatInput.value.trim().toLowerCase();
             if (code === 'srg2') {
                 cheatMode = true;
-                cheatStatus.textContent = 'ACTIVE';
+                autoPlay = true;
+                cheatStatus.textContent = 'AUTO-PLAY ACTIVE';
                 cheatStatus.className = 'cheat-status active';
                 cheatInput.value = '';
                 playSound('checkpoint');
@@ -7274,6 +7466,7 @@ function initUI() {
                 // do nothing
             } else {
                 cheatMode = false;
+                autoPlay = false;
                 cheatStatus.textContent = 'WRONG';
                 cheatStatus.className = 'cheat-status wrong';
                 setTimeout(() => {
