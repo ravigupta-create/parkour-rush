@@ -10925,6 +10925,16 @@ function initUI() {
         showScreen('menu');
     });
 
+    // Block types screen navigation
+    document.getElementById('btn-block-types').addEventListener('click', () => {
+        playSound('click');
+        showScreen('blocktypes');
+    });
+    document.getElementById('btn-back-blocktypes').addEventListener('click', () => {
+        playSound('click');
+        showScreen('controls');
+    });
+
     // Fullscreen
     const fsBtn = document.getElementById('btn-fullscreen');
     fsBtn.addEventListener('click', () => {

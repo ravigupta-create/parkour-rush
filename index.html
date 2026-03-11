@@ -242,7 +242,66 @@
                 </div>
             </div>
 
+            <button id="btn-block-types" class="menu-btn" style="margin-bottom:8px">BLOCK TYPES</button>
             <button id="btn-back-controls" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Block Types Screen -->
+    <div id="blocktypes-screen" class="screen">
+        <div class="controls-container">
+            <h2>BLOCK TYPES</h2>
+            <div class="controls-sections">
+                <div class="control-section">
+                    <h3 class="section-title movement-title">TERRAIN</h3>
+                    <div class="block-item"><span class="block-swatch" style="background:#2a2a4a"></span><b>Platform</b> &mdash; Solid ground to run on</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#2a3a2a"></span><b>Wall</b> &mdash; Vertical surface for wall-jumping and sliding</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#88ddff"></span><b>Ice Platform</b> &mdash; Slippery surface, momentum carries you</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#4a3a6a"></span><b>Moving Platform</b> &mdash; Follows a set path back and forth</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#4a3a2a"></span><b>Falling Platform</b> &mdash; Crumbles after you step on it</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#44aacc"></span><b>Disappearing Platform</b> &mdash; Phases in and out on a timer</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#6633cc"></span><b>Magnetic Platform</b> &mdash; Pulls you toward it when nearby</div>
+                </div>
+
+                <div class="control-section">
+                    <h3 class="section-title advanced-title">HAZARDS</h3>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff4444"></span><b>Spikes</b> &mdash; Instant death on contact</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff0000;box-shadow:0 0 6px #ff000088"></span><b>Laser Beam</b> &mdash; Cycles on/off, deadly when active</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#aaaaaa;border-radius:50%"></span><b>Sawblade</b> &mdash; Spinning circular blade, instant death</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff6633"></span><b>Wall Spike</b> &mdash; Extends/retracts from walls on a timer</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff4400"></span><b>Lava Floor</b> &mdash; Deadly molten surface with animated waves</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff2200"></span><b>Enemy Drone</b> &mdash; Patrols and chases you when close</div>
+                </div>
+
+                <div class="control-section">
+                    <h3 class="section-title tips-title">MOVEMENT BLOCKS</h3>
+                    <div class="block-item"><span class="block-swatch" style="background:#ffd700"></span><b>Boost Pad</b> &mdash; Launches you forward at high speed</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff8800"></span><b>Bounce Pad</b> &mdash; Springs you high into the air</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff44ff"></span><b>Trampoline</b> &mdash; Extra-high bounce with spring compression</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#555566"></span><b>Conveyor Belt</b> &mdash; Moves you in one direction while standing on it</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#00ff88"></span><b>Speed Pad</b> &mdash; Temporarily boosts your running speed</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#22cc44"></span><b>Spring Wall</b> &mdash; Bounces you horizontally on contact</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#cccc00"></span><b>Zipline</b> &mdash; Slide along a rope between two points</div>
+                </div>
+
+                <div class="control-section">
+                    <h3 class="section-title system-title">SPECIAL ZONES</h3>
+                    <div class="block-item"><span class="block-swatch" style="background:#9933ff"></span><b>Gravity Zone</b> &mdash; Inverts gravity inside the zone</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#66aacc"></span><b>Wind Zone</b> &mdash; Pushes you with constant force</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#2288ff"></span><b>Water Pool</b> &mdash; Slows movement by 40% while inside</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff00ff"></span><b>Teleporter</b> &mdash; Warps you to a linked destination</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff00ff;opacity:0.7"></span><b>Portal Beam</b> &mdash; Horizontal teleport line to another location</div>
+                </div>
+
+                <div class="control-section">
+                    <h3 class="section-title movement-title">INTERACTIVE</h3>
+                    <div class="block-item"><span class="block-swatch" style="background:#00ffaa"></span><b>Checkpoint</b> &mdash; Respawn point when activated</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ffd700;border-radius:50%"></span><b>Orb</b> &mdash; Collect for currency to buy skins</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#8B4513"></span><b>Crumbling Wall</b> &mdash; Breaks after 2 hits (use ground pound)</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff408177"></span><b>Goal</b> &mdash; Reach this to complete the level</div>
+                </div>
+            </div>
+            <button id="btn-back-blocktypes" class="menu-btn">BACK</button>
         </div>
     </div>
 

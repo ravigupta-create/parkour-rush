@@ -1795,3 +1795,27 @@ button:focus-visible, .level-tile:focus-visible, .diff-btn:focus-visible {
     color: #ffd700;
     text-shadow: 0 0 6px #ffd70066;
 }
+
+/* --- Block Types Screen --- */
+.block-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #111122;
+    font-size: 0.85rem;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.block-item:last-child {
+    border-bottom: none;
+}
+.block-item b {
+    color: #e0e0e0;
+}
+.block-swatch {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 1px solid #444;
+    flex-shrink: 0;
+}
