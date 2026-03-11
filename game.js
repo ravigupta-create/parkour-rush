@@ -10958,6 +10958,16 @@ function initUI() {
         showScreen('controls');
     });
 
+    // Guide screen (saavan code)
+    document.getElementById('btn-guide').addEventListener('click', () => {
+        playSound('click');
+        showScreen('guide');
+    });
+    document.getElementById('btn-back-guide').addEventListener('click', () => {
+        playSound('click');
+        showScreen('menu');
+    });
+
     // Fullscreen
     const fsBtn = document.getElementById('btn-fullscreen');
     fsBtn.addEventListener('click', () => {
@@ -11531,6 +11541,13 @@ function initUI() {
                 playSound('checkpoint');
                 // Show max mode input
                 if (maxFooter) maxFooter.style.display = '';
+            } else if (code === 'saavan') {
+                cheatInput.value = '';
+                cheatStatus.textContent = '';
+                cheatStatus.className = 'cheat-status';
+                const gf = document.getElementById('guide-footer');
+                if (gf) gf.style.display = '';
+                playSound('checkpoint');
             } else if (code === '') {
                 // do nothing
             } else {
