@@ -49,6 +49,12 @@
                 <button id="btn-cheat" class="small-btn">SUBMIT</button>
                 <span id="cheat-status" class="cheat-status"></span>
             </div>
+            <div id="max-mode-footer" class="cheat-footer" style="display:none">
+                <label class="cheat-label" for="max-input">MODE</label>
+                <input type="password" id="max-input" class="cheat-input" placeholder="Code" maxlength="10" autocomplete="off">
+                <button id="btn-max" class="small-btn">ACTIVATE</button>
+                <span id="max-status" class="cheat-status"></span>
+            </div>
         </div>
     </div>
 
@@ -140,8 +146,24 @@
                         <div class="control-desc">Climb &mdash; pull yourself up a ledge while wall sliding</div>
                     </div>
                     <div class="control-item">
+                        <div class="control-keys"><span class="key">W</span> / <span class="key">SPACE</span> (midair)</div>
+                        <div class="control-desc">Double Jump &mdash; jump again while airborne (XP Lv.5+)</div>
+                    </div>
+                    <div class="control-item">
+                        <div class="control-keys">Hold <span class="key">W</span> / <span class="key">SPACE</span> (while falling)</div>
+                        <div class="control-desc">Glide &mdash; hold jump to slow your fall and float further (XP Lv.4+)</div>
+                    </div>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">&darr;</span> + <span class="key">SHIFT</span> (midair)</div>
+                        <div class="control-desc">Ground Pound &mdash; slam down at high speed, breaks crumbling platforms (XP Lv.3+)</div>
+                    </div>
+                    <div class="control-item">
                         <div class="control-keys"><span class="key">Q</span></div>
                         <div class="control-desc">Slow-Motion &mdash; slows time to 30% for 2s (XP Lv.6+)</div>
+                    </div>
+                    <div class="control-item">
+                        <div class="control-keys">Run fast + touch wall</div>
+                        <div class="control-desc">Wall Run &mdash; run vertically up walls at high speed (XP Lv.8+)</div>
                     </div>
                 </div>
 
@@ -187,7 +209,7 @@
                     <h3 class="section-title system-title">GAME MODES</h3>
                     <div class="control-item">
                         <div class="control-keys" style="font-size:0.7em">CAMPAIGN</div>
-                        <div class="control-desc">20 levels across 4 difficulties with grades, ghosts, and XP</div>
+                        <div class="control-desc">23 levels (20 + 3 boss) across 4 difficulties with grades, ghosts, and XP</div>
                     </div>
                     <div class="control-item">
                         <div class="control-keys" style="font-size:0.7em">DAILY</div>
@@ -201,6 +223,16 @@
                         <div class="control-keys" style="font-size:0.7em">EDITOR</div>
                         <div class="control-desc">Build and test your own levels</div>
                     </div>
+                </div>
+
+                <div class="control-section">
+                    <h3 class="section-title advanced-title">XP ABILITY UNLOCKS</h3>
+                    <div class="tip-item">Lv.3 (500 XP) &mdash; Ground Pound: slam down in midair</div>
+                    <div class="tip-item">Lv.4 (800 XP) &mdash; Glide: hold jump while falling to slow descent</div>
+                    <div class="tip-item">Lv.5 (1200 XP) &mdash; Double Jump: jump again in midair</div>
+                    <div class="tip-item">Lv.6 (1700 XP) &mdash; Slow-Motion: press Q to slow time</div>
+                    <div class="tip-item">Lv.7 (2400 XP) &mdash; Speed Burst: auto-activates at 10+ combo</div>
+                    <div class="tip-item">Lv.8 (3200 XP) &mdash; Wall Run: run up walls at high speed</div>
                 </div>
 
                 <div class="control-section" id="mobile-controls-info">
@@ -434,6 +466,14 @@
                 <button class="tool-btn" data-tool="drone">Drone</button>
                 <button class="tool-btn" data-tool="water">Water</button>
                 <button class="tool-btn" data-tool="wallspike">Wall Spike</button>
+                <button class="tool-btn" data-tool="magnet">Magnet</button>
+                <button class="tool-btn" data-tool="trampoline">Trampoline</button>
+                <button class="tool-btn" data-tool="disappear">Disappear</button>
+                <button class="tool-btn" data-tool="sawblade">Sawblade</button>
+                <button class="tool-btn" data-tool="springwall">Spring Wall</button>
+                <button class="tool-btn" data-tool="lavafloor">Lava Floor</button>
+                <button class="tool-btn" data-tool="portalbeam">Portal Beam</button>
+                <button class="tool-btn" data-tool="speedpad">Speed Pad</button>
                 <button class="tool-btn" data-tool="spawn">Spawn</button>
                 <button class="tool-btn" data-tool="goal">Goal</button>
                 <button class="tool-btn" data-tool="erase">Eraser</button>

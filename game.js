@@ -315,30 +315,19 @@ let autoPlay = false;
 let autoPlayWallFrames = 0; // frames spent on current wall (for realistic wall-slide delay)
 function getDiff() { return DIFFICULTIES[difficulty]; }
 
-// Cheat mode overrides — applied on top of difficulty settings
-const CHEAT_OVERRIDES = {
-    gravity: 0.3,
-    maxFall: 8,
-    jumpForce: -14,
-    coyoteTime: 20,
-    jumpBuffer: 20,
-    dashDuration: 18,
-    dashCooldown: 10,
-    spikeInset: 12,
-    wallSlideMax: 1,
-    runSpeed: 8,
-};
+// Cheat mode no longer gives heightened abilities — autoplay uses same physics as player
+let maxMode = false; // "max" secret mode: teleport to goal / invincible in endless
 
-function getCheatGravity() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.gravity : getDiff().gravity; }
-function getCheatMaxFall() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.maxFall : getDiff().maxFall; }
-function getCheatJumpForce() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.jumpForce : getDiff().jumpForce; }
-function getCheatCoyoteTime() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.coyoteTime : getDiff().coyoteTime; }
-function getCheatJumpBuffer() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.jumpBuffer : getDiff().jumpBuffer; }
-function getCheatDashDuration() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.dashDuration : getDiff().dashDuration; }
-function getCheatDashCooldown() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.dashCooldown : getDiff().dashCooldown; }
-function getCheatSpikeInset() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.spikeInset : getDiff().spikeInset; }
-function getCheatWallSlideMax() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.wallSlideMax : getDiff().wallSlideMax; }
-function getCheatRunSpeed() { return (cheatMode && !autoPlay) ? CHEAT_OVERRIDES.runSpeed : (getDiff().runSpeed || RUN_SPEED); }
+function getCheatGravity() { return getDiff().gravity; }
+function getCheatMaxFall() { return getDiff().maxFall; }
+function getCheatJumpForce() { return getDiff().jumpForce; }
+function getCheatCoyoteTime() { return getDiff().coyoteTime; }
+function getCheatJumpBuffer() { return getDiff().jumpBuffer; }
+function getCheatDashDuration() { return getDiff().dashDuration; }
+function getCheatDashCooldown() { return getDiff().dashCooldown; }
+function getCheatSpikeInset() { return getDiff().spikeInset; }
+function getCheatWallSlideMax() { return getDiff().wallSlideMax; }
+function getCheatRunSpeed() { return getDiff().runSpeed || RUN_SPEED; }
 
 // ---------- AUTO-PLAY AI ----------
 // Physics-based AI using real difficulty physics for human-realistic movement
@@ -718,6 +707,41 @@ function updateAutoPlay() {
             }
         }
 
+        // --- Double jump: use it if falling and need more height/distance (level 5+) ---
+        if (p.vy > 1 && !doubleJumpUsed && getPlayerLevel() >= 5 && !p.isDashing) {
+            // Double jump if we're falling and target is above or far
+            if (targetPlat) {
+                const gap = targetPlat.x - playerR;
+                const hDiff = targetPlat.y - p.y;
+                // Need more height
+                if (hDiff < -TILE && p.vy > 2) {
+                    doJump = true;
+                }
+                // Falling into a gap with no ground below
+                else if (p.vy > 4) {
+                    let groundBelow = false;
+                    for (const s of surfs) {
+                        if (playerR > s.x - TILE && p.x < s.x + s.w + TILE &&
+                            s.y > playerB && s.y < playerB + 4 * TILE) {
+                            groundBelow = true; break;
+                        }
+                    }
+                    if (!groundBelow) doJump = true;
+                }
+            }
+        }
+
+        // --- Air stall/glide: hold jump while descending to slow fall (level 4+) ---
+        if (p.vy > 2 && getPlayerLevel() >= 4 && airStallFuel > 15 && !p.isDashing && !groundPoundActive) {
+            if (targetPlat) {
+                const gap = targetPlat.x - playerR;
+                // Glide to extend horizontal reach when gap is moderate
+                if (gap > TILE * 3 && gap < TILE * 12) {
+                    doJump = true; // holding jump = glide
+                }
+            }
+        }
+
         // --- Air steering toward target platform ---
         if (targetPlat && !p.isDashing) {
             const tCenter = targetPlat.x + targetPlat.w / 2;
@@ -779,16 +803,70 @@ function updateAutoPlay() {
             else if (wz.forceX < 0 && moveDir > 0) { doDash = true; } // dash through headwind
         }
     }
+    // Avoid sawblades: jump/dash away
+    for (const sb of sawblades) {
+        const scx = sb.x + sb.radius;
+        const scy = sb.y + sb.radius;
+        const dx = scx - playerCX;
+        const dy = scy - (p.y + p.h / 2);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < sb.radius + TILE * 2.5) {
+            if (dy > 0) doJump = true;
+            else if (p.onGround) doDash = true;
+            if (dx > 0) moveDir = -1;
+            else moveDir = 1;
+        }
+    }
+    // Avoid lava floors: jump if close
+    for (const lf of lavaFloors) {
+        if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h + TILE * 2 }, { x: lf.x, y: lf.y, w: lf.w, h: lf.h })) {
+            doJump = true;
+        }
+    }
+
+    // --- Realistic imperfections: small random reaction delay ---
+    // 5% chance to skip a frame of input (human-like hesitation)
+    const humanDelay = Math.random() < 0.05;
 
     // --- Apply movement ---
     if (moveDir > 0) { keys['KeyD'] = true; keys['ArrowRight'] = true; }
     else if (moveDir < 0) { keys['KeyA'] = true; keys['ArrowLeft'] = true; }
 
     // Use KeyW for jumps (not Space) to avoid interfering with spacebar toggle
-    if (doJump) { keys['KeyW'] = true; keys['ArrowUp'] = true; }
-    if (doDash) { keys['ShiftLeft'] = true; }
+    if (doJump && !humanDelay) { keys['KeyW'] = true; keys['ArrowUp'] = true; }
+    if (doDash && !humanDelay) { keys['ShiftLeft'] = true; }
     if (doClimb) { keys['KeyE'] = true; }
-    if (doSlide) { keys['KeyS'] = true; keys['ArrowDown'] = true; }
+    if (doSlide && !humanDelay) { keys['KeyS'] = true; keys['ArrowDown'] = true; }
+}
+
+// ---------- MAX MODE (teleport/invincible) ----------
+function updateMaxMode() {
+    const p = player;
+    // Clear inputs
+    for (const k in keys) keys[k] = false;
+
+    if (endlessMode) {
+        // Endless: just run right at full speed, never die
+        keys['KeyD'] = true;
+        keys['ArrowRight'] = true;
+        // Keep on ground — if falling, jump
+        if (!p.onGround && p.vy > 2) {
+            keys['KeyW'] = true;
+        }
+        // If on wall, jump off
+        if (p.onWallLeft || p.onWallRight) {
+            keys['KeyW'] = true;
+            keys['KeyD'] = true;
+        }
+    } else {
+        // Campaign: teleport to goal
+        if (goalZone) {
+            p.x = goalZone.x + goalZone.w / 2 - p.w / 2;
+            p.y = goalZone.y + goalZone.h / 2 - p.h / 2;
+            p.vx = 0;
+            p.vy = 0;
+        }
+    }
 }
 
 // ---------- GAME STATE ----------
@@ -2928,6 +3006,13 @@ function generateEndlessSegment() {
     if (dist > 200 && rng() > 0.93) wallSpikes.push(wallSpike(startX, y - 2, 2, rng() > 0.5 ? 1 : -1, 30, 90));
     // Feature 10: Water pools in endless at 150m+
     if (dist > 150 && rng() > 0.94) waterPools.push(waterPool(startX, y + 1, w, 2));
+    // New blocks in endless
+    if (dist > 250 && rng() > 0.93) trampolines.push(trampoline(startX + 1, y, 2));
+    if (dist > 350 && rng() > 0.94) disappearingPlatforms.push(disappearPlat(startX, y, w, 1, 80, 50));
+    if (dist > 400 && rng() > 0.95) sawblades.push(sawblade(startX + Math.floor(w / 2), y - 3, 1, startX + Math.floor(w / 2), y - 3, 0.04));
+    if (dist > 200 && rng() > 0.94) speedPads.push(speedPad(startX, y - 0.3, Math.min(w, 3), 10));
+    if (dist > 450 && rng() > 0.95) lavaFloors.push(lavaFloor(startX, y + 2, w, 1, 0));
+    if (dist > 300 && rng() > 0.95) magnetPlatforms.push(magnetPlat(startX, y - 3, w, 1, 4));
     endlessLastX = (startX + w) * TILE;
 }
 
@@ -3365,6 +3450,337 @@ function waterPool(tx, ty, tw, th) {
 // --- Enemy Drone Constructor (Feature 2) ---
 function enemyDrone(tx, ty, patrolX1, patrolX2, patrolY) {
     return { x: tx * TILE, y: ty * TILE, w: 14, h: 14, patrolX1: patrolX1 * TILE, patrolX2: patrolX2 * TILE, patrolY: (patrolY || ty) * TILE, speed: 1.5, chaseRange: 60, alertTimer: 0, dir: 1, glowPhase: Math.random() * Math.PI * 2 };
+}
+
+// --- New Block Types ---
+let magnetPlatforms = [];
+let trampolines = [];
+let disappearingPlatforms = [];
+let sawblades = [];
+let springWalls = [];
+let lavaFloors = [];
+let portalBeams = [];
+let speedPads = [];
+
+function magnetPlat(tx, ty, tw, th, range) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: (th || 1) * TILE, range: (range || 4) * TILE, pullForce: 0.3 };
+}
+
+function trampoline(tx, ty, tw) {
+    return { x: tx * TILE, y: ty * TILE, w: (tw || 2) * TILE, h: TILE * 0.4, force: -18, animTimer: 0, compressed: false };
+}
+
+function disappearPlat(tx, ty, tw, th, onTime, offTime) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: (th || 1) * TILE, onTime: onTime || 90, offTime: offTime || 60, timer: 0, visible: true };
+}
+
+function sawblade(tx, ty, radius, cx, cy, speed) {
+    return { x: tx * TILE, y: ty * TILE, radius: (radius || 1) * TILE * 0.5, cx: (cx || tx) * TILE, cy: (cy || ty) * TILE, orbitRadius: 0, speed: speed || 0.03, angle: 0 };
+}
+
+function springWall(tx, ty, th, dir) {
+    return { x: tx * TILE, y: ty * TILE, w: TILE, h: (th || 3) * TILE, dir: dir || 1, bounceForce: 10, animTimer: 0 };
+}
+
+function lavaFloor(tx, ty, tw, th, riseSpeed) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: (th || 2) * TILE, riseSpeed: riseSpeed || 0, baseY: ty * TILE, wavePhase: 0 };
+}
+
+function portalBeam(tx, ty, tw, destTx, destTy) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: TILE * 0.5, destX: destTx * TILE, destY: destTy * TILE, cooldown: 0, glowPhase: 0 };
+}
+
+function speedPad(tx, ty, tw, boost) {
+    return { x: tx * TILE, y: ty * TILE, w: (tw || 2) * TILE, h: TILE * 0.3, boost: boost || 12, duration: 60, animOffset: 0 };
+}
+
+// --- Update functions for new blocks ---
+function updateNewBlocks2(dt) {
+    const p = player;
+    const s = dt;
+
+    // Magnetic platforms: pull player toward surface when nearby
+    for (const mp of magnetPlatforms) {
+        const pcx = p.x + p.w / 2;
+        const pcy = p.y + p.h / 2;
+        const mcx = mp.x + mp.w / 2;
+        const mcy = mp.y;
+        const dx = mcx - pcx;
+        const dy = mcy - (p.y + p.h);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < mp.range && dist > 0 && dy < 0) {
+            // Pull toward platform surface
+            p.vy += (dy / dist) * mp.pullForce * s;
+            if (Math.abs(dx) > p.w) p.vx += (dx / dist) * mp.pullForce * 0.5 * s;
+        }
+    }
+
+    // Trampolines: super high bounce
+    for (const tr of trampolines) {
+        tr.animTimer = Math.max(0, tr.animTimer - s);
+        if (aabb({ x: p.x, y: p.y + p.h - 4, w: p.w, h: 8 }, tr) && p.vy > 0) {
+            p.vy = tr.force;
+            tr.animTimer = 12;
+            tr.compressed = true;
+            playSound('bounce');
+            spawnParticles(p.x + p.w / 2, tr.y, 8, '#ff66ff', 4, 1.5);
+            setTimeout(() => { tr.compressed = false; }, 200);
+        }
+    }
+
+    // Disappearing platforms: phase in/out on timer
+    for (const dp of disappearingPlatforms) {
+        dp.timer += s;
+        const cycle = dp.onTime + dp.offTime;
+        const phase = dp.timer % cycle;
+        dp.visible = phase < dp.onTime;
+    }
+
+    // Sawblades: rotate and kill on contact
+    for (const sb of sawblades) {
+        sb.angle += sb.speed * s;
+        if (sb.orbitRadius > 0) {
+            sb.x = sb.cx + Math.cos(sb.angle) * sb.orbitRadius;
+            sb.y = sb.cy + Math.sin(sb.angle) * sb.orbitRadius;
+        }
+        // Collision with player
+        const scx = sb.x + sb.radius;
+        const scy = sb.y + sb.radius;
+        const pcx = p.x + p.w / 2;
+        const pcy = p.y + p.h / 2;
+        const dx = scx - pcx;
+        const dy = scy - pcy;
+        if (Math.sqrt(dx * dx + dy * dy) < sb.radius + Math.min(p.w, p.h) / 2) {
+            killPlayer();
+            return;
+        }
+    }
+
+    // Spring walls: bounce player horizontally on contact
+    for (const sw of springWalls) {
+        sw.animTimer = Math.max(0, sw.animTimer - s);
+        if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, sw)) {
+            p.vx = sw.bounceForce * sw.dir;
+            p.vy = Math.min(p.vy, -4);
+            sw.animTimer = 10;
+            playSound('bounce');
+            spawnParticles(sw.x + (sw.dir > 0 ? sw.w : 0), p.y + p.h / 2, 6, '#44ff44', 3, 1);
+        }
+    }
+
+    // Lava floors: kill on contact, animate
+    for (const lf of lavaFloors) {
+        lf.wavePhase += 0.05 * s;
+        if (lf.riseSpeed) {
+            lf.y -= lf.riseSpeed * s;
+        }
+        if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, { x: lf.x, y: lf.y + 4, w: lf.w, h: lf.h - 4 })) {
+            killPlayer();
+            return;
+        }
+    }
+
+    // Portal beams: teleport player horizontally
+    for (const pb of portalBeams) {
+        pb.glowPhase += 0.08 * s;
+        pb.cooldown = Math.max(0, pb.cooldown - s);
+        if (pb.cooldown <= 0 && aabb({ x: p.x, y: p.y + p.h - 8, w: p.w, h: 12 }, pb)) {
+            p.x = pb.destX;
+            p.y = pb.destY;
+            pb.cooldown = 60;
+            playSound('checkpoint');
+            spawnParticles(pb.destX + pb.w / 2, pb.destY, 10, '#ff00ff', 4, 1.5);
+        }
+    }
+
+    // Speed pads: boost running speed temporarily
+    for (const sp of speedPads) {
+        sp.animOffset += 0.1 * s;
+        if (aabb({ x: p.x, y: p.y + p.h - 4, w: p.w, h: 8 }, sp)) {
+            p.vx = sp.boost * p.facing;
+            playSound('boost');
+        }
+    }
+}
+
+// --- Draw functions for new blocks ---
+function drawNewBlocks2() {
+    // Magnetic platforms
+    for (const mp of magnetPlatforms) {
+        const sx = mp.x - camera.x;
+        const sy = mp.y - camera.y;
+        if (sx + mp.w < 0 || sx > canvasW) continue;
+        // Magnetic field glow
+        ctx.globalAlpha = 0.1 + Math.sin(Date.now() * 0.004) * 0.05;
+        ctx.fillStyle = '#8844ff';
+        ctx.fillRect(sx - 8, sy - mp.range, mp.w + 16, mp.range + 4);
+        ctx.globalAlpha = 1;
+        // Platform
+        ctx.fillStyle = '#6633cc';
+        ctx.fillRect(sx, sy, mp.w, mp.h);
+        ctx.fillStyle = '#9966ff';
+        ctx.fillRect(sx, sy, mp.w, 3);
+        // Magnetic symbol
+        ctx.fillStyle = '#ccaaff';
+        ctx.font = '10px monospace';
+        ctx.fillText('M', sx + mp.w / 2 - 3, sy + mp.h - 4);
+    }
+
+    // Trampolines
+    for (const tr of trampolines) {
+        const sx = tr.x - camera.x;
+        const sy = tr.y - camera.y;
+        if (sx + tr.w < 0 || sx > canvasW) continue;
+        const squash = tr.compressed ? 4 : 0;
+        ctx.fillStyle = '#ff44ff';
+        ctx.fillRect(sx, sy + squash, tr.w, tr.h - squash);
+        ctx.fillStyle = '#ff88ff';
+        ctx.fillRect(sx + 2, sy + squash, tr.w - 4, 3);
+        // Spring coils
+        ctx.strokeStyle = '#ffaaff';
+        ctx.lineWidth = 2;
+        for (let x = sx + 6; x < sx + tr.w - 4; x += 10) {
+            ctx.beginPath();
+            ctx.moveTo(x, sy + tr.h);
+            ctx.lineTo(x + 4, sy + squash + 2);
+            ctx.stroke();
+        }
+    }
+
+    // Disappearing platforms
+    for (const dp of disappearingPlatforms) {
+        if (!dp.visible) continue;
+        const sx = dp.x - camera.x;
+        const sy = dp.y - camera.y;
+        if (sx + dp.w < 0 || sx > canvasW) continue;
+        const cycle = dp.onTime + dp.offTime;
+        const phase = dp.timer % cycle;
+        const fadeOut = phase > dp.onTime * 0.7;
+        ctx.globalAlpha = fadeOut ? 0.3 + 0.7 * (1 - (phase - dp.onTime * 0.7) / (dp.onTime * 0.3)) : 0.8;
+        ctx.fillStyle = '#44aacc';
+        ctx.fillRect(sx, sy, dp.w, dp.h);
+        ctx.fillStyle = '#66ccee';
+        ctx.fillRect(sx, sy, dp.w, 3);
+        ctx.globalAlpha = 1;
+    }
+
+    // Sawblades
+    for (const sb of sawblades) {
+        const sx = sb.x - camera.x;
+        const sy = sb.y - camera.y;
+        if (sx + sb.radius * 2 < 0 || sx > canvasW) continue;
+        const cx = sx + sb.radius;
+        const cy = sy + sb.radius;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(sb.angle);
+        // Blade circle
+        ctx.fillStyle = '#aaaaaa';
+        ctx.beginPath();
+        ctx.arc(0, 0, sb.radius, 0, Math.PI * 2);
+        ctx.fill();
+        // Teeth
+        ctx.fillStyle = '#cccccc';
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a) * sb.radius * 0.6, Math.sin(a) * sb.radius * 0.6);
+            ctx.lineTo(Math.cos(a + 0.15) * sb.radius * 1.1, Math.sin(a + 0.15) * sb.radius * 1.1);
+            ctx.lineTo(Math.cos(a - 0.15) * sb.radius * 1.1, Math.sin(a - 0.15) * sb.radius * 1.1);
+            ctx.fill();
+        }
+        // Center
+        ctx.fillStyle = '#666';
+        ctx.beginPath();
+        ctx.arc(0, 0, sb.radius * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Spring walls
+    for (const sw of springWalls) {
+        const sx = sw.x - camera.x;
+        const sy = sw.y - camera.y;
+        if (sx + sw.w < 0 || sx > canvasW) continue;
+        const stretch = sw.animTimer > 0 ? 4 * sw.dir : 0;
+        ctx.fillStyle = '#22cc44';
+        ctx.fillRect(sx + (sw.dir > 0 ? 0 : -stretch), sy, sw.w + Math.abs(stretch), sw.h);
+        // Spring coils horizontal
+        ctx.strokeStyle = '#44ff66';
+        ctx.lineWidth = 2;
+        const springX = sx + (sw.dir > 0 ? sw.w : 0) + stretch;
+        for (let y = sy + 6; y < sy + sw.h - 4; y += 8) {
+            ctx.beginPath();
+            ctx.moveTo(springX, y);
+            ctx.lineTo(springX + 6 * sw.dir, y + 4);
+            ctx.stroke();
+        }
+    }
+
+    // Lava floors
+    for (const lf of lavaFloors) {
+        const sx = lf.x - camera.x;
+        const sy = lf.y - camera.y;
+        if (sx + lf.w < 0 || sx > canvasW || sy > canvasH) continue;
+        // Lava body
+        ctx.fillStyle = '#ff4400';
+        ctx.fillRect(sx, sy + 4, lf.w, lf.h);
+        // Surface wave
+        ctx.fillStyle = '#ff6622';
+        for (let x = 0; x < lf.w; x += 4) {
+            const waveY = Math.sin((x + lf.wavePhase * 10) * 0.08) * 3;
+            ctx.fillRect(sx + x, sy + waveY, 4, 6);
+        }
+        // Bubbles
+        ctx.fillStyle = '#ffaa44';
+        for (let i = 0; i < 3; i++) {
+            const bx = sx + (lf.w * (i + 0.5) / 3) + Math.sin(Date.now() * 0.002 + i * 2) * 8;
+            const by = sy + 6 + Math.sin(Date.now() * 0.003 + i) * 3;
+            ctx.beginPath();
+            ctx.arc(bx, by, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Portal beams
+    for (const pb of portalBeams) {
+        const sx = pb.x - camera.x;
+        const sy = pb.y - camera.y;
+        if (sx + pb.w < 0 || sx > canvasW) continue;
+        const glow = 0.5 + Math.sin(pb.glowPhase) * 0.3;
+        ctx.globalAlpha = glow;
+        ctx.fillStyle = '#ff00ff';
+        ctx.fillRect(sx, sy, pb.w, pb.h);
+        ctx.fillStyle = '#ff88ff';
+        ctx.fillRect(sx, sy + 1, pb.w, 2);
+        ctx.globalAlpha = 1;
+        // Destination marker
+        const dx = pb.destX - camera.x;
+        const dy = pb.destY - camera.y;
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = '#ff00ff';
+        ctx.fillRect(dx - 4, dy - 4, 8, 8);
+        ctx.globalAlpha = 1;
+    }
+
+    // Speed pads
+    for (const sp of speedPads) {
+        const sx = sp.x - camera.x;
+        const sy = sp.y - camera.y;
+        if (sx + sp.w < 0 || sx > canvasW) continue;
+        ctx.fillStyle = '#00ff88';
+        ctx.fillRect(sx, sy, sp.w, sp.h);
+        // Animated arrows
+        ctx.fillStyle = '#88ffcc';
+        const offset = (sp.animOffset * 20) % 12;
+        for (let x = offset; x < sp.w; x += 12) {
+            ctx.beginPath();
+            ctx.moveTo(sx + x, sy + sp.h / 2);
+            ctx.lineTo(sx + x + 5, sy);
+            ctx.lineTo(sx + x + 10, sy + sp.h / 2);
+            ctx.fill();
+        }
+    }
 }
 
 // ---------- FEATURE: SLOW-MOTION / BULLET-TIME (Feature 1) ----------
@@ -4472,6 +4888,15 @@ const LEVELS = [
             checkpoint(42, 12),
             checkpoint(80, 12),
         ];
+        // New block types
+        speedPads = [
+            speedPad(2, 17, 2, 10),
+            speedPad(42, 13, 2, 10),
+        ];
+        sawblades = [
+            sawblade(55, 12, 1, 55, 12, 0.04),
+            sawblade(90, 12, 1, 90, 12, 0.04),
+        ];
     },
 
     // ----- LEVEL 12: The Pit -----
@@ -4505,6 +4930,15 @@ const LEVELS = [
         boostPads = [];
         checkpoints = [
             checkpoint(34, 16),
+        ];
+        // New block types: trampolines + spring walls
+        trampolines = [
+            trampoline(20, 18, 2),
+            trampoline(44, 18, 2),
+        ];
+        springWalls = [
+            springWall(27, 10, 4, 1),
+            springWall(41, 10, 4, -1),
         ];
     },
 
@@ -4541,6 +4975,14 @@ const LEVELS = [
         checkpoints = [
             checkpoint(46, 16),
             checkpoint(78, 16),
+        ];
+        // New block types: disappearing platforms + magnetic
+        disappearingPlatforms = [
+            disappearPlat(38, 16, 4, 1, 80, 50),
+            disappearPlat(70, 16, 4, 1, 80, 50),
+        ];
+        magnetPlatforms = [
+            magnetPlat(100, 12, 5, 1, 5),
         ];
     },
 
@@ -5743,6 +6185,14 @@ function loadLevel(index) {
     enemyDrones = [];
     wallSpikes = [];
     waterPools = [];
+    magnetPlatforms = [];
+    trampolines = [];
+    disappearingPlatforms = [];
+    sawblades = [];
+    springWalls = [];
+    lavaFloors = [];
+    portalBeams = [];
+    speedPads = [];
     checkpointChallengeOrbs = [];
     perfectSections = 0;
     droneAlertTriggered = false;
@@ -5911,6 +6361,14 @@ function getAllSolids() {
     for (const cw of crumblingWalls) {
         if (!cw.broken) solids.push(cw);
     }
+    // Magnetic platforms are solid
+    for (const mp of magnetPlatforms) solids.push(mp);
+    // Disappearing platforms only when visible
+    for (const dp of disappearingPlatforms) {
+        if (dp.visible) solids.push(dp);
+    }
+    // Spring walls are solid
+    for (const sw of springWalls) solids.push(sw);
     return solids;
 }
 
@@ -7631,6 +8089,12 @@ function playComboSound(comboNum) {
 }
 
 function killPlayer() {
+    // Max mode in endless: don't die, just respawn at last safe position
+    if (maxMode && endlessMode) {
+        player.vy = -8;
+        player.vx = 3;
+        return;
+    }
     gameState = 'dead';
     deathCount++;
     totalDeaths++;
@@ -9232,12 +9696,18 @@ function gameLoop(timestamp) {
                 if (!autoPlay) {
                     // Clear all keys so player regains full control immediately
                     for (const k in keys) keys[k] = false;
+                    // When turning off autoplay, also disable max mode
+                    maxMode = false;
                 }
                 spawnFloatingText(autoPlay ? 'AUTO-PLAY ON' : 'AUTO-PLAY OFF',
                     player.x + player.w / 2, player.y - 30, autoPlay ? '#00ff88' : '#ff4444', 18);
             }
             if (autoPlay) {
-                updateAutoPlay();
+                if (maxMode) {
+                    updateMaxMode();
+                } else {
+                    updateAutoPlay();
+                }
             }
         }
 
@@ -9277,6 +9747,7 @@ function gameLoop(timestamp) {
         if (completeAnimState) updateCompleteAnim(dtScale);
         if (playerInWater) { player.vx *= 0.6; player.vy *= 0.8; }
         if (oneHandMode) updateOneHandMode();
+        updateNewBlocks2(dtScale);
 
         // Endless mode
         if (endlessMode) {
@@ -9498,6 +9969,7 @@ function gameLoop(timestamp) {
         drawEnemyDrones();
         drawWallSpikes();
         drawWaterPools();
+        drawNewBlocks2();
         drawCheckpointChallengeOrbs();
         drawOrbs();
         drawTrailEffect();
@@ -10145,7 +10617,15 @@ function editorRenderLoop() {
         zipline: '#cccc00',
         drone: '#ff2200',
         water: '#2288ff',
-        wallspike: '#ff6633'
+        wallspike: '#ff6633',
+        magnet: '#6633cc',
+        trampoline: '#ff44ff',
+        disappear: '#44aacc',
+        sawblade: '#aaaaaa',
+        springwall: '#22cc44',
+        lavafloor: '#ff4400',
+        portalbeam: '#ff00ff',
+        speedpad: '#00ff88'
     };
 
     for (const obj of editorObjects) {
@@ -10290,6 +10770,30 @@ function buildEditorLevel() {
                 break;
             case 'wallspike':
                 wallSpikes.push({ x: px, y: py, w: TILE * 0.4, h: ph, dir: 1, onTime: 30, offTime: 90, timer: 0, extended: false });
+                break;
+            case 'magnet':
+                magnetPlatforms.push({ x: px, y: py, w: pw, h: ph, range: 4 * TILE, pullForce: 0.3 });
+                break;
+            case 'trampoline':
+                trampolines.push({ x: px, y: py, w: pw, h: TILE * 0.4, force: -18, animTimer: 0, compressed: false });
+                break;
+            case 'disappear':
+                disappearingPlatforms.push({ x: px, y: py, w: pw, h: ph, onTime: 90, offTime: 60, timer: 0, visible: true });
+                break;
+            case 'sawblade':
+                sawblades.push({ x: px, y: py, radius: TILE * 0.5, cx: px, cy: py, orbitRadius: 0, speed: 0.04, angle: 0 });
+                break;
+            case 'springwall':
+                springWalls.push({ x: px, y: py, w: TILE, h: ph, dir: 1, bounceForce: 10, animTimer: 0 });
+                break;
+            case 'lavafloor':
+                lavaFloors.push({ x: px, y: py, w: pw, h: ph, riseSpeed: 0, baseY: py, wavePhase: 0 });
+                break;
+            case 'portalbeam':
+                portalBeams.push({ x: px, y: py, w: pw, h: TILE * 0.5, destX: px + 10 * TILE, destY: py, cooldown: 0, glowPhase: 0 });
+                break;
+            case 'speedpad':
+                speedPads.push({ x: px, y: py, w: pw, h: TILE * 0.3, boost: 12, duration: 60, animOffset: 0 });
                 break;
         }
     }
@@ -10977,23 +11481,32 @@ function initUI() {
     const cheatInput = document.getElementById('cheat-input');
     const cheatStatus = document.getElementById('cheat-status');
     const btnCheat = document.getElementById('btn-cheat');
+    const maxFooter = document.getElementById('max-mode-footer');
+    const maxInput = document.getElementById('max-input');
+    const maxStatus = document.getElementById('max-status');
+    const btnMax = document.getElementById('btn-max');
     if (btnCheat && cheatInput && cheatStatus) {
         const activateCheat = () => {
             const code = cheatInput.value.trim().toLowerCase();
             if (code === 'srg2') {
                 cheatMode = true;
                 autoPlay = true;
+                maxMode = false;
                 cheatStatus.textContent = 'VERIFIED';
                 cheatStatus.className = 'cheat-status active';
                 cheatInput.value = '';
                 playSound('checkpoint');
+                // Show max mode input
+                if (maxFooter) maxFooter.style.display = '';
             } else if (code === '') {
                 // do nothing
             } else {
                 cheatMode = false;
                 autoPlay = false;
+                maxMode = false;
                 cheatStatus.textContent = 'INVALID';
                 cheatStatus.className = 'cheat-status wrong';
+                if (maxFooter) maxFooter.style.display = 'none';
                 setTimeout(() => {
                     if (!cheatMode) {
                         cheatStatus.textContent = '';
@@ -11008,9 +11521,42 @@ function initUI() {
         });
         cheatInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') activateCheat();
-            e.stopPropagation(); // prevent game keys from firing
+            e.stopPropagation();
         });
         cheatInput.addEventListener('keyup', (e) => e.stopPropagation());
+    }
+    // Max mode activation
+    if (btnMax && maxInput && maxStatus) {
+        const activateMax = () => {
+            const code = maxInput.value.trim().toLowerCase();
+            if (code === 'max' && cheatMode) {
+                maxMode = true;
+                autoPlay = true;
+                maxStatus.textContent = 'MAX ON';
+                maxStatus.className = 'cheat-status active';
+                maxInput.value = '';
+                playSound('checkpoint');
+            } else if (code === 'off') {
+                maxMode = false;
+                maxStatus.textContent = 'MAX OFF';
+                maxStatus.className = 'cheat-status';
+                maxInput.value = '';
+                setTimeout(() => { maxStatus.textContent = ''; }, 1500);
+            } else if (code !== '') {
+                maxStatus.textContent = 'INVALID';
+                maxStatus.className = 'cheat-status wrong';
+                setTimeout(() => { maxStatus.textContent = ''; maxStatus.className = 'cheat-status'; }, 1500);
+            }
+        };
+        btnMax.addEventListener('click', () => {
+            playSound('click');
+            activateMax();
+        });
+        maxInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') activateMax();
+            e.stopPropagation();
+        });
+        maxInput.addEventListener('keyup', (e) => e.stopPropagation());
     }
 }
 
