@@ -81,7 +81,7 @@ body {
 .screen.active {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     overflow-y: auto;
 }
 
@@ -90,6 +90,10 @@ body {
     text-align: center;
     z-index: 2;
     position: relative;
+    margin-top: auto;
+    margin-bottom: auto;
+    padding-top: 20px;
+    padding-bottom: 20px;
 }
 
 .game-title {

@@ -1020,6 +1020,15 @@ let gamepadDeadzone = 0.15;
 let prevGamepadButtons = {}; // edge detection for gamepad
 let dashReadyNotified = true; // dash cooldown notification flag
 let goalProximityNotified = false; // "ALMOST THERE" flag
+// --- Achievement Rarities + Secret Achievements (must be before ACHIEVEMENTS) ---
+const ACHIEVEMENT_RARITIES = { common: '#aaaaaa', uncommon: '#44aa44', rare: '#4488ff', epic: '#aa44ff', legendary: '#ffd700' };
+const SECRET_ACHIEVEMENTS = [
+    { id: 'secret_pacifist', name: 'Pacifist', desc: 'Complete a level touching only 3 platforms', icon: '☮', rarity: 'epic', secret: true },
+    { id: 'secret_ceiling', name: 'Ceiling Walker', desc: 'Spend 10s on ceilings in one level', icon: '⇅', rarity: 'rare', secret: true },
+    { id: 'secret_ricochet', name: 'Ricochet Master', desc: '5 ricochet dashes in one run', icon: '↗', rarity: 'epic', secret: true },
+    { id: 'secret_backwards', name: 'Backwards', desc: 'Reach goal moving left for 50%+ of level', icon: '←', rarity: 'rare', secret: true },
+    { id: 'secret_floor_lava', name: 'Floor is Lava', desc: 'Complete a level airborne 80%+ of time', icon: '🔥', rarity: 'legendary', secret: true },
+];
 // Achievements
 const ACHIEVEMENTS = [
     { id: 'first_clear', name: 'First Steps', desc: 'Complete any level', icon: '1' },
@@ -1381,10 +1390,10 @@ const SKILL_TREE = {
     ]
 };
 let skillPoints = 0;
-let unlockedSkills = {};
-function hasSkill(id) { return !!unlockedSkills[id]; }
+let unlockedSkills = [];
+function hasSkill(id) { return unlockedSkills.includes(id); }
 function getSkillPointsAvailable() {
-    const spent = Object.keys(unlockedSkills).length;
+    const spent = unlockedSkills.length;
     return Math.max(0, Math.floor(getPlayerLevel() / 2) - spent + prestigeCount);
 }
 
@@ -1558,15 +1567,7 @@ let hazardProximityOsc = null;
 let comboMelodyNote = 0;
 let bossMusicActive = false;
 
-// --- Feature 98-100: Achievement Categories + Secret + Completionist ---
-const ACHIEVEMENT_RARITIES = { common: '#aaaaaa', uncommon: '#44aa44', rare: '#4488ff', epic: '#aa44ff', legendary: '#ffd700' };
-const SECRET_ACHIEVEMENTS = [
-    { id: 'secret_pacifist', name: 'Pacifist', desc: 'Complete a level touching only 3 platforms', icon: '☮', rarity: 'epic', secret: true },
-    { id: 'secret_ceiling', name: 'Ceiling Walker', desc: 'Spend 10s on ceilings in one level', icon: '⇅', rarity: 'rare', secret: true },
-    { id: 'secret_ricochet', name: 'Ricochet Master', desc: '5 ricochet dashes in one run', icon: '↗', rarity: 'epic', secret: true },
-    { id: 'secret_backwards', name: 'Backwards', desc: 'Reach goal moving left for 50%+ of level', icon: '←', rarity: 'rare', secret: true },
-    { id: 'secret_floor_lava', name: 'Floor is Lava', desc: 'Complete a level airborne 80%+ of time', icon: '🔥', rarity: 'legendary', secret: true },
-];
+// --- Feature 98-100: Secret achievement tracking vars ---
 let platformsTouched = 0;
 let ceilingWalkTime = 0;
 let ricochetCount = 0;
@@ -3204,7 +3205,7 @@ function checkAchievements() {
     // 100-feature achievements
     if (seasonPassTier >= 10) unlockAchievement('season_10');
     if (seasonPassTier >= 50) unlockAchievement('season_50');
-    if (Object.keys(unlockedSkills).length >= 12) unlockAchievement('skill_tree_full');
+    if (unlockedSkills.length >= 12) unlockAchievement('skill_tree_full');
     if (challengeTokens >= 100) unlockAchievement('tokens_100');
     if (ngPlusMode && gameState === 'complete') unlockAchievement('ng_plus_clear');
     if (reverseMode && gameState === 'complete') unlockAchievement('reverse_clear');
@@ -9656,7 +9657,7 @@ function loadProgression() {
         if (pbs) pbSplits = JSON.parse(pbs);
         oneHandMode = localStorage.getItem('parkour_one_hand') === 'true';
         // 100-feature update loads
-        const sk = localStorage.getItem('parkour_skill_tree'); if (sk) unlockedSkills = JSON.parse(sk);
+        const sk = localStorage.getItem('parkour_skill_tree'); if (sk) { const parsed = JSON.parse(sk); unlockedSkills = Array.isArray(parsed) ? parsed : Object.keys(parsed); }
         const kb = localStorage.getItem('parkour_key_bindings'); if (kb) keyBindings = JSON.parse(kb);
         seasonPassTier = parseInt(localStorage.getItem('parkour_season_tier') || '0');
         seasonPassXP = parseInt(localStorage.getItem('parkour_season_xp') || '0');
@@ -11709,7 +11710,7 @@ function gameLoop(timestamp) {
     pollGamepad();
 
     // Menu background
-    if (currentScreen === 'menu' || currentScreen === 'level' || currentScreen === 'controls' || currentScreen === 'bestrun' || currentScreen === 'difficulty' || currentScreen === 'stats' || currentScreen === 'achievements' || currentScreen === 'settings' || currentScreen === 'skins') {
+    if (currentScreen !== 'game' && currentScreen !== 'editor') {
         drawMenuBackground();
     }
 
@@ -12284,7 +12285,7 @@ window.addEventListener('blur', () => {
 });
 
 window.addEventListener('keydown', (e) => {
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+    if (currentScreen === 'game' && ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
         e.preventDefault();
     }
 });
@@ -12429,13 +12430,16 @@ function loadBestTimes() {
 }
 
 // ---------- SCREEN MANAGEMENT ----------
+let showScreenTimer = null;
 function showScreen(name) {
     const screens = document.querySelectorAll('.screen');
     screens.forEach(s => {
         s.classList.add('fading');
     });
 
-    setTimeout(() => {
+    if (showScreenTimer) clearTimeout(showScreenTimer);
+    showScreenTimer = setTimeout(() => {
+        showScreenTimer = null;
         screens.forEach(s => {
             s.classList.remove('active');
             s.classList.remove('fading');
@@ -13793,10 +13797,10 @@ function initUI() {
                 return;
             }
             // Check branch prerequisites
-            const branch = SKILL_TREE.find(b => b.skills.some(s => s.id === skillId));
+            const branch = Object.values(SKILL_TREE).find(b => b.some(s => s.id === skillId));
             if (branch) {
-                const idx = branch.skills.findIndex(s => s.id === skillId);
-                if (idx > 0 && !unlockedSkills.includes(branch.skills[idx - 1].id)) {
+                const idx = branch.findIndex(s => s.id === skillId);
+                if (idx > 0 && !unlockedSkills.includes(branch[idx - 1].id)) {
                     spawnFloatingText('Unlock previous skill first!', canvasW / 2, 80, '#ffaa00', 14);
                     return;
                 }
@@ -13837,17 +13841,19 @@ function initUI() {
         resetKeybind.addEventListener('click', () => {
             playSound('click');
             // Reset to defaults
-            keyBindings.left = ['a', 'ArrowLeft'];
-            keyBindings.right = ['d', 'ArrowRight'];
-            keyBindings.jump = ['w', 'ArrowUp', ' '];
-            keyBindings.dash = ['Shift'];
-            keyBindings.slide = ['s', 'ArrowDown'];
-            keyBindings.climb = ['e'];
-            keyBindings.slowmo = ['q'];
-            keyBindings.grapple = ['g'];
-            keyBindings.gravityFlip = ['g'];
-            keyBindings.restart = ['r'];
+            keyBindings.moveLeft = ['KeyA', 'ArrowLeft'];
+            keyBindings.moveRight = ['KeyD', 'ArrowRight'];
+            keyBindings.jump = ['KeyW', 'ArrowUp', 'Space'];
+            keyBindings.dash = ['ShiftLeft', 'ShiftRight'];
+            keyBindings.slide = ['KeyS', 'ArrowDown'];
+            keyBindings.climb = ['KeyE'];
+            keyBindings.slowmo = ['KeyQ'];
+            keyBindings.grapple = ['KeyG'];
+            keyBindings.restart = ['KeyR'];
+            keyBindings.emote1 = ['Digit1']; keyBindings.emote2 = ['Digit2']; keyBindings.emote3 = ['Digit3']; keyBindings.emote4 = ['Digit4'];
             keyBindings.pause = ['Escape'];
+            keyBindings.photoMode = ['F2']; keyBindings.screenshot = ['F3']; keyBindings.perfOverlay = ['F4'];
+            keyBindings.radialMenu = ['Tab'];
             saveProgression();
             populateKeybindings();
         });
@@ -13931,8 +13937,8 @@ function initUI() {
             if (bh && bs && bl && hh && hs && hl) {
                 customSkinColors.body = `hsl(${bh.value},${bs.value}%,${bl.value}%)`;
                 customSkinColors.head = `hsl(${hh.value},${hs.value}%,${hl.value}%)`;
-                customSkinColors.arm = customSkinColors.body;
-                customSkinColors.leg = customSkinColors.body;
+                customSkinColors.arms = customSkinColors.body;
+                customSkinColors.legs = customSkinColors.body;
             }
             saveProgression();
             showScreen('shop');
@@ -13951,10 +13957,10 @@ function populateSkillTree() {
             node.classList.add('unlocked');
         } else {
             // Check if prereq is met
-            const branch = SKILL_TREE.find(b => b.skills.some(s => s.id === skillId));
+            const branch = Object.values(SKILL_TREE).find(b => b.some(s => s.id === skillId));
             if (branch) {
-                const idx = branch.skills.findIndex(s => s.id === skillId);
-                if (idx > 0 && !unlockedSkills.includes(branch.skills[idx - 1].id)) {
+                const idx = branch.findIndex(s => s.id === skillId);
+                if (idx > 0 && !unlockedSkills.includes(branch[idx - 1].id)) {
                     node.classList.add('locked');
                 }
             }
@@ -14007,8 +14013,8 @@ function populateKeybindings() {
             const handler = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                keyBindings[action] = [e.key];
-                keyEl.textContent = e.key === ' ' ? 'SPACE' : e.key.toUpperCase();
+                keyBindings[action] = [e.code];
+                keyEl.textContent = e.code === 'Space' ? 'SPACE' : e.code.replace(/^Key/, '').replace(/^Arrow/, '').replace(/^Digit/, '').toUpperCase();
                 keyEl.classList.remove('listening');
                 listeningRow = null;
                 document.removeEventListener('keydown', handler, true);
