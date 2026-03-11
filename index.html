@@ -8,6 +8,116 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Password Protection Overlay -->
+    <div id="password-overlay">
+        <div class="password-box">
+            <h2>PARKOUR RUSH</h2>
+            <p id="pw-message">Enter password to continue</p>
+            <input type="password" id="pw-input" placeholder="Password" maxlength="20" autocomplete="off">
+            <button id="pw-submit">ENTER</button>
+            <p id="pw-attempts" class="pw-attempts"></p>
+            <p id="pw-lockout" class="pw-lockout"></p>
+        </div>
+    </div>
+    <script>
+    (function() {
+        const PASS = 'srg213';
+        const MAX_ATTEMPTS = 4;
+        const LOCKOUT_MS = 5 * 60 * 1000;
+        const overlay = document.getElementById('password-overlay');
+        const input = document.getElementById('pw-input');
+        const submitBtn = document.getElementById('pw-submit');
+        const msgEl = document.getElementById('pw-message');
+        const attEl = document.getElementById('pw-attempts');
+        const lockEl = document.getElementById('pw-lockout');
+        let lockInterval = null;
+
+        if (sessionStorage.getItem('pr_authed') === '1') {
+            overlay.style.display = 'none';
+            return;
+        }
+
+        let attempts = parseInt(localStorage.getItem('pr_pw_attempts') || '0');
+        let lockUntil = parseInt(localStorage.getItem('pr_pw_lockuntil') || '0');
+
+        function updateAttemptsDisplay() {
+            if (attempts > 0 && attempts < MAX_ATTEMPTS) {
+                attEl.textContent = (MAX_ATTEMPTS - attempts) + ' attempt' + (MAX_ATTEMPTS - attempts === 1 ? '' : 's') + ' remaining';
+            } else {
+                attEl.textContent = '';
+            }
+        }
+
+        function startLockoutTimer() {
+            input.disabled = true;
+            submitBtn.disabled = true;
+            msgEl.textContent = 'Too many attempts';
+            attEl.textContent = '';
+            lockInterval = setInterval(function() {
+                const remaining = lockUntil - Date.now();
+                if (remaining <= 0) {
+                    clearInterval(lockInterval);
+                    lockInterval = null;
+                    localStorage.removeItem('pr_pw_lockuntil');
+                    localStorage.setItem('pr_pw_attempts', '0');
+                    attempts = 0;
+                    input.disabled = false;
+                    submitBtn.disabled = false;
+                    msgEl.textContent = 'Enter password to continue';
+                    lockEl.textContent = '';
+                    updateAttemptsDisplay();
+                    input.focus();
+                } else {
+                    const m = Math.floor(remaining / 60000);
+                    const s = Math.ceil((remaining % 60000) / 1000);
+                    lockEl.textContent = 'Try again in ' + m + ':' + (s < 10 ? '0' : '') + s;
+                }
+            }, 500);
+        }
+
+        if (lockUntil > Date.now()) {
+            startLockoutTimer();
+        } else if (lockUntil > 0) {
+            localStorage.removeItem('pr_pw_lockuntil');
+            localStorage.setItem('pr_pw_attempts', '0');
+            attempts = 0;
+        }
+        updateAttemptsDisplay();
+
+        function tryPassword() {
+            if (input.disabled) return;
+            const val = input.value.trim();
+            if (!val) return;
+            if (val === PASS) {
+                sessionStorage.setItem('pr_authed', '1');
+                localStorage.setItem('pr_pw_attempts', '0');
+                localStorage.removeItem('pr_pw_lockuntil');
+                overlay.style.display = 'none';
+                if (lockInterval) clearInterval(lockInterval);
+            } else {
+                attempts++;
+                localStorage.setItem('pr_pw_attempts', String(attempts));
+                input.value = '';
+                if (attempts >= MAX_ATTEMPTS) {
+                    lockUntil = Date.now() + LOCKOUT_MS;
+                    localStorage.setItem('pr_pw_lockuntil', String(lockUntil));
+                    startLockoutTimer();
+                } else {
+                    msgEl.textContent = 'Incorrect password';
+                    updateAttemptsDisplay();
+                    input.focus();
+                }
+            }
+        }
+
+        submitBtn.addEventListener('click', tryPassword);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') tryPassword();
+        });
+        input.focus();
+    })();
+    </script>
+
     <!-- Menu Background Canvas -->
     <canvas id="menuBgCanvas"></canvas>
 

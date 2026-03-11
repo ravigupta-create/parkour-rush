@@ -1820,6 +1820,97 @@ button:focus-visible, .level-tile:focus-visible, .diff-btn:focus-visible {
     flex-shrink: 0;
 }
 
+/* --- Password Protection Overlay --- */
+#password-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #0a0a1a;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.password-box {
+    background: #1a1a2e;
+    border: 2px solid #00e5ff;
+    border-radius: 16px;
+    padding: 40px 36px;
+    text-align: center;
+    max-width: 340px;
+    width: 90%;
+    box-shadow: 0 0 40px #00e5ff22;
+}
+.password-box h2 {
+    color: #fff;
+    font-size: 1.6rem;
+    margin: 0 0 6px;
+    letter-spacing: 3px;
+}
+.password-box h2::after {
+    content: none;
+}
+#pw-message {
+    color: #aaa;
+    font-size: 0.85rem;
+    margin: 0 0 18px;
+}
+#pw-input {
+    width: 100%;
+    padding: 10px 14px;
+    background: #0d0d1a;
+    border: 2px solid #333;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1rem;
+    text-align: center;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+#pw-input:focus {
+    border-color: #00e5ff;
+}
+#pw-input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+#pw-submit {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    background: transparent;
+    border: 2px solid #00e5ff;
+    border-radius: 8px;
+    color: #00e5ff;
+    font-size: 0.95rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+#pw-submit:hover:not(:disabled) {
+    background: #00e5ff22;
+    box-shadow: 0 0 12px #00e5ff44;
+}
+#pw-submit:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.pw-attempts {
+    color: #ffaa00;
+    font-size: 0.8rem;
+    margin: 10px 0 0;
+    min-height: 1.2em;
+}
+.pw-lockout {
+    color: #ff4444;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin: 8px 0 0;
+    min-height: 1.2em;
+}
+
 /* ============================================
    NEW FEATURES CSS (100 Features Update)
    ============================================ */
