@@ -48,6 +48,9 @@ const GRADE_THRESHOLDS = [
     { gold: 24, silver: 36, bronze: 50 },     // L18: Wind Tunnel
     { gold: 26, silver: 38, bronze: 52 },     // L19: Gravity Shift
     { gold: 40, silver: 55, bronze: 75 },     // L20: The Gauntlet II
+    { gold: 35, silver: 50, bronze: 70 },     // L21: Boss - Spike Wall
+    { gold: 30, silver: 45, bronze: 60 },     // L22: Boss - Rising Lava
+    { gold: 40, silver: 55, bronze: 75 },     // L23: Boss - Laser Drone
 ];
 
 // ---------- TUTORIAL HINTS ----------
@@ -71,7 +74,10 @@ const TUTORIAL_HINTS = [
     "Watch the lasers! They cycle on and off — find the pattern.",
     "Wind zones push you around — use conveyors to ride the current.",
     "Gravity zones flip everything! Walk on ceilings to progress.",
-    "The ultimate gauntlet — every obstacle, every skill, no mercy."
+    "The ultimate gauntlet — every obstacle, every skill, no mercy.",
+    "BOSS: The spike wall is chasing you! Run for your life!",
+    "BOSS: The lava is rising! Climb fast or be consumed!",
+    "BOSS: A laser drone hunts you. Dodge its beam and reach the exit!"
 ];
 
 // ---------- DIFFICULTY SETTINGS ----------
@@ -729,6 +735,51 @@ function updateAutoPlay() {
         doClimb = true;
     }
 
+    // --- Feature 24: AI handles new blocks ---
+    // Avoid lasers (wait for off cycle)
+    for (const lb of laserBeams) {
+        if (lb.active) {
+            const lbBox = { x: lb.x - TILE, y: lb.y, w: lb.w + TILE * 2, h: lb.h };
+            if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h + TILE * 3 }, lbBox)) {
+                // Near active laser — stop and wait
+                moveDir = 0;
+                doJump = false;
+                doDash = false;
+            }
+        }
+    }
+    // Avoid drones: jump away if close
+    for (const d of enemyDrones) {
+        const ddx = d.x - playerCX;
+        const ddy = d.y - (p.y + p.h / 2);
+        const ddist = Math.sqrt(ddx * ddx + ddy * ddy);
+        if (ddist < 80) {
+            if (ddx > 0) moveDir = -1;
+            else moveDir = 1;
+            if (ddist < 40 && p.onGround) doJump = true;
+        }
+    }
+    // Factor conveyor belt velocity
+    for (const cb of conveyorBelts) {
+        if (aabb({ x: p.x, y: p.y + p.h, w: p.w, h: 4 }, cb)) {
+            // On a conveyor: adjust target slightly
+            if (cb.dir < 0 && moveDir > 0) moveDir = 1; // push against conveyor
+        }
+    }
+    // Navigate gravity zones: flip movement
+    for (const gz of gravityZones) {
+        if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, gz)) {
+            if (gz.gravMod < 0 && p.vy > 0) doJump = true; // inverted grav: jump when falling "up"
+        }
+    }
+    // Avoid wind zones: lean against wind
+    for (const wz of windZones) {
+        if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, wz)) {
+            if (wz.forceX > 0 && moveDir > 0) { /* wind helping, fine */ }
+            else if (wz.forceX < 0 && moveDir > 0) { doDash = true; } // dash through headwind
+        }
+    }
+
     // --- Apply movement ---
     if (moveDir > 0) { keys['KeyD'] = true; keys['ArrowRight'] = true; }
     else if (moveDir < 0) { keys['KeyA'] = true; keys['ArrowLeft'] = true; }
@@ -946,6 +997,17 @@ const ACHIEVEMENTS = [
     { id: 'gauntlet_ii', name: 'Gauntlet Returns', desc: 'Complete Level 20', icon: '2' },
     { id: 'veteran', name: 'Veteran', desc: 'Reach XP level 10', icon: 'v' },
     { id: 'true_master', name: 'True Master', desc: 'Earn all mastery badges on any level', icon: 'T' },
+    // 30-feature update achievements (50 total)
+    { id: 'untouchable', name: 'Untouchable', desc: 'Complete a drone level without drone alert', icon: '!' },
+    { id: 'boss_deathless', name: 'Boss Deathless', desc: 'Complete a boss level with 0 deaths', icon: 'b' },
+    { id: 'share_the_rush', name: 'Share the Rush', desc: 'Share a run code', icon: '>' },
+    { id: 'bullet_time_50', name: 'Time Bender', desc: 'Use slow-motion 50 times', icon: 'Q' },
+    { id: 'all_mastery_5', name: 'Mastery V', desc: 'Earn mastery badges on 5 levels', icon: 'm' },
+    { id: 'extreme_gold', name: 'Extreme Gold', desc: 'Get gold on extreme difficulty', icon: 'x' },
+    { id: 'orbs_1000', name: 'Orb Hoarder', desc: 'Collect 1000 orbs total', icon: 'O' },
+    { id: 'streak_10', name: 'Unstoppable X', desc: '10 deathless levels in a row', icon: '=' },
+    { id: 'daily_7', name: 'Weekly Devotion', desc: '7-day login streak', icon: '7' },
+    { id: 'level20_deathless', name: 'Perfection', desc: 'Complete Level 20 with 0 deaths', icon: '!' },
 ];
 let unlockedAchievements = {};
 let achievementPopup = null;
@@ -969,6 +1031,11 @@ const SKINS = [
     { id: 'stealth', name: 'Stealth', cost: 50, body: '#1a1a1a', head: '#2a2a2a', arms: '#0f0f0f', legs: '#050505' },
     { id: 'retro', name: 'Retro', cost: 60, body: '#00ff00', head: '#33ff33', arms: '#00dd00', legs: '#00bb00' },
     { id: 'diamond', name: 'Diamond', cost: 150, body: '#b9f2ff', head: '#d4f7ff', arms: '#9ee8f5', legs: '#84dde8' },
+    // Achievement-locked skins (Feature 14)
+    { id: 'void_skin', name: 'Void', cost: 0, body: '#110022', head: '#220044', arms: '#0a0011', legs: '#050008', achievementLock: 'boss_deathless' },
+    { id: 'drone_hunter', name: 'Drone Hunter', cost: 0, body: '#ff2200', head: '#ff4422', arms: '#dd1100', legs: '#bb0000', achievementLock: 'untouchable' },
+    { id: 'time_lord', name: 'Time Lord', cost: 0, body: '#4444ff', head: '#6666ff', arms: '#3333dd', legs: '#2222bb', achievementLock: 'bullet_time_50' },
+    { id: 'prestige_skin', name: 'Prestige', cost: 0, body: '#ffd700', head: '#ffee44', arms: '#ddbb00', legs: '#ccaa00', achievementLock: 'prestige_1' },
 ];
 let currentSkin = 'default';
 let unlockedSkins = ['default'];
@@ -1017,6 +1084,8 @@ function addXP(amount) {
     if (playerLevel > prevLvl) {
         spawnFloatingText('LEVEL UP! Lv.' + playerLevel, player.x + player.w / 2, player.y - 60, '#00ff88', 22);
         playSound('victory');
+        // Feature 17: XP Level-Up Cinematic
+        startLevelUpAnim(playerLevel);
     }
     saveProgression();
 }
@@ -1103,14 +1172,77 @@ let photoCam = { x: 0, y: 0, zoom: 1 };
 let levelDeathCounts = {}; // per level death counter for skip offer
 let skippedLevels = {};
 
+// --- Slow-Motion / Bullet-Time (Feature 1) ---
+let slowMotionActive = false;
+let slowMotionTimer = 0;
+let slowMotionCooldown = 0;
+const SLOWMO_DURATION = 120; // 2s at 60fps
+const SLOWMO_COOLDOWN = 480; // 8s at 60fps
+const SLOWMO_SCALE = 0.3;
+
+// --- Enemy Drones (Feature 2) ---
+let enemyDrones = [];
+
+// --- Wall Spike Traps (Feature 3) ---
+let wallSpikes = [];
+
+// --- Checkpoint Challenge Orbs (Feature 5) ---
+let checkpointChallengeOrbs = [];
+let perfectSections = 0;
+
+// --- Water/Liquid Pools (Feature 10) ---
+let waterPools = [];
+
+// --- Photo Mode (Feature 11) ---
+let photoCamera = { x: 0, y: 0, zoom: 1, rotation: 0 };
+let photoControlsShown = false;
+
+// --- Run Share Codes (Feature 12) ---
+// (uses ghostRecording)
+
+// --- Local Leaderboard (Feature 13) ---
+let localLeaderboard = {}; // { levelIndex: [{ time, difficulty, date }] }
+
+// --- Enhanced Daily Login (Feature 15) ---
+let dailyLoginPopupShown = false;
+
+// --- XP Level-Up Cinematics (Feature 17) ---
+let levelUpAnimState = null; // { timer, level, ability }
+const LEVELUP_ANIM_DURATION = 150; // 2.5s at 60fps
+
+// --- Adaptive Music (Feature 18) ---
+let musicLayerGains = { bass: null, kick: null, hihat: null, melody: null, pad: null };
+
+// --- Zone Ambient Audio (Feature 19) ---
+let zoneAmbientNodes = [];
+
+// --- PB Checkpoint Splits (Feature 26) ---
+let pbSplits = {}; // { level: [time1, time2, ...] }
+let currentSplitIndex = 0;
+
+// --- One-Hand Mode (Feature 27) ---
+let oneHandMode = false;
+let autoRunDirection = 1;
+
+// --- Player Emotes (Feature 30) ---
+let emoteActive = false;
+let emoteType = null;
+let emoteFrame = 0;
+const EMOTE_DURATION = 30; // frames
+const EMOTES = ['wave', 'flex', 'spin', 'sit'];
+
+// --- Level Transition Fanfare (Feature 9) ---
+let completeAnimState = null; // { timer, zoomTarget }
+
+// --- Screen-Edge Death Pulse (Feature 8) ---
+let deathPulseIntensity = 0;
+
 // --- Trail Particles ---
 let trailParticles = [];
 
-// --- Timer Splits vs PB ---
-let pbSplits = {}; // per level checkpoint splits
-
 // Editor state
 let editorTool = 'platform';
+let editorMouseX = 0, editorMouseY = 0;
 let editorCamera = { x: 0, y: 0 };
 let editorDragging = false;
 let editorObjects = [];
@@ -1414,6 +1546,175 @@ function playSound(type) {
                 }
                 break;
             }
+            case 'slowmo': {
+                // Slow-mo activation: descending warp
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                osc.connect(filter); filter.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(2000, now);
+                filter.frequency.exponentialRampToValueAtTime(300, now + 0.4);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+                break;
+            }
+            case 'drone_detect': {
+                // Alarming drone detection beep
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.setValueAtTime(800, now + 0.05);
+                osc.frequency.setValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+                break;
+            }
+            case 'land_stone': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(90 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(35, now + 0.1);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.start(now); osc.stop(now + 0.12);
+                break;
+            }
+            case 'land_ice': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(2000 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+                break;
+            }
+            case 'land_metal': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.08);
+                gain.gain.setValueAtTime(0.04, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+                break;
+            }
+            case 'land_bounce': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.2);
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+                break;
+            }
+            case 'land_conveyor': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.start(now); osc.stop(now + 0.12);
+                break;
+            }
+            case 'victory_fanfare': {
+                // Grand ascending fanfare with harmony
+                const melody = [523, 659, 784, 1047, 1319, 1568, 2093];
+                for (let i = 0; i < melody.length; i++) {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    const o2 = audioCtx.createOscillator();
+                    const g2 = audioCtx.createGain();
+                    o.connect(g); g.connect(audioDest());
+                    o2.connect(g2); g2.connect(audioDest());
+                    const t = now + i * 0.1;
+                    o.type = 'sine';
+                    o.frequency.setValueAtTime(melody[i], t);
+                    g.gain.setValueAtTime(0.08, t);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+                    o2.type = 'triangle';
+                    o2.frequency.setValueAtTime(melody[i] * 1.5, t);
+                    g2.gain.setValueAtTime(0.03, t);
+                    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+                    o.start(t); o.stop(t + 0.6);
+                    o2.start(t); o2.stop(t + 0.5);
+                }
+                break;
+            }
+            case 'footstep_ice': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime((1500 + Math.random() * 500) * pitchVar, now);
+                gain.gain.setValueAtTime(0.015, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc.start(now); osc.stop(now + 0.04);
+                break;
+            }
+            case 'footstep_conveyor': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'square';
+                osc.frequency.setValueAtTime((200 + Math.random() * 100) * pitchVar, now);
+                gain.gain.setValueAtTime(0.02, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc.start(now); osc.stop(now + 0.04);
+                break;
+            }
+            case 'emote': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(900, now + 0.1);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+                break;
+            }
+            case 'splash': {
+                // Water splash
+                const bufSize = Math.floor(audioCtx.sampleRate * 0.15);
+                const buffer = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1000, now);
+                filter.frequency.exponentialRampToValueAtTime(200, now + 0.15);
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.04, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                source.connect(filter); filter.connect(gain); gain.connect(audioDest());
+                source.start(now); source.stop(now + 0.15);
+                break;
+            }
         }
     } catch (e) {
         // Audio errors are non-critical
@@ -1610,13 +1911,22 @@ function startMusic() {
             } catch(e) {}
         }
 
+        // Feature 18: Adaptive music layers
+        // Bass always plays; kick/hihat on running; melody on airborne; pad on slow/idle
         musicInterval = setInterval(() => {
             if (!musicPlaying) { clearInterval(musicInterval); return; }
+            const isPlaying = gameState === 'playing';
+            const isRunning = isPlaying && Math.abs(player.vx) > 0.5;
+            const isAirborne = isPlaying && !player.grounded;
+            const isSlow = slowMotionActive;
+            // Bass always
             playBassNote();
-            playKick();
-            playHihat();
-            if (musicBeatCount % 4 === 0) playPad();
-            if (musicBeatCount % 2 === 1) playMelody();
+            // Kick + hihat when running
+            if (isRunning || !isPlaying) { playKick(); playHihat(); }
+            // Melody when airborne
+            if ((isAirborne || musicBeatCount % 2 === 1) && !isSlow) playMelody();
+            // Pad on slow-mo or every 4 beats
+            if (isSlow || musicBeatCount % 4 === 0) playPad();
             musicBeatCount++;
         }, beatTime * 1000);
     } catch (e) {}
@@ -2169,6 +2479,15 @@ function drawPostProcessing() {
         ctx.drawImage(canvas, -2, 0, canvasW, canvasH, 0, 0, canvasW, canvasH);
         ctx.restore();
     }
+
+    // Feature 1: Slow-motion blue vignette
+    if (slowMotionActive && gameState === 'playing') {
+        const grad = ctx.createRadialGradient(canvasW / 2, canvasH / 2, canvasW * 0.2, canvasW / 2, canvasH / 2, canvasW * 0.7);
+        grad.addColorStop(0, 'rgba(0, 50, 200, 0)');
+        grad.addColorStop(1, 'rgba(0, 30, 150, 0.3)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvasW, canvasH);
+    }
 }
 
 // ---------- ORB SYSTEM ----------
@@ -2348,6 +2667,22 @@ function checkAchievements() {
         const mb = masteryBadges[lvl];
         if (mb && mb.zeroDeath && mb.noDash && mb.allOrbs && mb.speedRecord) unlockAchievement('true_master');
     }
+    // Mastery V: 5 levels with mastery badges
+    let masteryCount = 0;
+    for (const lvl in masteryBadges) {
+        const mb = masteryBadges[lvl];
+        if (mb && mb.zeroDeath && mb.noDash && mb.allOrbs && mb.speedRecord) masteryCount++;
+    }
+    if (masteryCount >= 5) unlockAchievement('all_mastery_5');
+    // New 30-feature achievements
+    if (!droneAlertTriggered && bossMode && gameState === 'complete' && enemyDrones.length > 0) unlockAchievement('untouchable');
+    if (bossMode && gameState === 'complete' && deathCount === 0) unlockAchievement('boss_deathless');
+    if (totalSlowMoUses >= 50) unlockAchievement('bullet_time_50');
+    if (difficulty === 'extreme' && gameState === 'complete' && currentLevel >= 0 && currentLevel < GRADE_THRESHOLDS.length && levelTimer <= GRADE_THRESHOLDS[currentLevel].gold) unlockAchievement('extreme_gold');
+    if (totalOrbs >= 1000) unlockAchievement('orbs_1000');
+    if (currentStreak >= 10) unlockAchievement('streak_10');
+    if (dailyLoginStreak >= 7) unlockAchievement('daily_7');
+    if (gameState === 'complete' && currentLevel === 19 && deathCount === 0) unlockAchievement('level20_deathless');
 }
 
 function populateAchievements() {
@@ -2381,12 +2716,19 @@ function populateSkins() {
         const equipped = currentSkin === skin.id;
         card.className = 'skin-card' + (equipped ? ' equipped' : '') + (!owned ? ' locked' : '');
         const previewColor = skin.body && skin.body !== 'rainbow' ? skin.body : (skin.body === 'rainbow' ? '#ff0000' : '#00e5ff');
+        // Feature 14: Achievement-locked skins
+        const achLock = skin.achievementLock;
+        const achUnlocked = achLock ? unlockedAchievements[achLock] : true;
+        const achName = achLock ? (ACHIEVEMENTS.find(a => a.id === achLock) || {}).name || achLock : '';
         card.innerHTML =
             '<div class="skin-preview" style="background:' + previewColor + '"></div>' +
             '<div class="skin-name">' + skin.name + '</div>' +
-            (owned ? (equipped ? '<div class="skin-status">EQUIPPED</div>' : '<div class="skin-status" style="color:#00e5ff">EQUIP</div>') :
+            (achLock && !achUnlocked ? '<div class="skin-cost" style="color:#ff8800">🔒 ' + achName + '</div>' :
+            owned ? (equipped ? '<div class="skin-status">EQUIPPED</div>' : '<div class="skin-status" style="color:#00e5ff">EQUIP</div>') :
             '<div class="skin-cost">' + skin.cost + ' orbs</div>');
         card.addEventListener('click', () => {
+            // Feature 14: Block purchase if achievement-locked
+            if (achLock && !achUnlocked) { playSound('death'); return; }
             if (owned) {
                 currentSkin = skin.id;
                 try { localStorage.setItem('parkour_skin', currentSkin); } catch(e) {}
@@ -2580,6 +2922,12 @@ function generateEndlessSegment() {
     if (diffScale > 0.4 && rng() > 0.9) conveyorBelts.push(conveyor(startX, y, w, 1, rng() > 0.5 ? 1 : -1, 2 + diffScale));
     if (diffScale > 0.5 && rng() > 0.92) windZones.push(windZoneObj(startX, y - 5, w, 5, (rng() - 0.5) * 4, 0));
     if (diffScale > 0.6 && rng() > 0.95) laserBeams.push(laser(startX + Math.floor(w / 2), y - 6, 1, 6, 50, 50));
+    // Feature 2: Enemy drones at 300m+ in endless
+    if (dist > 300 && rng() > 0.92) enemyDrones.push(enemyDrone(startX + Math.floor(w / 2), y - 4, startX, startX + w, y - 4));
+    // Feature 3: Wall spikes in endless at 200m+
+    if (dist > 200 && rng() > 0.93) wallSpikes.push(wallSpike(startX, y - 2, 2, rng() > 0.5 ? 1 : -1, 30, 90));
+    // Feature 10: Water pools in endless at 150m+
+    if (dist > 150 && rng() > 0.94) waterPools.push(waterPool(startX, y + 1, w, 2));
     endlessLastX = (startX + w) * TILE;
 }
 
@@ -2736,7 +3084,25 @@ function recordSplit(checkpointIndex) {
     const split = levelTimer - lastCheckpointTime;
     splitTimes.push({ cp: checkpointIndex, time: levelTimer, split: split });
     lastCheckpointTime = levelTimer;
-    spawnFloatingText('+' + split.toFixed(2) + 's', player.x + player.w / 2, player.y - 40, '#00e5ff', 14);
+    // Feature 26: PB checkpoint splits — green/red vs personal best
+    if (!pbSplits[currentLevel]) pbSplits[currentLevel] = [];
+    const pbTime = pbSplits[currentLevel][checkpointIndex];
+    if (pbTime !== undefined) {
+        const delta = levelTimer - pbTime;
+        const sign = delta > 0 ? '+' : '';
+        const color = delta > 0 ? '#ff4444' : '#4caf50';
+        spawnFloatingText(sign + delta.toFixed(2) + 's', player.x + player.w / 2, player.y - 50, color, 16);
+    } else {
+        spawnFloatingText('+' + split.toFixed(2) + 's', player.x + player.w / 2, player.y - 40, '#00e5ff', 14);
+    }
+    if (pbTime === undefined || levelTimer < pbTime) {
+        pbSplits[currentLevel][checkpointIndex] = levelTimer;
+        try { localStorage.setItem('parkour_pb_splits', JSON.stringify(pbSplits)); } catch(e) {}
+    }
+    currentSplitIndex++;
+    // Feature 5: Spawn checkpoint challenge orbs
+    const cp = checkpoints[checkpointIndex];
+    if (cp) spawnCheckpointChallengeOrbs(cp);
 }
 
 // ---------- ANIMATED STAR REVEAL ----------
@@ -2986,6 +3352,701 @@ function windZoneObj(tx, ty, tw, th, fx, fy) {
     return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: th * TILE, forceX: fx || 0, forceY: fy || 0, particles: [] };
 }
 
+// --- Wall Spike Constructor (Feature 3) ---
+function wallSpike(tx, ty, th, dir, onTime, offTime) {
+    return { x: tx * TILE, y: ty * TILE, w: TILE * 0.4, h: (th || 2) * TILE, dir: dir || 1, onTime: onTime || 30, offTime: offTime || 90, timer: 0, extended: false };
+}
+
+// --- Water Pool Constructor (Feature 10) ---
+function waterPool(tx, ty, tw, th) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: (th || 2) * TILE, wavePhase: Math.random() * Math.PI * 2 };
+}
+
+// --- Enemy Drone Constructor (Feature 2) ---
+function enemyDrone(tx, ty, patrolX1, patrolX2, patrolY) {
+    return { x: tx * TILE, y: ty * TILE, w: 14, h: 14, patrolX1: patrolX1 * TILE, patrolX2: patrolX2 * TILE, patrolY: (patrolY || ty) * TILE, speed: 1.5, chaseRange: 60, alertTimer: 0, dir: 1, glowPhase: Math.random() * Math.PI * 2 };
+}
+
+// ---------- FEATURE: SLOW-MOTION / BULLET-TIME (Feature 1) ----------
+let totalSlowMoUses = 0;
+
+function activateSlowMotion() {
+    if (slowMotionCooldown > 0 || slowMotionActive) return;
+    if (getPlayerLevel() < 6) return; // requires XP level 6
+    slowMotionActive = true;
+    slowMotionTimer = SLOWMO_DURATION;
+    playSound('slowmo');
+    totalSlowMoUses++;
+    try { localStorage.setItem('parkour_slowmo_uses', totalSlowMoUses); } catch(e) {}
+    spawnFloatingText('SLOW-MO!', player.x + player.w / 2, player.y - 40, '#4488ff', 20);
+}
+
+function updateSlowMotion(dt) {
+    if (slowMotionActive) {
+        slowMotionTimer -= 1; // real-time frames, not scaled
+        if (slowMotionTimer <= 0) {
+            slowMotionActive = false;
+            slowMotionCooldown = SLOWMO_COOLDOWN;
+        }
+    }
+    if (slowMotionCooldown > 0) {
+        slowMotionCooldown -= 1;
+    }
+}
+
+// ---------- FEATURE: ENEMY DRONES (Feature 2) ----------
+let droneAlertTriggered = false;
+
+function updateEnemyDrones(dt) {
+    const px = player.x + player.w / 2;
+    const py = player.y + player.h / 2;
+    for (const d of enemyDrones) {
+        // Patrol movement
+        d.x += d.speed * d.dir * dt;
+        if (d.x <= d.patrolX1 || d.x >= d.patrolX2) d.dir *= -1;
+        d.glowPhase += 0.05 * dt;
+        // Chase player within range
+        const dx = px - d.x;
+        const dy = py - d.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < d.chaseRange * 2) {
+            d.x += (dx / dist) * d.speed * 0.8 * dt;
+            d.y += (dy / dist) * d.speed * 0.5 * dt;
+            if (d.alertTimer <= 0) {
+                d.alertTimer = 60;
+                playSound('drone_detect');
+                droneAlertTriggered = true;
+            }
+        }
+        d.alertTimer = Math.max(0, d.alertTimer - dt);
+        // Kill on contact
+        if (dist < 18 && gameState === 'playing') {
+            killPlayer();
+            return;
+        }
+    }
+}
+
+function drawEnemyDrones() {
+    for (const d of enemyDrones) {
+        const sx = d.x - camera.x;
+        const sy = d.y - camera.y;
+        if (sx < -30 || sx > canvasW + 30 || sy < -30 || sy > canvasH + 30) continue;
+        // Pulsing red glow
+        const pulse = 0.3 + Math.sin(d.glowPhase) * 0.2;
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath(); ctx.arc(sx, sy, 18, 0, Math.PI * 2); ctx.fill();
+        // Body
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ff2222';
+        ctx.beginPath(); ctx.arc(sx, sy, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff6666';
+        ctx.beginPath(); ctx.arc(sx - 2, sy - 2, 3, 0, Math.PI * 2); ctx.fill();
+        // Alert indicator
+        if (d.alertTimer > 0) {
+            ctx.font = 'bold 14px monospace';
+            ctx.fillStyle = '#ff0000';
+            ctx.textAlign = 'center';
+            ctx.fillText('!', sx, sy - 16);
+        }
+    }
+    ctx.globalAlpha = 1;
+}
+
+// ---------- FEATURE: WALL SPIKE TRAPS (Feature 3) ----------
+function updateWallSpikes(dt) {
+    for (const ws of wallSpikes) {
+        ws.timer += dt;
+        const cycle = ws.onTime + ws.offTime;
+        const phase = ws.timer % cycle;
+        ws.extended = phase < ws.onTime;
+        // Kill player when extended
+        if (ws.extended && gameState === 'playing') {
+            const spikeBox = ws.dir === 1 ?
+                { x: ws.x, y: ws.y, w: ws.w + 8, h: ws.h } :
+                { x: ws.x - 8, y: ws.y, w: ws.w + 8, h: ws.h };
+            if (aabb({ x: player.x, y: player.y, w: player.w, h: player.h }, spikeBox)) {
+                killPlayer();
+            }
+        }
+    }
+}
+
+function drawWallSpikes() {
+    for (const ws of wallSpikes) {
+        const sx = ws.x - camera.x;
+        const sy = ws.y - camera.y;
+        if (sx < -40 || sx > canvasW + 40 || sy + ws.h < 0 || sy > canvasH) continue;
+        const ext = ws.extended ? 1 : 0.2;
+        ctx.fillStyle = '#aa3333';
+        if (ws.dir === 1) {
+            ctx.fillRect(sx, sy, ws.w * ext + 8 * ext, ws.h);
+            // Spike tips
+            for (let i = 0; i < ws.h; i += 8) {
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.moveTo(sx + ws.w * ext + 8 * ext, sy + i);
+                ctx.lineTo(sx + ws.w * ext + 8 * ext + 6 * ext, sy + i + 4);
+                ctx.lineTo(sx + ws.w * ext + 8 * ext, sy + i + 8);
+                ctx.fill();
+            }
+        } else {
+            ctx.fillRect(sx - 8 * ext, sy, ws.w * ext + 8 * ext, ws.h);
+            for (let i = 0; i < ws.h; i += 8) {
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.moveTo(sx - 8 * ext, sy + i);
+                ctx.lineTo(sx - 8 * ext - 6 * ext, sy + i + 4);
+                ctx.lineTo(sx - 8 * ext, sy + i + 8);
+                ctx.fill();
+            }
+        }
+        // Colorblind symbol
+        if (gameSettings.colorblind && ws.extended) {
+            ctx.font = 'bold 10px monospace';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText('!', sx + ws.w / 2, sy + ws.h / 2 + 4);
+        }
+    }
+}
+
+// ---------- FEATURE: WATER/LIQUID POOLS (Feature 10) ----------
+let playerInWater = false;
+
+function updateWaterPools(dt) {
+    playerInWater = false;
+    const pBox = { x: player.x, y: player.y, w: player.w, h: player.h };
+    for (const wp of waterPools) {
+        wp.wavePhase += 0.03 * dt;
+        if (aabb(pBox, wp)) {
+            playerInWater = true;
+        }
+    }
+}
+
+function drawWaterPools() {
+    for (const wp of waterPools) {
+        const sx = wp.x - camera.x;
+        const sy = wp.y - camera.y;
+        if (sx + wp.w < 0 || sx > canvasW || sy + wp.h < 0 || sy > canvasH) continue;
+        // Water body
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = '#2266cc';
+        ctx.fillRect(sx, sy, wp.w, wp.h);
+        // Animated sin-wave surface
+        ctx.globalAlpha = 0.6;
+        ctx.strokeStyle = '#44aaff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let x = 0; x <= wp.w; x += 4) {
+            const waveY = Math.sin(wp.wavePhase + x * 0.08) * 3;
+            if (x === 0) ctx.moveTo(sx + x, sy + waveY);
+            else ctx.lineTo(sx + x, sy + waveY);
+        }
+        ctx.stroke();
+        // Bubbles
+        ctx.fillStyle = '#88ccff';
+        for (let i = 0; i < 3; i++) {
+            const bx = sx + (wp.w * (i + 1)) / 4;
+            const by = sy + wp.h * 0.5 + Math.sin(wp.wavePhase * 2 + i) * wp.h * 0.3;
+            ctx.beginPath(); ctx.arc(bx, by, 2, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
+// ---------- FEATURE: CHECKPOINT CHALLENGE ORBS (Feature 5) ----------
+function spawnCheckpointChallengeOrbs(cp) {
+    const baseX = cp.x + cp.w / 2;
+    const baseY = cp.y - TILE * 2;
+    for (let i = 0; i < 3; i++) {
+        checkpointChallengeOrbs.push({
+            x: baseX + (i - 1) * TILE * 1.5,
+            y: baseY,
+            r: 6,
+            collected: false,
+            checkpointX: cp.x,
+            bobPhase: Math.random() * Math.PI * 2
+        });
+    }
+}
+
+function drawCheckpointChallengeOrbs() {
+    for (const o of checkpointChallengeOrbs) {
+        if (o.collected) continue;
+        const sx = o.x - camera.x;
+        const sy = o.y - camera.y + Math.sin(Date.now() * 0.005 + o.bobPhase) * 3;
+        // Gold glow
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath(); ctx.arc(sx, sy, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffaa00';
+        ctx.beginPath(); ctx.arc(sx, sy, o.r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(sx - 1, sy - 1, 2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+}
+
+function checkChallengeOrbCollision() {
+    let allCollected = true;
+    let anyHere = false;
+    for (const o of checkpointChallengeOrbs) {
+        if (o.collected) continue;
+        anyHere = true;
+        const dx = (player.x + player.w / 2) - o.x;
+        const dy = (player.y + player.h / 2) - o.y;
+        if (Math.sqrt(dx * dx + dy * dy) < o.r + 12) {
+            o.collected = true;
+            playSound('orb');
+            spawnParticles(o.x, o.y, 6, '#ffd700', 3, 1);
+        } else {
+            allCollected = false;
+        }
+    }
+    if (anyHere && allCollected && checkpointChallengeOrbs.length > 0) {
+        perfectSections++;
+        spawnFloatingText('PERFECT SECTION! +50 XP +20 orbs', player.x + player.w / 2, player.y - 60, '#ffd700', 18);
+        addXP(50);
+        totalOrbs += 20;
+        try { localStorage.setItem('parkour_total_orbs', totalOrbs); } catch(e) {}
+    }
+}
+
+// ---------- FEATURE: SCREEN-EDGE DEATH PULSE (Feature 8) ----------
+function updateDeathPulse() {
+    let minDist = Infinity;
+    const px = player.x + player.w / 2;
+    const py = player.y + player.h / 2;
+    for (const sp of spikes) {
+        const dx = Math.abs(px - (sp.x + sp.w / 2));
+        const dy = Math.abs(py - (sp.y + sp.h / 2));
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < minDist) minDist = d;
+    }
+    for (const lb of laserBeams) {
+        if (lb.active) {
+            const dx = Math.abs(px - (lb.x + lb.w / 2));
+            const dy = Math.abs(py - (lb.y + lb.h / 2));
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < minDist) minDist = d;
+        }
+    }
+    for (const d of enemyDrones) {
+        const dd = Math.sqrt((px - d.x) ** 2 + (py - d.y) ** 2);
+        if (dd < minDist) minDist = dd;
+    }
+    deathPulseIntensity = minDist < 60 ? (1 - minDist / 60) : 0;
+}
+
+function drawDeathPulse() {
+    if (deathPulseIntensity <= 0 || gameState !== 'playing') return;
+    const freq = 2 + deathPulseIntensity * 6;
+    const pulse = (Math.sin(Date.now() * 0.001 * freq) * 0.5 + 0.5) * deathPulseIntensity;
+    const grad = ctx.createRadialGradient(canvasW / 2, canvasH / 2, canvasW * 0.3, canvasW / 2, canvasH / 2, canvasW * 0.7);
+    grad.addColorStop(0, 'rgba(255, 0, 0, 0)');
+    grad.addColorStop(1, 'rgba(255, 0, 0, ' + (pulse * 0.25) + ')');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+}
+
+// ---------- FEATURE: LEVEL TRANSITION FANFARE (Feature 9) ----------
+function startCompleteAnim() {
+    completeAnimState = { timer: 60, zoomStart: cameraZoom }; // 1s at 60fps
+    playSound('victory_fanfare');
+}
+
+function updateCompleteAnim(dt) {
+    if (!completeAnimState) return false;
+    completeAnimState.timer -= dt;
+    if (completeAnimState.timer <= 0) {
+        completeAnimState = null;
+        return true; // done
+    }
+    // Zoom toward goal
+    const progress = 1 - completeAnimState.timer / 60;
+    cameraZoom = completeAnimState.zoomStart + progress * 0.15;
+    // Spawn confetti
+    if (Math.random() < 0.3 * dt) {
+        spawnParticles(
+            player.x + (Math.random() - 0.5) * 100,
+            player.y - 40 + Math.random() * 20,
+            2, ['#ffd700', '#ff4081', '#00e5ff'][Math.floor(Math.random() * 3)], 4, 1
+        );
+    }
+    return false;
+}
+
+// ---------- FEATURE: PHOTO MODE (Feature 11) ----------
+function enterPhotoMode() {
+    if (gameState !== 'playing' && gameState !== 'paused') return;
+    gameState = 'photo';
+    photoCamera = { x: camera.x, y: camera.y, zoom: cameraZoom, rotation: 0 };
+    photoControlsShown = true;
+    stopMusic(true);
+}
+
+function exitPhotoMode() {
+    gameState = 'playing';
+    photoControlsShown = false;
+    camera.x = photoCamera.x;
+    camera.y = photoCamera.y;
+    startMusic();
+}
+
+function updatePhotoMode() {
+    const speed = 5;
+    if (keys['ArrowLeft'] || keys['KeyA']) photoCamera.x -= speed;
+    if (keys['ArrowRight'] || keys['KeyD']) photoCamera.x += speed;
+    if (keys['ArrowUp'] || keys['KeyW']) photoCamera.y -= speed;
+    if (keys['ArrowDown'] || keys['KeyS']) photoCamera.y += speed;
+    if (keys['Equal'] || keys['NumpadAdd']) photoCamera.zoom = Math.min(3, photoCamera.zoom + 0.02);
+    if (keys['Minus'] || keys['NumpadSubtract']) photoCamera.zoom = Math.max(0.3, photoCamera.zoom - 0.02);
+    if (keys['BracketLeft']) photoCamera.rotation -= 0.02;
+    if (keys['BracketRight']) photoCamera.rotation += 0.02;
+}
+
+function drawPhotoModeUI() {
+    if (!photoControlsShown) return;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(10, 10, 220, 130);
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = '#00e5ff';
+    ctx.textAlign = 'left';
+    ctx.fillText('PHOTO MODE', 20, 30);
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#ccc';
+    ctx.fillText('Arrows/WASD: Pan', 20, 48);
+    ctx.fillText('+/-: Zoom', 20, 62);
+    ctx.fillText('[/]: Rotate', 20, 76);
+    ctx.fillText('F3: Save Screenshot', 20, 90);
+    ctx.fillText('F2/ESC: Exit', 20, 104);
+    ctx.fillText('Zoom: ' + photoCamera.zoom.toFixed(2) + 'x', 20, 124);
+    ctx.restore();
+}
+
+function saveScreenshot() {
+    const link = document.createElement('a');
+    link.download = 'parkour_rush_' + Date.now() + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    spawnFloatingText('SCREENSHOT SAVED!', canvasW / 2, 60, '#00e5ff', 18);
+}
+
+// ---------- FEATURE: RUN SHARE CODES (Feature 12) ----------
+function encodeRunShareCode(levelIndex) {
+    if (!ghostRecording || ghostRecording.length === 0) return null;
+    // Delta-compress: store first frame absolute, then deltas
+    const frames = ghostRecording;
+    const deltas = [{ x: Math.round(frames[0].x), y: Math.round(frames[0].y) }];
+    for (let i = 1; i < frames.length; i++) {
+        deltas.push({
+            dx: Math.round(frames[i].x - frames[i - 1].x),
+            dy: Math.round(frames[i].y - frames[i - 1].y)
+        });
+    }
+    const json = JSON.stringify(deltas);
+    const code = 'PR:L' + levelIndex + ':V1:' + btoa(json);
+    return code;
+}
+
+function decodeRunShareCode(code) {
+    try {
+        const parts = code.split(':');
+        if (parts[0] !== 'PR') return null;
+        const levelIndex = parseInt(parts[1].replace('L', ''));
+        const data = JSON.parse(atob(parts[3]));
+        // Reconstruct frames
+        const frames = [{ x: data[0].x, y: data[0].y }];
+        for (let i = 1; i < data.length; i++) {
+            frames.push({
+                x: frames[i - 1].x + (data[i].dx || 0),
+                y: frames[i - 1].y + (data[i].dy || 0)
+            });
+        }
+        return { level: levelIndex, replay: frames };
+    } catch (e) {
+        return null;
+    }
+}
+
+function copyShareCode() {
+    const code = encodeRunShareCode(currentLevel);
+    if (!code) { spawnFloatingText('No run to share!', canvasW / 2, 60, '#ff4444', 16); return; }
+    navigator.clipboard.writeText(code).then(() => {
+        spawnFloatingText('SHARE CODE COPIED!', player.x + player.w / 2, player.y - 50, '#00e5ff', 18);
+        unlockAchievement('share_the_rush');
+    }).catch(() => {
+        spawnFloatingText('Copy failed', canvasW / 2, 60, '#ff4444', 16);
+    });
+}
+
+// ---------- FEATURE: LOCAL LEADERBOARD (Feature 13) ----------
+function addLeaderboardEntry(levelIndex, time) {
+    if (!localLeaderboard[levelIndex]) localLeaderboard[levelIndex] = [];
+    localLeaderboard[levelIndex].push({ time, difficulty, date: new Date().toISOString().split('T')[0] });
+    localLeaderboard[levelIndex].sort((a, b) => a.time - b.time);
+    if (localLeaderboard[levelIndex].length > 5) localLeaderboard[levelIndex] = localLeaderboard[levelIndex].slice(0, 5);
+    try { localStorage.setItem('parkour_leaderboard', JSON.stringify(localLeaderboard)); } catch(e) {}
+}
+
+// ---------- FEATURE: PRESTIGE COSMETICS (Feature 16) ----------
+function getPrestigeEffects() {
+    return {
+        goldenOutline: prestigeCount >= 1,
+        rainbowTrail: prestigeCount >= 2,
+        halo: prestigeCount >= 3,
+        voidSkin: prestigeCount >= 5
+    };
+}
+
+function drawPrestigeEffects() {
+    const effects = getPrestigeEffects();
+    const sx = player.x - camera.x + player.w / 2;
+    const sy = player.y - camera.y;
+    if (effects.goldenOutline) {
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.6 + Math.sin(Date.now() * 0.003) * 0.2;
+        ctx.strokeRect(player.x - camera.x - 2, sy - 2, player.w + 4, player.h + 4);
+        ctx.globalAlpha = 1;
+    }
+    if (effects.halo) {
+        ctx.globalAlpha = 0.4 + Math.sin(Date.now() * 0.004) * 0.2;
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy - 6, 10, 4, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+}
+
+// ---------- FEATURE: XP LEVEL-UP CINEMATICS (Feature 17) ----------
+function startLevelUpAnim(newLevel) {
+    levelUpAnimState = { timer: LEVELUP_ANIM_DURATION, level: newLevel, ability: null };
+    // Check if new ability unlocked
+    const abilities = { 3: 'Double Jump', 5: 'Ground Pound', 6: 'Slow-Motion', 7: 'Speed Burst', 8: 'Wall Run', 9: 'Air Stall' };
+    if (abilities[newLevel]) levelUpAnimState.ability = abilities[newLevel];
+}
+
+function updateLevelUpAnim(dt) {
+    if (!levelUpAnimState) return;
+    levelUpAnimState.timer -= dt;
+    if (levelUpAnimState.timer <= 0) levelUpAnimState = null;
+}
+
+function drawLevelUpAnim() {
+    if (!levelUpAnimState) return;
+    const progress = 1 - levelUpAnimState.timer / LEVELUP_ANIM_DURATION;
+    // Fullscreen flash
+    if (progress < 0.1) {
+        ctx.globalAlpha = (1 - progress / 0.1) * 0.5;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvasW, canvasH);
+    }
+    // Scale-in text
+    const scale = progress < 0.2 ? progress / 0.2 * 1.2 : progress < 0.3 ? 1.2 - (progress - 0.2) / 0.1 * 0.2 : 1;
+    ctx.save();
+    ctx.translate(canvasW / 2, canvasH / 2 - 20);
+    ctx.scale(scale, scale);
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#00ff88';
+    ctx.globalAlpha = Math.min(1, progress * 5) * (levelUpAnimState.timer > 20 ? 1 : levelUpAnimState.timer / 20);
+    ctx.fillText('LEVEL ' + levelUpAnimState.level, 0, 0);
+    if (levelUpAnimState.ability) {
+        ctx.font = 'bold 20px monospace';
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText('NEW: ' + levelUpAnimState.ability.toUpperCase(), 0, 40);
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    // Confetti
+    if (Math.random() < 0.2) {
+        spawnParticles(Math.random() * canvasW + camera.x, Math.random() * canvasH * 0.5 + camera.y, 1, ['#ffd700', '#ff4081', '#00e5ff', '#00ff88'][Math.floor(Math.random() * 4)], 4, 1);
+    }
+}
+
+// ---------- FEATURE: ENHANCED DAILY LOGIN POPUP (Feature 15) ----------
+function showDailyLoginPopup(streak, reward) {
+    dailyLoginPopupShown = true;
+    const overlay = document.createElement('div');
+    overlay.id = 'daily-login-popup';
+    overlay.className = 'overlay';
+    overlay.style.zIndex = '250';
+    overlay.innerHTML =
+        '<h2 style="color:#ffd700">DAILY LOGIN</h2>' +
+        '<p style="font-size:2rem">Day ' + streak + '</p>' +
+        '<p style="color:#ffd700;font-size:1.2rem">+' + reward + ' Orbs</p>' +
+        (streak >= 7 ? '<p style="color:#ff4081">GOLD STAR BADGE!</p>' : '') +
+        (streak >= 3 ? '<p style="color:#00e5ff">STREAK BONUS!</p>' : '') +
+        '<button class="menu-btn primary" id="btn-claim-daily" style="margin-top:16px">CLAIM</button>';
+    document.body.appendChild(overlay);
+    document.getElementById('btn-claim-daily').addEventListener('click', () => {
+        playSound('orb');
+        overlay.remove();
+        if (streak >= 3) unlockAchievement('daily_7'); // Day 3 achievement
+        if (streak >= 7) unlockAchievement('daily_7');
+    });
+}
+
+// ---------- FEATURE: PRACTICE REWIND (Feature 25) ----------
+function practiceRewind() {
+    if (!practiceMode || deathReplayBuffer.length < 2) return;
+    // Go back ~1 second (60 frames)
+    const rewindFrames = Math.min(60, deathReplayBuffer.length - 1);
+    const targetFrame = deathReplayBuffer[deathReplayBuffer.length - 1 - rewindFrames];
+    if (targetFrame) {
+        player.x = targetFrame.x;
+        player.y = targetFrame.y;
+        player.vx = 0;
+        player.vy = 0;
+        player.onGround = false;
+        // Trim buffer
+        deathReplayBuffer = deathReplayBuffer.slice(0, deathReplayBuffer.length - rewindFrames);
+        spawnFloatingText('REWIND!', player.x + player.w / 2, player.y - 30, '#ff8800', 16);
+        playSound('click');
+    }
+}
+
+// ---------- FEATURE: PB CHECKPOINT SPLITS (Feature 26) ----------
+// (Enhanced in existing recordSplit function)
+
+// ---------- FEATURE: ONE-HAND MODE (Feature 27) ----------
+function updateOneHandMode() {
+    if (!oneHandMode) return;
+    // Auto-run right
+    keys['KeyD'] = true;
+    keys['ArrowRight'] = true;
+}
+
+// ---------- FEATURE: COLORBLIND HAZARD SYMBOLS (Feature 28) ----------
+function drawColorblindSymbols() {
+    if (!gameSettings.colorblind) return;
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Spikes: !
+    for (const sp of spikes) {
+        const sx = sp.x + sp.w / 2 - camera.x;
+        const sy = sp.y + sp.h / 2 - camera.y;
+        if (sx > -20 && sx < canvasW + 20 && sy > -20 && sy < canvasH + 20) {
+            ctx.fillText('!', sx, sy);
+        }
+    }
+    // Lasers: X
+    for (const lb of laserBeams) {
+        if (lb.active) {
+            const sx = lb.x + lb.w / 2 - camera.x;
+            const sy = lb.y + lb.h / 2 - camera.y;
+            if (sx > -20 && sx < canvasW + 20 && sy > -20 && sy < canvasH + 20) {
+                ctx.fillText('X', sx, sy);
+            }
+        }
+    }
+    // Wind: ~
+    for (const wz of windZones) {
+        const sx = wz.x + wz.w / 2 - camera.x;
+        const sy = wz.y + wz.h / 2 - camera.y;
+        if (sx > -20 && sx < canvasW + 20 && sy > -20 && sy < canvasH + 20) {
+            ctx.fillText('~', sx, sy);
+        }
+    }
+    // Drones: *
+    for (const d of enemyDrones) {
+        const sx = d.x - camera.x;
+        const sy = d.y - camera.y;
+        if (sx > -20 && sx < canvasW + 20 && sy > -20 && sy < canvasH + 20) {
+            ctx.fillText('*', sx, sy);
+        }
+    }
+}
+
+// ---------- FEATURE: PLAYER EMOTES (Feature 30) ----------
+function startEmote(type) {
+    if (gameState !== 'playing' || !player.onGround || Math.abs(player.vx) > 0.5) return;
+    if (emoteActive) return;
+    emoteActive = true;
+    emoteType = type;
+    emoteFrame = 0;
+    playSound('emote');
+}
+
+function updateEmote(dt) {
+    if (!emoteActive) return;
+    emoteFrame += dt;
+    if (emoteFrame >= EMOTE_DURATION) {
+        emoteActive = false;
+        emoteType = null;
+        emoteFrame = 0;
+    }
+}
+
+function drawEmote() {
+    if (!emoteActive || !emoteType) return;
+    const sx = player.x - camera.x + player.w / 2;
+    const sy = player.y - camera.y - 20;
+    const progress = emoteFrame / EMOTE_DURATION;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = progress < 0.8 ? 1 : (1 - progress) / 0.2;
+    if (emoteType === 'wave') {
+        const angle = Math.sin(progress * Math.PI * 4) * 0.3;
+        ctx.rotate(angle);
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText('o/', 0, 0);
+    } else if (emoteType === 'flex') {
+        const scale = 1 + Math.sin(progress * Math.PI * 2) * 0.2;
+        ctx.scale(scale, scale);
+        ctx.fillStyle = '#ff4081';
+        ctx.fillText('FLEX', 0, 0);
+    } else if (emoteType === 'spin') {
+        ctx.rotate(progress * Math.PI * 4);
+        ctx.fillStyle = '#00e5ff';
+        ctx.fillText('*', 0, 0);
+    } else if (emoteType === 'sit') {
+        ctx.fillStyle = '#88ff88';
+        ctx.fillText('~', 0, 0);
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+}
+
+// ---------- FEATURE: EDITOR LEVEL SHARING (Feature 23) ----------
+function exportEditorLevel() {
+    const data = { v: 1, spawn: editorSpawn, goal: editorGoal, objects: editorObjects };
+    const json = JSON.stringify(data);
+    navigator.clipboard.writeText(json).then(() => {
+        spawnFloatingText('LEVEL COPIED TO CLIPBOARD!', canvasW / 2, 60, '#00e5ff', 16);
+    }).catch(() => {
+        // Fallback: show in prompt
+        prompt('Copy this level code:', json);
+    });
+}
+
+function importEditorLevel(code) {
+    try {
+        const data = JSON.parse(code);
+        if (data.spawn && data.goal && data.objects) {
+            editorSpawn = data.spawn;
+            editorGoal = data.goal;
+            editorObjects = data.objects;
+            playSound('checkpoint');
+            return true;
+        }
+    } catch (e) {}
+    return false;
+}
+
 // ---------- LEVEL DEFINITIONS ----------
 const LEVELS = [
     // ----- LEVEL 1: Tutorial Run (learn to move & jump) -----
@@ -3158,6 +4219,11 @@ const LEVELS = [
         checkpoints = [
             checkpoint(42, 16),
         ];
+        // Feature 3: Wall spike traps in level 6+
+        wallSpikes = [
+            wallSpike(40, 15, 3, 1, 30, 90),
+            wallSpike(80, 15, 3, -1, 30, 90),
+        ];
     },
 
     // ----- LEVEL 7: Wall Climb Challenge -----
@@ -3199,6 +4265,13 @@ const LEVELS = [
         checkpoints = [
             checkpoint(34, 16),
         ];
+        // Feature 3: Wall spike traps
+        wallSpikes = [
+            wallSpike(12, 12, 2, 1, 30, 90),
+            wallSpike(15, 12, 2, -1, 30, 90),
+            wallSpike(40, 12, 2, 1, 25, 80),
+            wallSpike(43, 12, 2, -1, 25, 80),
+        ];
     },
 
     // ----- LEVEL 8: Boost Rush -----
@@ -3237,6 +4310,11 @@ const LEVELS = [
         fallingPlatforms = [];
         checkpoints = [
             checkpoint(45, 16),
+        ];
+        // Feature 2: Enemy drones in level 8+
+        enemyDrones = [
+            enemyDrone(35, 12, 30, 42, 12),
+            enemyDrone(87, 14, 82, 94, 14),
         ];
     },
 
@@ -3283,6 +4361,15 @@ const LEVELS = [
         ];
         checkpoints = [
             checkpoint(56, 16),
+        ];
+        // Feature 2: Enemy drones
+        enemyDrones = [
+            enemyDrone(25, 12, 20, 35, 12),
+            enemyDrone(75, 10, 68, 82, 10),
+        ];
+        // Feature 3: Wall spikes
+        wallSpikes = [
+            wallSpike(10, 14, 3, 1, 25, 80),
         ];
     },
 
@@ -3338,6 +4425,18 @@ const LEVELS = [
         checkpoints = [
             checkpoint(56, 16),
             checkpoint(93, 16),
+        ];
+        // Feature 2: Enemy drones
+        enemyDrones = [
+            enemyDrone(40, 10, 35, 50, 10),
+            enemyDrone(80, 8, 74, 88, 8),
+            enemyDrone(115, 12, 108, 122, 12),
+        ];
+        // Feature 3: Wall spikes
+        wallSpikes = [
+            wallSpike(49, 12, 3, 1, 20, 70),
+            wallSpike(52, 12, 3, -1, 20, 70),
+            wallSpike(86, 12, 3, 1, 20, 70),
         ];
     },
 
@@ -3775,6 +4874,71 @@ const LEVELS = [
         fallingPlatforms = [falling(92, 16, 3, 1), falling(128, 15, 3, 1)];
         boostPads = [boost(25, 17, 2, 1), boost(105, 17, 2, 1), boost(170, 17, 2, 1)];
         checkpoints = [checkpoint(45, 16), checkpoint(100, 16), checkpoint(150, 16)];
+    },
+
+    // ----- LEVEL 21: BOSS - Spike Wall Chase -----
+    function() {
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = goal(180, 17);
+        bossMode = true;
+        bossState = { type: 'spike_wall', x: -2 * TILE, y: 0, w: 3 * TILE, h: WORLD_H * TILE, hp: 1, phase: 0, timer: 0 };
+        platforms = [
+            plat(0, 18, 10, 2), plat(15, 18, 6, 2), plat(25, 16, 5, 1),
+            plat(35, 18, 6, 2), plat(45, 14, 4, 1), plat(55, 18, 8, 2),
+            plat(68, 16, 5, 1), plat(78, 18, 6, 2), plat(90, 14, 5, 1),
+            plat(100, 18, 8, 2), plat(115, 16, 5, 1), plat(125, 18, 6, 2),
+            plat(138, 14, 4, 1), plat(148, 18, 8, 2), plat(163, 16, 5, 1),
+            plat(173, 18, 12, 2),
+        ];
+        spikes = [spike(12, 19, 170, 1)];
+        walls = [wall(22, 10, 8), wall(62, 10, 8), wall(112, 10, 8), wall(158, 10, 8)];
+        boostPads = [boost(40, 17, 2, 1), boost(85, 17, 2, 1), boost(130, 17, 2, 1)];
+        checkpoints = [checkpoint(55, 16), checkpoint(100, 16), checkpoint(150, 16)];
+        movingPlatforms = [];
+        fallingPlatforms = [];
+    },
+
+    // ----- LEVEL 22: BOSS - Rising Lava -----
+    function() {
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = goal(50, 2);
+        bossMode = true;
+        bossState = { type: 'rising_lava', x: 0, y: WORLD_H * TILE, w: WORLD_W * TILE, hp: 1, phase: 0, timer: 0 };
+        platforms = [
+            plat(0, 18, 10, 2), plat(5, 14, 4, 1), plat(15, 16, 4, 1),
+            plat(12, 12, 5, 1), plat(22, 14, 4, 1), plat(20, 10, 5, 1),
+            plat(30, 12, 4, 1), plat(28, 8, 5, 1), plat(35, 6, 4, 1),
+            plat(40, 10, 4, 1), plat(38, 4, 6, 1), plat(45, 2, 10, 2),
+        ];
+        walls = [wall(10, 6, 12), wall(13, 6, 12), wall(25, 4, 14), wall(28, 4, 14), wall(37, 2, 8), wall(40, 2, 8)];
+        spikes = [spike(15, 11, 3, 1), spike(30, 7, 3, 1)];
+        bouncePads = [bouncePad(8, 17, 2)];
+        checkpoints = [checkpoint(20, 9), checkpoint(35, 5)];
+        movingPlatforms = [];
+        fallingPlatforms = [falling(18, 13, 3, 1), falling(32, 9, 3, 1)];
+        boostPads = [];
+    },
+
+    // ----- LEVEL 23: BOSS - Laser Drone Arena -----
+    function() {
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = goal(120, 17);
+        bossMode = true;
+        bossState = { type: 'laser_drone', x: 60 * TILE, y: 4 * TILE, w: 16, h: 16, hp: 1, phase: 0, timer: 0 };
+        platforms = [
+            plat(0, 18, 12, 2), plat(20, 18, 6, 2), plat(30, 14, 4, 1),
+            plat(38, 18, 8, 2), plat(52, 16, 5, 1), plat(62, 18, 8, 2),
+            plat(76, 14, 4, 1), plat(85, 18, 8, 2), plat(100, 16, 5, 1),
+            plat(110, 18, 15, 2),
+        ];
+        spikes = [spike(14, 19, 100, 1), spike(48, 17, 3, 1), spike(72, 17, 3, 1)];
+        walls = [wall(17, 10, 8), wall(58, 10, 8), wall(95, 10, 8)];
+        bouncePads = [bouncePad(25, 17, 2), bouncePad(70, 17, 2)];
+        enemyDrones = [enemyDrone(45, 8, 40, 55, 8), enemyDrone(80, 6, 75, 90, 6)];
+        checkpoints = [checkpoint(38, 16), checkpoint(85, 16)];
+        movingPlatforms = [moving(48, 12, 4, 1, 0, 1, 0.6, 3)];
+        fallingPlatforms = [];
+        boostPads = [];
     },
 ];
 
@@ -4575,6 +5739,24 @@ function loadLevel(index) {
     crumblingWalls = [];
     ziplines = [];
     windZones = [];
+    // Reset new feature arrays
+    enemyDrones = [];
+    wallSpikes = [];
+    waterPools = [];
+    checkpointChallengeOrbs = [];
+    perfectSections = 0;
+    droneAlertTriggered = false;
+    currentSplitIndex = 0;
+    slowMotionActive = false;
+    slowMotionTimer = 0;
+    slowMotionCooldown = 0;
+    emoteActive = false;
+    emoteType = null;
+    emoteFrame = 0;
+    completeAnimState = null;
+    levelUpAnimState = null;
+    playerInWater = false;
+    deathPulseIntensity = 0;
     // Reset abilities
     doubleJumpUsed = false;
     groundPoundActive = false;
@@ -4798,12 +5980,17 @@ function updatePlayer(dt) {
     // Track distance for run animation
     playerDistTraveled += Math.abs(p.vx) * s;
 
-    // Footstep sounds
+    // Footstep sounds (Feature 6, 20: surface-specific)
     if (p.onGround && Math.abs(p.vx) > 1) {
         footstepDist += Math.abs(p.vx) * s;
         if (footstepDist >= 12) {
             footstepDist = 0;
-            playSound('footstep');
+            // Detect surface type for sound variation
+            const footBox = { x: p.x, y: p.y + p.h, w: p.w, h: 2 };
+            let surfaceSound = 'footstep';
+            for (const ip of icePlatforms) { if (aabb(footBox, ip)) { surfaceSound = 'footstep_ice'; break; } }
+            for (const cb of conveyorBelts) { if (aabb(footBox, cb)) { surfaceSound = 'footstep_conveyor'; break; } }
+            playSound(surfaceSound);
             // Running dust particles (every ~8px)
             if (gameSettings.particles) {
                 spawnParticles(p.x + p.w / 2, p.y + p.h, 1, '#888', 2, 0.3);
@@ -5171,9 +6358,14 @@ function updatePlayer(dt) {
                 for (const mp of movingPlatforms) {
                     if (mp === sol) p.ridingPlatform = mp;
                 }
-                // Landing effects
+                // Landing effects (Feature 6: per-surface landing sounds)
                 if (!p.wasOnGround) {
-                    playSound('land');
+                    let landSound = 'land_stone';
+                    const landBox = { x: p.x, y: p.y + p.h, w: p.w, h: 2 };
+                    for (const ip of icePlatforms) { if (aabb(landBox, ip)) { landSound = 'land_ice'; break; } }
+                    for (const cb of conveyorBelts) { if (aabb(landBox, cb)) { landSound = 'land_conveyor'; break; } }
+                    for (const bp of bouncePads) { if (aabb(landBox, bp)) { landSound = 'land_bounce'; break; } }
+                    playSound(landSound);
                     if (p.vy > 3) {
                         const impactForce = Math.min(p.vy / MAX_FALL, 1);
                         const particleCount = 6 + Math.floor(impactForce * 8);
@@ -5915,6 +7107,19 @@ function drawBoss() {
             ctx.globalAlpha = 1;
         }
     }
+    // Boss HP Bar in HUD
+    const barW = 200, barH = 12;
+    const barX = (canvasW - barW) / 2;
+    const barY = canvasH - 40;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
+    ctx.fillStyle = '#ff2222';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('BOSS', canvasW / 2, barY - 5);
+    ctx.textAlign = 'left';
 }
 
 // ---------- PLAYER TRAIL EFFECTS ----------
@@ -6027,6 +7232,10 @@ function saveProgression() {
         localStorage.setItem('parkour_last_login', lastLoginDate);
         localStorage.setItem('parkour_quick_restart', quickRestart);
         localStorage.setItem('parkour_skipped_levels', JSON.stringify(skippedLevels));
+        localStorage.setItem('parkour_slowmo_uses', totalSlowMoUses);
+        localStorage.setItem('parkour_leaderboard', JSON.stringify(localLeaderboard));
+        localStorage.setItem('parkour_pb_splits', JSON.stringify(pbSplits));
+        localStorage.setItem('parkour_one_hand', oneHandMode);
     } catch(e) {}
 }
 
@@ -6056,6 +7265,12 @@ function loadProgression() {
         quickRestart = localStorage.getItem('parkour_quick_restart') === 'true';
         const sl = localStorage.getItem('parkour_skipped_levels');
         if (sl) skippedLevels = JSON.parse(sl);
+        totalSlowMoUses = parseInt(localStorage.getItem('parkour_slowmo_uses') || '0');
+        const lb = localStorage.getItem('parkour_leaderboard');
+        if (lb) localLeaderboard = JSON.parse(lb);
+        const pbs = localStorage.getItem('parkour_pb_splits');
+        if (pbs) pbSplits = JSON.parse(pbs);
+        oneHandMode = localStorage.getItem('parkour_one_hand') === 'true';
     } catch(e) {}
     // Daily login streak
     checkDailyLogin();
@@ -6080,6 +7295,8 @@ function checkDailyLogin() {
     totalOrbs += streakOrbs;
     try { localStorage.setItem('parkour_total_orbs', totalOrbs); } catch(e) {}
     saveProgression();
+    // Show enhanced daily login popup (Feature 15)
+    setTimeout(() => showDailyLoginPopup(dailyLoginStreak, streakOrbs), 500);
 }
 
 // ---------- COSMETICS SHOP ----------
@@ -6554,6 +7771,10 @@ function completeLevel() {
     gameState = 'complete';
     playSound('victory');
     stopMusic(true);
+    // Feature 9: Level transition fanfare
+    startCompleteAnim();
+    // Feature 13: Local leaderboard
+    if (currentLevel >= 0) addLeaderboardEntry(currentLevel, levelTimer);
 
     const time = levelTimer;
     const prevBest = bestTimes[currentLevel];
@@ -7816,7 +9037,10 @@ function updateMenuStars() {
     const barLen = 10;
     const filled = Math.round(totalStars / maxStars * barLen);
     const bar = '\u2593'.repeat(filled) + '\u2591'.repeat(barLen - filled);
-    el.textContent = '\u2605 ' + totalStars + '/' + maxStars + ' [' + bar + '] ' + pct + '%';
+    let txt = '\u2605 ' + totalStars + '/' + maxStars + ' [' + bar + '] ' + pct + '%';
+    // Feature 16: Prestige badge on menu
+    if (prestigeCount > 0) txt += '  P' + prestigeCount;
+    el.textContent = txt;
 }
 
 // ---------- STATS DASHBOARD ----------
@@ -7961,6 +9185,8 @@ function gameLoop(timestamp) {
     // Cap dtScale to prevent physics explosions
     if (dtScale < 0.5) dtScale = 0.5;
     if (dtScale > 3) dtScale = 3;
+    // Feature 1: Slow-motion time scale
+    if (slowMotionActive && gameState === 'playing') dtScale *= SLOWMO_SCALE;
 
     // FPS tracking
     fpsHistory.push(1000 / Math.max(dt, 1));
@@ -7979,6 +9205,14 @@ function gameLoop(timestamp) {
     // Menu background
     if (currentScreen === 'menu' || currentScreen === 'level' || currentScreen === 'controls' || currentScreen === 'bestrun' || currentScreen === 'difficulty' || currentScreen === 'stats' || currentScreen === 'achievements' || currentScreen === 'settings' || currentScreen === 'skins') {
         drawMenuBackground();
+    }
+
+    // Photo mode (Feature 11)
+    if (gameState === 'photo') {
+        updatePhotoMode();
+        camera.x = photoCamera.x;
+        camera.y = photoCamera.y;
+        cameraZoom = photoCamera.zoom;
     }
 
     // Countdown state — render level but don't update player
@@ -8031,6 +9265,18 @@ function gameLoop(timestamp) {
         updateConfetti(dtScale);
         updateDeathAnim(dtScale);
         updateScarfTrail();
+        // New feature updates
+        updateSlowMotion(dtScale);
+        updateEnemyDrones(dtScale);
+        updateWallSpikes(dtScale);
+        updateWaterPools(dtScale);
+        updateDeathPulse();
+        updateEmote(dtScale);
+        updateLevelUpAnim(dtScale);
+        checkChallengeOrbCollision();
+        if (completeAnimState) updateCompleteAnim(dtScale);
+        if (playerInWater) { player.vx *= 0.6; player.vy *= 0.8; }
+        if (oneHandMode) updateOneHandMode();
 
         // Endless mode
         if (endlessMode) {
@@ -8249,6 +9495,10 @@ function gameLoop(timestamp) {
         drawFallingPlatforms();
         drawBoostPads();
         drawNewBlocks();
+        drawEnemyDrones();
+        drawWallSpikes();
+        drawWaterPools();
+        drawCheckpointChallengeOrbs();
         drawOrbs();
         drawTrailEffect();
         if (gameState === 'replay') {
@@ -8267,9 +9517,14 @@ function gameLoop(timestamp) {
         }
         drawShockwaves();
         drawNearDeathDistortion();
+        drawDeathPulse();
         drawVignette();
         drawScreenFlash();
         drawPostProcessing();
+        drawColorblindSymbols();
+        drawPrestigeEffects();
+        drawEmote();
+        drawLevelUpAnim();
 
         ctx.restore();
 
@@ -8280,6 +9535,25 @@ function gameLoop(timestamp) {
         if (gameState === 'playing') {
             drawProgressBar();
             drawInputDisplay();
+        }
+        if (gameState === 'photo') drawPhotoModeUI();
+        // Feature 1: Slow-mo cooldown ring HUD
+        if (gameState === 'playing' && getPlayerLevel() >= 6) {
+            const hudX = canvasW - 40;
+            const hudY = canvasH - 40;
+            const cdPct = slowMotionActive ? slowMotionTimer / SLOWMO_DURATION : (slowMotionCooldown > 0 ? 1 - slowMotionCooldown / SLOWMO_COOLDOWN : 1);
+            ctx.save();
+            ctx.strokeStyle = slowMotionActive ? '#4488ff' : (slowMotionCooldown > 0 ? '#444' : '#4488ff');
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(hudX, hudY, 14, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cdPct);
+            ctx.stroke();
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = slowMotionActive ? '#4488ff' : (slowMotionCooldown > 0 ? '#666' : '#4488ff');
+            ctx.fillText('Q', hudX, hudY);
+            ctx.restore();
         }
         // Countdown overlay (drawn on top of everything)
         drawCountdown();
@@ -8384,8 +9658,40 @@ document.addEventListener('keydown', (e) => {
         }
     }
 
+    // Feature 1: Slow-motion (Q key)
+    if (e.code === 'KeyQ' && gameState === 'playing') {
+        activateSlowMotion();
+    }
+
+    // Feature 25: Practice rewind (Z key)
+    if (e.code === 'KeyZ' && gameState === 'playing' && practiceMode) {
+        practiceRewind();
+    }
+
+    // Feature 11: Photo mode (F2)
+    if (e.code === 'F2' && (gameState === 'playing' || gameState === 'paused')) {
+        e.preventDefault();
+        enterPhotoMode();
+    }
+    if (e.code === 'F2' && gameState === 'photo') {
+        e.preventDefault();
+        exitPhotoMode();
+    }
+    if (e.code === 'F3' && gameState === 'photo') {
+        e.preventDefault();
+        saveScreenshot();
+    }
+
+    // Feature 30: Player emotes (1-4 while idle)
+    if (e.code === 'Digit1' && gameState === 'playing') startEmote('wave');
+    if (e.code === 'Digit2' && gameState === 'playing') startEmote('flex');
+    if (e.code === 'Digit3' && gameState === 'playing') startEmote('spin');
+    if (e.code === 'Digit4' && gameState === 'playing') startEmote('sit');
+
     if (e.code === 'Escape') {
-        if (gameState === 'replay' || gameState === 'replay_done') {
+        if (gameState === 'photo') {
+            exitPhotoMode();
+        } else if (gameState === 'replay' || gameState === 'replay_done') {
             exitReplayMode();
         } else if (gameState === 'playing' || gameState === 'countdown') {
             const wasCountdown = gameState === 'countdown';
@@ -8731,6 +10037,9 @@ function initEditor() {
             editorCamera.y -= e.clientY - lastRightClick.y;
             lastRightClick = { x: e.clientX, y: e.clientY };
         }
+        // Feature 22: Track mouse for ghost preview
+        editorMouseX = e.offsetX;
+        editorMouseY = e.offsetY;
     });
 
     editorCanvas.addEventListener('mouseup', (e) => {
@@ -8827,7 +10136,16 @@ function editorRenderLoop() {
         moving: '#4a3a6a',
         falling: '#4a3a2a',
         boost: '#ffd700',
-        wall: '#2a3a2a'
+        wall: '#2a3a2a',
+        checkpoint: '#00ffaa',
+        orb: '#ffd700',
+        gravity: '#9933ff',
+        teleporter: '#ff00ff',
+        crumble: '#8B4513',
+        zipline: '#cccc00',
+        drone: '#ff2200',
+        water: '#2288ff',
+        wallspike: '#ff6633'
     };
 
     for (const obj of editorObjects) {
@@ -8862,6 +10180,25 @@ function editorRenderLoop() {
     ectx.fillRect(gX, gY - TILE, TILE * 2, TILE * 2);
     ectx.fillStyle = '#fff';
     ectx.fillText('GOAL', gX, gY - TILE - 4);
+
+    // Feature 22: Editor ghost preview at mouse position
+    if (editorMouseX > 0 && editorMouseY > 0) {
+        const gmx = editorMouseX + editorCamera.x;
+        const gmy = editorMouseY + editorCamera.y;
+        const gtx = Math.floor(gmx / (TILE * 0.5)) * (TILE * 0.5); // snap to half-tile
+        const gty = Math.floor(gmy / (TILE * 0.5)) * (TILE * 0.5);
+        const gsx = gtx - editorCamera.x;
+        const gsy = gty - editorCamera.y;
+        ectx.globalAlpha = 0.35;
+        ectx.fillStyle = colors[editorTool] || '#555';
+        ectx.fillRect(gsx, gsy, TILE, TILE);
+        ectx.strokeStyle = '#ffffff';
+        ectx.strokeRect(gsx, gsy, TILE, TILE);
+        ectx.globalAlpha = 1;
+        ectx.fillStyle = '#fff';
+        ectx.font = '9px monospace';
+        ectx.fillText(editorTool, gsx + 2, gsy - 3);
+    }
 
     requestAnimationFrame(editorRenderLoop);
 }
@@ -8925,6 +10262,34 @@ function buildEditorLevel() {
                 break;
             case 'wind':
                 windZones.push({ x: px, y: py, w: pw, h: ph, forceX: 3, forceY: 0, particles: [] });
+                break;
+            // Feature 21: Missing editor tools
+            case 'checkpoint':
+                checkpoints.push({ x: px, y: py, w: TILE, h: TILE * 2, activated: false });
+                break;
+            case 'orb':
+                orbs.push({ x: px + TILE / 2, y: py + TILE / 2, r: 8, collected: false, bobPhase: Math.random() * Math.PI * 2 });
+                break;
+            case 'gravity':
+                gravityZones.push({ x: px, y: py, w: pw, h: ph, gravMod: -1 });
+                break;
+            case 'teleporter':
+                teleporterPads.push({ x1: px, y1: py, x2: px + 5 * TILE, y2: py, w: TILE, h: TILE * 2, cooldown: 0 });
+                break;
+            case 'crumble':
+                crumblingWalls.push({ x: px, y: py, w: TILE, h: ph, hits: 0, maxHits: 2, broken: false, shakeTimer: 0 });
+                break;
+            case 'zipline':
+                ziplines.push({ x1: px, y1: py, x2: px + 5 * TILE, y2: py - 2 * TILE, speed: 4 });
+                break;
+            case 'drone':
+                enemyDrones.push({ x: px, y: py, w: 14, h: 14, patrolX1: px - 3 * TILE, patrolX2: px + 3 * TILE, patrolY: py, speed: 1.5, chaseRange: 60, alertTimer: 0, dir: 1, glowPhase: 0 });
+                break;
+            case 'water':
+                waterPools.push({ x: px, y: py, w: pw, h: ph, wavePhase: 0 });
+                break;
+            case 'wallspike':
+                wallSpikes.push({ x: px, y: py, w: TILE * 0.4, h: ph, dir: 1, onTime: 30, offTime: 90, timer: 0, extended: false });
                 break;
         }
     }
@@ -9572,6 +10937,39 @@ function initUI() {
             playSound('click');
             inputDisplayEnabled = !inputDisplayEnabled;
             idBtn.textContent = inputDisplayEnabled ? 'ON' : 'OFF';
+        });
+    }
+
+    // Feature 27: One-hand mode
+    const ohBtn = document.getElementById('settings-onehand');
+    if (ohBtn) {
+        ohBtn.textContent = oneHandMode ? 'ON' : 'OFF';
+        ohBtn.addEventListener('click', () => {
+            playSound('click');
+            oneHandMode = !oneHandMode;
+            ohBtn.textContent = oneHandMode ? 'ON' : 'OFF';
+            saveProgression();
+        });
+    }
+
+    // Feature 23: Editor export/import
+    const exportBtn = document.getElementById('btn-export-level');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            playSound('click');
+            exportEditorLevel();
+        });
+    }
+    const importBtn = document.getElementById('btn-import-level');
+    if (importBtn) {
+        importBtn.addEventListener('click', () => {
+            playSound('click');
+            const code = prompt('Paste level code:');
+            if (code && importEditorLevel(code)) {
+                spawnFloatingText('LEVEL IMPORTED!', canvasW / 2, 60, '#00e5ff', 16);
+            } else if (code) {
+                alert('Invalid level code.');
+            }
         });
     }
 

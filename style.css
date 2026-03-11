@@ -1563,3 +1563,235 @@ button:focus-visible, .level-tile:focus-visible, .diff-btn:focus-visible {
 .mode-toggles .small-btn {
     min-width: 120px;
 }
+
+/* --- Feature 15: Daily Login Popup --- */
+.daily-login-popup {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 10, 15, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    backdrop-filter: blur(4px);
+}
+.daily-login-content {
+    background: #111122;
+    border: 2px solid #ffd700;
+    padding: 32px 48px;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    max-width: 360px;
+    box-shadow: 0 0 40px #ffd70033;
+}
+.daily-login-content h2 {
+    color: #ffd700;
+    font-size: 1.6rem;
+    letter-spacing: 0.2em;
+    margin-bottom: 12px;
+}
+.daily-login-content .streak-display {
+    color: #ff4081;
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+}
+.daily-login-content .reward-display {
+    color: #00e5ff;
+    font-size: 1rem;
+    margin-bottom: 20px;
+}
+.daily-login-content .claim-btn {
+    background: #ffd700;
+    color: #0a0a0f;
+    border: none;
+    padding: 12px 32px;
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    letter-spacing: 0.15em;
+    transition: all 0.15s;
+}
+.daily-login-content .claim-btn:hover {
+    background: #ffee44;
+    transform: scale(1.05);
+}
+
+/* --- Feature 11: Photo Mode --- */
+.photo-mode-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 25;
+}
+.photo-mode-controls {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 10, 15, 0.85);
+    border: 1px solid #333;
+    padding: 8px 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    color: #888;
+    letter-spacing: 0.1em;
+    pointer-events: none;
+    z-index: 26;
+}
+
+/* --- Feature 17: XP Level-Up Cinematic --- */
+.levelup-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 250;
+    pointer-events: none;
+}
+.levelup-text {
+    color: #00e5ff;
+    font-family: 'Courier New', monospace;
+    font-size: 3rem;
+    font-weight: bold;
+    letter-spacing: 0.3em;
+    text-shadow: 0 0 20px #00e5ff88, 0 0 60px #00e5ff44;
+    animation: levelUpPop 0.5s ease-out;
+}
+@keyframes levelUpPop {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* --- Feature 8: Slow-Mo Cooldown Ring --- */
+.slowmo-hud {
+    position: absolute;
+    top: 70px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    pointer-events: none;
+    z-index: 15;
+}
+
+/* --- Feature 26: PB Split Display --- */
+.split-display {
+    position: absolute;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    z-index: 15;
+    pointer-events: none;
+    animation: splitFade 1.5s ease-out forwards;
+}
+.split-display.ahead {
+    color: #4caf50;
+}
+.split-display.behind {
+    color: #ff4444;
+}
+@keyframes splitFade {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-30px); }
+}
+
+/* --- Feature 5: Perfect Section Banner --- */
+.perfect-section {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ffd700;
+    font-family: 'Courier New', monospace;
+    font-size: 1.5rem;
+    font-weight: bold;
+    letter-spacing: 0.3em;
+    text-shadow: 0 0 15px #ffd70066;
+    z-index: 20;
+    pointer-events: none;
+    animation: perfectPop 1.5s ease-out forwards;
+}
+@keyframes perfectPop {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    40% { transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) translateY(-20px); }
+}
+
+/* --- Feature 30: Emote Display --- */
+.emote-bubble {
+    position: absolute;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 4px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 15;
+}
+
+/* --- Editor Export/Import --- */
+.editor-share-section {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.editor-share-section .menu-btn {
+    min-width: unset;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+}
+
+/* --- Feature 16: Prestige Badge --- */
+.prestige-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    color: #0a0a0f;
+    font-size: 0.65rem;
+    font-weight: bold;
+    padding: 2px 8px;
+    letter-spacing: 0.1em;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* --- Feature 27: One-Hand Mode Indicator --- */
+.one-hand-badge {
+    position: absolute;
+    top: 50px;
+    right: 20px;
+    background: rgba(206, 147, 216, 0.15);
+    border: 1px solid #ce93d8;
+    color: #ce93d8;
+    padding: 4px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    z-index: 15;
+    pointer-events: none;
+}
+
+/* --- Feature 13: Local Leaderboard --- */
+.leaderboard-entry {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #1a1a2e;
+    font-size: 0.8rem;
+}
+.leaderboard-entry .rank {
+    color: #ffd700;
+    width: 24px;
+}
+.leaderboard-entry .time {
+    color: #00e5ff;
+}
+.leaderboard-entry.first .rank {
+    color: #ffd700;
+    text-shadow: 0 0 6px #ffd70066;
+}

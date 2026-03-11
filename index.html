@@ -139,6 +139,10 @@
                         <div class="control-keys"><span class="key">E</span></div>
                         <div class="control-desc">Climb &mdash; pull yourself up a ledge while wall sliding</div>
                     </div>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">Q</span></div>
+                        <div class="control-desc">Slow-Motion &mdash; slows time to 30% for 2s (XP Lv.6+)</div>
+                    </div>
                 </div>
 
                 <div class="control-section">
@@ -150,6 +154,18 @@
                     <div class="control-item">
                         <div class="control-keys"><span class="key">ESC</span></div>
                         <div class="control-desc">Pause / resume</div>
+                    </div>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">F2</span></div>
+                        <div class="control-desc">Photo Mode &mdash; freeze, pan, zoom, screenshot (F3)</div>
+                    </div>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">Z</span></div>
+                        <div class="control-desc">Rewind &mdash; go back 1 second (Practice Mode only)</div>
+                    </div>
+                    <div class="control-item">
+                        <div class="control-keys"><span class="key">1-4</span></div>
+                        <div class="control-desc">Emotes &mdash; Wave, Flex, Spin, Sit (while idle)</div>
                     </div>
                 </div>
 
@@ -337,6 +353,10 @@
                     <span class="settings-label">INPUT DISPLAY</span>
                     <button id="settings-inputdisplay" class="small-btn">OFF</button>
                 </div>
+                <div class="settings-row">
+                    <span class="settings-label">ONE-HAND MODE</span>
+                    <button id="settings-onehand" class="small-btn">OFF</button>
+                </div>
             </div>
             <div class="settings-actions">
                 <button id="btn-export-save" class="menu-btn">EXPORT SAVE</button>
@@ -405,6 +425,15 @@
                 <button class="tool-btn" data-tool="bouncepad">Bounce</button>
                 <button class="tool-btn" data-tool="laser">Laser</button>
                 <button class="tool-btn" data-tool="wind">Wind</button>
+                <button class="tool-btn" data-tool="checkpoint">Checkpoint</button>
+                <button class="tool-btn" data-tool="orb">Orb</button>
+                <button class="tool-btn" data-tool="gravity">Gravity</button>
+                <button class="tool-btn" data-tool="teleporter">Teleporter</button>
+                <button class="tool-btn" data-tool="crumble">Crumble Wall</button>
+                <button class="tool-btn" data-tool="zipline">Zipline</button>
+                <button class="tool-btn" data-tool="drone">Drone</button>
+                <button class="tool-btn" data-tool="water">Water</button>
+                <button class="tool-btn" data-tool="wallspike">Wall Spike</button>
                 <button class="tool-btn" data-tool="spawn">Spawn</button>
                 <button class="tool-btn" data-tool="goal">Goal</button>
                 <button class="tool-btn" data-tool="erase">Eraser</button>
@@ -413,6 +442,8 @@
                 <button id="btn-test-level" class="menu-btn primary">TEST</button>
                 <button id="btn-save-level" class="menu-btn">SAVE</button>
                 <button id="btn-load-level" class="menu-btn">LOAD</button>
+                <button id="btn-export-level" class="menu-btn">EXPORT</button>
+                <button id="btn-import-level" class="menu-btn">IMPORT</button>
                 <button id="btn-clear-level" class="menu-btn">CLEAR</button>
                 <button id="btn-back-editor" class="menu-btn">BACK</button>
             </div>
