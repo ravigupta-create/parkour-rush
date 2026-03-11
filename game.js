@@ -842,22 +842,10 @@ function updateAutoPlay() {
 // ---------- MAX MODE (teleport/invincible) ----------
 function updateMaxMode() {
     const p = player;
-    // Clear inputs
-    for (const k in keys) keys[k] = false;
 
     if (endlessMode) {
-        // Endless: just run right at full speed, never die
-        keys['KeyD'] = true;
-        keys['ArrowRight'] = true;
-        // Keep on ground — if falling, jump
-        if (!p.onGround && p.vy > 2) {
-            keys['KeyW'] = true;
-        }
-        // If on wall, jump off
-        if (p.onWallLeft || p.onWallRight) {
-            keys['KeyW'] = true;
-            keys['KeyD'] = true;
-        }
+        // Endless: use full AI for realistic movement, killPlayer() blocks death
+        updateAutoPlay();
     } else {
         // Campaign: teleport to goal
         if (goalZone) {
@@ -5022,6 +5010,9 @@ const LEVELS = [
         checkpoints = [
             checkpoint(62, 16),
         ];
+        enemyDrones = [
+            enemyDrone(45, 10, 38, 55, 10),
+        ];
     },
 
     // ----- LEVEL 15: Final Rush -----
@@ -5126,6 +5117,10 @@ const LEVELS = [
         fallingPlatforms = [];
         boostPads = [];
         checkpoints = [checkpoint(50, 16), checkpoint(90, 16)];
+        enemyDrones = [
+            enemyDrone(60, 10, 54, 70, 10),
+            enemyDrone(110, 8, 105, 120, 8),
+        ];
     },
 
     // ----- LEVEL 17: Laser Grid (lasers + toggle block puzzles) -----
@@ -5217,6 +5212,11 @@ const LEVELS = [
         fallingPlatforms = [falling(70, 16, 4, 1)];
         boostPads = [];
         checkpoints = [checkpoint(55, 16), checkpoint(110, 16)];
+        enemyDrones = [
+            enemyDrone(30, 10, 25, 40, 10),
+            enemyDrone(80, 8, 72, 88, 8),
+            enemyDrone(125, 10, 118, 135, 10),
+        ];
     },
 
     // ----- LEVEL 19: Gravity Shift (gravity flip zones, ceiling running) -----
@@ -5316,6 +5316,12 @@ const LEVELS = [
         fallingPlatforms = [falling(92, 16, 3, 1), falling(128, 15, 3, 1)];
         boostPads = [boost(25, 17, 2, 1), boost(105, 17, 2, 1), boost(170, 17, 2, 1)];
         checkpoints = [checkpoint(45, 16), checkpoint(100, 16), checkpoint(150, 16)];
+        enemyDrones = [
+            enemyDrone(35, 8, 28, 45, 8),
+            enemyDrone(70, 6, 62, 80, 6),
+            enemyDrone(120, 8, 112, 130, 8),
+            enemyDrone(160, 6, 152, 170, 6),
+        ];
     },
 
     // ----- LEVEL 21: BOSS - Spike Wall Chase -----
@@ -8089,9 +8095,26 @@ function playComboSound(comboNum) {
 }
 
 function killPlayer() {
-    // Max mode in endless: don't die, just respawn at last safe position
-    if (maxMode && endlessMode) {
-        player.vy = -8;
+    // Max mode: don't die
+    if (maxMode) {
+        // Find nearest platform to respawn on
+        let bestPlat = null, bestDist = Infinity;
+        const allSurfs = [...platforms, ...movingPlatforms];
+        for (const fp of fallingPlatforms) { if (!fp.fallen) allSurfs.push(fp); }
+        for (const s of allSurfs) {
+            const dx = (s.x + s.w / 2) - player.x;
+            const dy = s.y - player.y;
+            const dist = Math.abs(dx) + Math.abs(dy);
+            if (dist < bestDist && s.y < player.y + 200) {
+                bestDist = dist;
+                bestPlat = s;
+            }
+        }
+        if (bestPlat) {
+            player.x = bestPlat.x + bestPlat.w / 2 - player.w / 2;
+            player.y = bestPlat.y - player.h;
+        }
+        player.vy = -6;
         player.vx = 3;
         return;
     }
