@@ -1819,3 +1819,441 @@ button:focus-visible, .level-tile:focus-visible, .diff-btn:focus-visible {
     border: 1px solid #444;
     flex-shrink: 0;
 }
+
+/* ============================================
+   NEW FEATURES CSS (100 Features Update)
+   ============================================ */
+
+/* --- Skill Tree Screen --- */
+.skilltree-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+}
+.skill-branches {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 16px 0;
+}
+.skill-branch {
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 14px;
+    min-width: 180px;
+    flex: 1;
+    max-width: 220px;
+}
+.branch-title {
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    letter-spacing: 2px;
+}
+.speed-branch { color: #ff8800; }
+.air-branch { color: #00ccff; }
+.defense-branch { color: #44ff44; }
+.skill-node {
+    background: #0d0d1a;
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 10px 8px;
+    margin: 8px 0;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+.skill-node:hover {
+    border-color: #00e5ff;
+    box-shadow: 0 0 10px #00e5ff33;
+}
+.skill-node.unlocked {
+    border-color: #44ff44;
+    background: #0d1a0d;
+    box-shadow: 0 0 8px #44ff4433;
+}
+.skill-node.locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.skill-icon {
+    font-size: 1.4rem;
+    margin-bottom: 4px;
+}
+.skill-name {
+    color: #e0e0e0;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+.skill-desc {
+    color: #888;
+    font-size: 0.7rem;
+}
+
+/* --- Season Pass Screen --- */
+.seasonpass-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+}
+.season-track {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin: 16px 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.season-tier {
+    width: 56px;
+    height: 56px;
+    background: #1a1a2e;
+    border: 2px solid #333;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #888;
+    position: relative;
+}
+.season-tier.claimed {
+    border-color: #44ff44;
+    background: #0d1a0d;
+    color: #44ff44;
+}
+.season-tier.current {
+    border-color: #ffd700;
+    box-shadow: 0 0 8px #ffd70066;
+    color: #ffd700;
+}
+.season-tier-num {
+    font-weight: bold;
+    font-size: 0.7rem;
+}
+.season-tier-reward {
+    font-size: 0.6rem;
+    margin-top: 2px;
+}
+
+/* --- Keybindings Screen --- */
+.keybindings-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+}
+.keybind-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #1a1a2e;
+}
+.keybind-action {
+    color: #ccc;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+.keybind-key {
+    background: #0d0d1a;
+    border: 2px solid #444;
+    border-radius: 6px;
+    padding: 4px 12px;
+    color: #00e5ff;
+    font-size: 0.85rem;
+    cursor: pointer;
+    min-width: 60px;
+    text-align: center;
+    transition: all 0.2s;
+}
+.keybind-key:hover, .keybind-key.listening {
+    border-color: #ff44ff;
+    box-shadow: 0 0 8px #ff44ff44;
+    color: #ff44ff;
+}
+.keybind-key.listening::after {
+    content: ' ...';
+    animation: blink 0.5s infinite;
+}
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+/* --- Puzzle Mode --- */
+#puzzle-grid .level-btn {
+    border-color: #aa44ff;
+}
+#puzzle-grid .level-btn:hover {
+    box-shadow: 0 0 12px #aa44ff44;
+}
+
+/* --- Relay Mode Screen --- */
+#relay-screen .difficulty-container {
+    text-align: center;
+}
+
+/* --- Custom Skin Screen --- */
+#customskin-screen .settings-container {
+    max-width: 400px;
+}
+
+/* --- Achievement Rarity Colors --- */
+.achievement-card.rarity-common { border-color: #888; }
+.achievement-card.rarity-uncommon { border-color: #44ff44; }
+.achievement-card.rarity-rare { border-color: #00aaff; }
+.achievement-card.rarity-epic { border-color: #aa44ff; }
+.achievement-card.rarity-legendary {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px #ffd70044;
+}
+.achievement-card.secret-locked {
+    opacity: 0.5;
+    border-style: dashed;
+}
+.rarity-badge {
+    font-size: 0.6rem;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+    display: inline-block;
+}
+.rarity-badge.common { background: #888; color: #000; }
+.rarity-badge.uncommon { background: #44ff44; color: #000; }
+.rarity-badge.rare { background: #00aaff; color: #000; }
+.rarity-badge.epic { background: #aa44ff; color: #fff; }
+.rarity-badge.legendary { background: #ffd700; color: #000; }
+
+/* --- Survival Hearts HUD --- */
+.survival-hearts {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.5rem;
+    text-shadow: 0 0 8px #ff0000;
+    pointer-events: none;
+    z-index: 20;
+}
+
+/* --- Notification Queue --- */
+.notification-item {
+    position: fixed;
+    right: 16px;
+    padding: 8px 16px;
+    background: #1a1a2eee;
+    border: 1px solid #00e5ff;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.8rem;
+    z-index: 1000;
+    pointer-events: none;
+    animation: notifSlideIn 0.3s ease-out;
+    transition: opacity 0.3s, transform 0.3s;
+}
+@keyframes notifSlideIn {
+    from { transform: translateX(100px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* --- Radial Quick Menu --- */
+.radial-menu {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 500;
+    pointer-events: none;
+}
+.radial-item {
+    position: absolute;
+    background: #1a1a2eee;
+    border: 2px solid #00e5ff;
+    border-radius: 50%;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #fff;
+    text-align: center;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.2s;
+}
+.radial-item:hover {
+    background: #00e5ff33;
+    border-color: #fff;
+    transform: scale(1.1);
+}
+
+/* --- Performance Overlay --- */
+.perf-overlay {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    background: #000000cc;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.7rem;
+    color: #00ff88;
+    font-family: monospace;
+    z-index: 999;
+    pointer-events: none;
+    line-height: 1.4;
+}
+
+/* --- Split Screen Timer --- */
+.split-timer {
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    font-family: monospace;
+    pointer-events: none;
+    z-index: 20;
+}
+.split-timer.ahead { color: #44ff44; }
+.split-timer.behind { color: #ff4444; }
+
+/* --- Damage Numbers --- */
+.damage-number {
+    position: absolute;
+    font-size: 0.8rem;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 50;
+    text-shadow: 0 0 4px #000;
+    animation: dmgFloat 0.8s ease-out forwards;
+}
+@keyframes dmgFloat {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-40px) scale(0.7); }
+}
+
+/* --- Dyslexia Font --- */
+body.dyslexia-font,
+body.dyslexia-font * {
+    letter-spacing: 0.05em !important;
+    word-spacing: 0.1em !important;
+    font-family: 'Comic Sans MS', 'OpenDyslexic', sans-serif !important;
+}
+
+/* --- Ghost Race Delta --- */
+.ghost-delta {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.9rem;
+    font-weight: bold;
+    font-family: monospace;
+    pointer-events: none;
+    z-index: 20;
+}
+.ghost-delta.ahead { color: #44ff44; }
+.ghost-delta.behind { color: #ff4444; }
+
+/* --- Speedrun Splits --- */
+.speedrun-splits {
+    position: fixed;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #000000aa;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 0.65rem;
+    font-family: monospace;
+    color: #ccc;
+    z-index: 20;
+    pointer-events: none;
+    max-height: 300px;
+    overflow-y: auto;
+}
+.split-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 0;
+    border-bottom: 1px solid #222;
+}
+.split-row.current {
+    color: #ffd700;
+    font-weight: bold;
+}
+.split-row .split-delta.ahead { color: #44ff44; }
+.split-row .split-delta.behind { color: #ff4444; }
+
+/* --- Cape animation hint --- */
+@keyframes capeWave {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(5deg); }
+}
+
+/* --- Editor grid snap indicator --- */
+.grid-snap-btn {
+    font-size: 0.7rem !important;
+    padding: 2px 8px !important;
+}
+.grid-snap-btn.active {
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+/* --- Level Preview Tooltip --- */
+.level-tooltip {
+    position: absolute;
+    background: #1a1a2eee;
+    border: 1px solid #00e5ff;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 0.75rem;
+    color: #ccc;
+    z-index: 100;
+    pointer-events: none;
+    min-width: 140px;
+    box-shadow: 0 4px 12px #00000088;
+}
+.level-tooltip .tooltip-title {
+    color: #fff;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+.level-tooltip .tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 1px 0;
+}
+
+/* --- Responsive adjustments for new screens --- */
+@media (max-width: 600px) {
+    .skill-branches {
+        flex-direction: column;
+        align-items: center;
+    }
+    .skill-branch {
+        max-width: 100%;
+        min-width: unset;
+    }
+    .season-tier {
+        width: 44px;
+        height: 44px;
+    }
+    .speedrun-splits {
+        font-size: 0.55rem;
+        padding: 4px;
+    }
+}

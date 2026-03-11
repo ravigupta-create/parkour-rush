@@ -35,6 +35,19 @@
                 <button id="btn-time-attack" class="menu-btn" aria-label="Time attack mode">TIME ATTACK</button>
                 <button id="btn-weekly" class="menu-btn" aria-label="Weekly challenge">WEEKLY</button>
                 <button id="btn-editor" class="menu-btn" aria-label="Open level editor">LEVEL EDITOR</button>
+                <button id="btn-speedrun" class="menu-btn" aria-label="Speedrun mode">SPEEDRUN</button>
+                <button id="btn-gauntlet" class="menu-btn" aria-label="Gauntlet mode">GAUNTLET</button>
+                <button id="btn-bossrush" class="menu-btn" aria-label="Boss rush mode">BOSS RUSH</button>
+                <button id="btn-puzzle" class="menu-btn" aria-label="Puzzle mode">PUZZLE</button>
+                <button id="btn-survival" class="menu-btn" aria-label="Survival mode">SURVIVAL</button>
+                <button id="btn-zen" class="menu-btn" aria-label="Zen mode">ZEN</button>
+                <button id="btn-reverse" class="menu-btn" aria-label="Reverse mode">REVERSE</button>
+                <button id="btn-relay" class="menu-btn" aria-label="Relay mode">RELAY</button>
+                <button id="btn-ghostrace" class="menu-btn" aria-label="Ghost race mode">GHOST RACE</button>
+                <button id="btn-ngplus" class="menu-btn" aria-label="New Game Plus">NG+</button>
+                <button id="btn-skilltree" class="menu-btn" aria-label="Skill tree">SKILL TREE</button>
+                <button id="btn-seasonpass" class="menu-btn" aria-label="Season pass">SEASON PASS</button>
+                <button id="btn-keybindings" class="menu-btn" aria-label="Remap controls">KEYBINDINGS</button>
                 <button id="btn-controls" class="menu-btn" aria-label="View controls guide">CONTROLS</button>
             </nav>
             <div class="menu-footer" role="toolbar" aria-label="Quick settings">
@@ -396,6 +409,25 @@
                     <div class="block-item"><span class="block-swatch" style="background:#8B4513"></span><b>Crumbling Wall</b> &mdash; Breaks after 2 hits (use ground pound)</div>
                     <div class="block-item"><span class="block-swatch" style="background:#ff408177"></span><b>Goal</b> &mdash; Reach this to complete the level</div>
                 </div>
+
+                <div class="control-section">
+                    <h3 class="section-title advanced-title">NEW BLOCKS</h3>
+                    <div class="block-item"><span class="block-swatch" style="background:#cc8800"></span><b>Pressure Plate</b> &mdash; Stand on for 1s to trigger linked gates</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#666688"></span><b>Gate Block</b> &mdash; Solid barrier opened by pressure plates</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#33ff33"></span><b>Acid Pool</b> &mdash; Green liquid, instant death on contact</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#8866aa"></span><b>Rotating Platform</b> &mdash; Rotates around a pivot point</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff3333;box-shadow:0 0 6px #ff000088"></span><b>Laser Turret</b> &mdash; Wall-mounted, fires narrow beam with warm-up</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#88ccff;border-radius:50%"></span><b>Bubble Platform</b> &mdash; Floating sphere, pops after 1.5s contact</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ff6600"></span><b>Flame Jet</b> &mdash; Shoots fire column on a cycle</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#aa44ff;border-radius:50%"></span><b>Gravity Orb</b> &mdash; Reverses personal gravity for 3s</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ffaa00"></span><b>Shockwave Emitter</b> &mdash; Circular wave pushing player away</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#334455"></span><b>Shadow Platform</b> &mdash; Only visible when player is close</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#44cc44"></span><b>Timed Switch Block</b> &mdash; Becomes solid temporarily when hit</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#ffff00;box-shadow:0 0 4px #ffff0088"></span><b>Electrified Rail</b> &mdash; Rideable when off, deadly when on</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#aaaacc;opacity:0.6"></span><b>Phantom Wall</b> &mdash; Passable from one direction only</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#777777"></span><b>Piston Block</b> &mdash; Extends and retracts, pushing player</div>
+                    <div class="block-item"><span class="block-swatch" style="background:#228833"></span><b>Thorn Vine</b> &mdash; Organic hazard growing along walls</div>
+                </div>
             </div>
             <button id="btn-back-blocktypes" class="menu-btn">BACK</button>
         </div>
@@ -544,6 +576,35 @@
                     <span class="settings-label">ONE-HAND MODE</span>
                     <button id="settings-onehand" class="small-btn">OFF</button>
                 </div>
+                <div class="settings-row">
+                    <span class="settings-label">DYSLEXIA FONT</span>
+                    <button id="settings-dyslexia" class="small-btn">OFF</button>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">GAME SPEED</span>
+                    <input type="range" id="settings-gamespeed" class="settings-slider" min="50" max="150" value="100" aria-label="Game Speed">
+                    <span id="gamespeed-label" style="color:#aaa;font-size:0.8em;min-width:40px;text-align:center">100%</span>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">AUTO CAMERA ZOOM</span>
+                    <button id="settings-autozoom" class="small-btn">ON</button>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">SHOW TIMER</span>
+                    <button id="hud-toggle-timer" class="small-btn">ON</button>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">SHOW DEATHS</span>
+                    <button id="hud-toggle-deaths" class="small-btn">ON</button>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">SHOW COMBO</span>
+                    <button id="hud-toggle-combo" class="small-btn">ON</button>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label">SHOW DASH BAR</span>
+                    <button id="hud-toggle-dash" class="small-btn">ON</button>
+                </div>
             </div>
             <div class="settings-actions">
                 <button id="btn-export-save" class="menu-btn">EXPORT SAVE</button>
@@ -578,6 +639,17 @@
             <div id="death-effects-grid" class="skins-grid"></div>
             <h3 style="color:#00e5ff;margin:10px 0 5px">CELEBRATIONS</h3>
             <div id="celebrations-grid" class="skins-grid"></div>
+            <h3 style="color:#00e5ff;margin:10px 0 5px">CAPES</h3>
+            <div id="capes-grid" class="skins-grid"></div>
+            <h3 style="color:#00e5ff;margin:10px 0 5px">JUMP EFFECTS</h3>
+            <div id="jumpfx-grid" class="skins-grid"></div>
+            <h3 style="color:#00e5ff;margin:10px 0 5px">LAND EFFECTS</h3>
+            <div id="landfx-grid" class="skins-grid"></div>
+            <h3 style="color:#00e5ff;margin:10px 0 5px">EYES</h3>
+            <div id="eyes-grid" class="skins-grid"></div>
+            <h3 style="color:#00e5ff;margin:10px 0 5px">NAMEPLATES</h3>
+            <div id="nameplates-grid" class="skins-grid"></div>
+            <button id="btn-customskin" class="menu-btn" style="margin-top:12px;border-color:#ff44ff;color:#ff44ff">CUSTOM SKIN COLOR</button>
             <button id="btn-back-shop" class="menu-btn">BACK</button>
         </div>
     </div>
@@ -629,6 +701,21 @@
                 <button class="tool-btn" data-tool="lavafloor">Lava Floor</button>
                 <button class="tool-btn" data-tool="portalbeam">Portal Beam</button>
                 <button class="tool-btn" data-tool="speedpad">Speed Pad</button>
+                <button class="tool-btn" data-tool="pressureplate">Pressure Plate</button>
+                <button class="tool-btn" data-tool="gate">Gate</button>
+                <button class="tool-btn" data-tool="acid">Acid</button>
+                <button class="tool-btn" data-tool="rotating">Rotating</button>
+                <button class="tool-btn" data-tool="laserturret">Laser Turret</button>
+                <button class="tool-btn" data-tool="bubble">Bubble</button>
+                <button class="tool-btn" data-tool="flamejet">Flame Jet</button>
+                <button class="tool-btn" data-tool="gravityorb">Gravity Orb</button>
+                <button class="tool-btn" data-tool="shockwave">Shockwave</button>
+                <button class="tool-btn" data-tool="shadow">Shadow Plat</button>
+                <button class="tool-btn" data-tool="timedswitch">Timed Switch</button>
+                <button class="tool-btn" data-tool="erail">Electri Rail</button>
+                <button class="tool-btn" data-tool="phantom">Phantom Wall</button>
+                <button class="tool-btn" data-tool="piston">Piston</button>
+                <button class="tool-btn" data-tool="thornvine">Thorn Vine</button>
                 <button class="tool-btn" data-tool="spawn">Spawn</button>
                 <button class="tool-btn" data-tool="goal">Goal</button>
                 <button class="tool-btn" data-tool="erase">Eraser</button>
@@ -642,6 +729,147 @@
                 <button id="btn-clear-level" class="menu-btn">CLEAR</button>
                 <button id="btn-back-editor" class="menu-btn">BACK</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Skill Tree Screen -->
+    <div id="skilltree-screen" class="screen">
+        <div class="skilltree-container">
+            <h2>SKILL TREE</h2>
+            <p id="skill-points-display" class="orb-count">Skill Points: 0</p>
+            <div class="skill-branches">
+                <div class="skill-branch">
+                    <h3 class="branch-title speed-branch">SPEED</h3>
+                    <div class="skill-node" data-skill="spd1" id="skill-spd1">
+                        <div class="skill-icon">💨</div>
+                        <div class="skill-name">Swift Runner</div>
+                        <div class="skill-desc">+5% run speed</div>
+                    </div>
+                    <div class="skill-node" data-skill="spd2" id="skill-spd2">
+                        <div class="skill-icon">⚡</div>
+                        <div class="skill-name">Quick Dash</div>
+                        <div class="skill-desc">-15% dash cooldown</div>
+                    </div>
+                    <div class="skill-node" data-skill="spd3" id="skill-spd3">
+                        <div class="skill-icon">🔥</div>
+                        <div class="skill-name">Momentum Master</div>
+                        <div class="skill-desc">+10% slide speed</div>
+                    </div>
+                    <div class="skill-node" data-skill="spd4" id="skill-spd4">
+                        <div class="skill-icon">🚀</div>
+                        <div class="skill-name">Overdrive</div>
+                        <div class="skill-desc">+8% all movement</div>
+                    </div>
+                </div>
+                <div class="skill-branch">
+                    <h3 class="branch-title air-branch">AIR</h3>
+                    <div class="skill-node" data-skill="air1" id="skill-air1">
+                        <div class="skill-icon">🪶</div>
+                        <div class="skill-name">Feather Fall</div>
+                        <div class="skill-desc">-10% gravity</div>
+                    </div>
+                    <div class="skill-node" data-skill="air2" id="skill-air2">
+                        <div class="skill-icon">🌬️</div>
+                        <div class="skill-name">Extended Glide</div>
+                        <div class="skill-desc">+30% glide duration</div>
+                    </div>
+                    <div class="skill-node" data-skill="air3" id="skill-air3">
+                        <div class="skill-icon">🔄</div>
+                        <div class="skill-name">Triple Jump</div>
+                        <div class="skill-desc">+1 extra air jump</div>
+                    </div>
+                    <div class="skill-node" data-skill="air4" id="skill-air4">
+                        <div class="skill-icon">👼</div>
+                        <div class="skill-name">Skywalker</div>
+                        <div class="skill-desc">+5% jump force</div>
+                    </div>
+                </div>
+                <div class="skill-branch">
+                    <h3 class="branch-title defense-branch">DEFENSE</h3>
+                    <div class="skill-node" data-skill="def1" id="skill-def1">
+                        <div class="skill-icon">🛡️</div>
+                        <div class="skill-name">Iron Skin</div>
+                        <div class="skill-desc">+0.5s coyote time</div>
+                    </div>
+                    <div class="skill-node" data-skill="def2" id="skill-def2">
+                        <div class="skill-icon">💚</div>
+                        <div class="skill-name">Second Wind</div>
+                        <div class="skill-desc">+1 checkpoint heart</div>
+                    </div>
+                    <div class="skill-node" data-skill="def3" id="skill-def3">
+                        <div class="skill-icon">✨</div>
+                        <div class="skill-name">Resilience</div>
+                        <div class="skill-desc">Survive 1 hit/level</div>
+                    </div>
+                    <div class="skill-node" data-skill="def4" id="skill-def4">
+                        <div class="skill-icon">🌟</div>
+                        <div class="skill-name">Fortify</div>
+                        <div class="skill-desc">+2s invuln after hit</div>
+                    </div>
+                </div>
+            </div>
+            <button id="btn-back-skilltree" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Season Pass Screen -->
+    <div id="seasonpass-screen" class="screen">
+        <div class="seasonpass-container">
+            <h2>SEASON PASS</h2>
+            <p id="season-xp-display" class="orb-count">Season XP: 0</p>
+            <div id="season-track" class="season-track"></div>
+            <button id="btn-back-seasonpass" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Keybindings Screen -->
+    <div id="keybindings-screen" class="screen">
+        <div class="keybindings-container">
+            <h2>KEYBINDINGS</h2>
+            <p style="color:#aaa;font-size:0.8em;margin-bottom:12px">Click an action, then press a key to rebind.</p>
+            <div id="keybindings-list" class="settings-rows"></div>
+            <div class="settings-actions">
+                <button id="btn-reset-keybindings" class="menu-btn" style="border-color:#ffaa00;color:#ffaa00">RESET DEFAULTS</button>
+            </div>
+            <button id="btn-back-keybindings" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Puzzle Mode Level Select -->
+    <div id="puzzle-screen" class="screen">
+        <div class="level-container">
+            <h2>PUZZLE MODE</h2>
+            <p style="color:#aaa;font-size:0.85em;margin-bottom:12px">Logic puzzles using pressure plates, gates, and gravity orbs</p>
+            <div id="puzzle-grid" class="level-grid"></div>
+            <button id="btn-back-puzzle" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Relay Mode Screen -->
+    <div id="relay-screen" class="screen">
+        <div class="difficulty-container">
+            <h2>RELAY MODE</h2>
+            <p style="color:#aaa;font-size:0.85em;margin-bottom:12px">2 players, 1 keyboard. P1=WASD (odd levels), P2=Arrows (even levels).</p>
+            <button id="btn-start-relay" class="menu-btn primary">START RELAY</button>
+            <button id="btn-back-relay" class="menu-btn">BACK</button>
+        </div>
+    </div>
+
+    <!-- Custom Skin Color Picker -->
+    <div id="customskin-screen" class="screen">
+        <div class="settings-container">
+            <h2>CUSTOM SKIN</h2>
+            <canvas id="customskin-preview" width="120" height="160" style="border:1px solid #333;border-radius:8px;margin:8px auto;display:block;background:#1a1a2e"></canvas>
+            <div class="settings-rows">
+                <div class="settings-row"><span class="settings-label">BODY HUE</span><input type="range" id="skin-body-h" class="settings-slider" min="0" max="360" value="200"></div>
+                <div class="settings-row"><span class="settings-label">BODY SAT</span><input type="range" id="skin-body-s" class="settings-slider" min="0" max="100" value="70"></div>
+                <div class="settings-row"><span class="settings-label">BODY LUM</span><input type="range" id="skin-body-l" class="settings-slider" min="10" max="90" value="50"></div>
+                <div class="settings-row"><span class="settings-label">HEAD HUE</span><input type="range" id="skin-head-h" class="settings-slider" min="0" max="360" value="30"></div>
+                <div class="settings-row"><span class="settings-label">HEAD SAT</span><input type="range" id="skin-head-s" class="settings-slider" min="0" max="100" value="60"></div>
+                <div class="settings-row"><span class="settings-label">HEAD LUM</span><input type="range" id="skin-head-l" class="settings-slider" min="10" max="90" value="70"></div>
+            </div>
+            <button id="btn-save-customskin" class="menu-btn primary">SAVE</button>
+            <button id="btn-back-customskin" class="menu-btn">BACK</button>
         </div>
     </div>
 

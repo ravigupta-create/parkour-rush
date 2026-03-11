@@ -1074,6 +1074,30 @@ const ACHIEVEMENTS = [
     { id: 'streak_10', name: 'Unstoppable X', desc: '10 deathless levels in a row', icon: '=' },
     { id: 'daily_7', name: 'Weekly Devotion', desc: '7-day login streak', icon: '7' },
     { id: 'level20_deathless', name: 'Perfection', desc: 'Complete Level 20 with 0 deaths', icon: '!' },
+    // 100-feature update achievements
+    { id: 'grapple_master', name: 'Grapple Master', desc: 'Use grapple hook 20 times', icon: 'G', category: 'mechanics', rarity: 'uncommon' },
+    { id: 'gravity_flipper', name: 'Gravity Flipper', desc: 'Use gravity flip 10 times', icon: '⇅', category: 'mechanics', rarity: 'rare' },
+    { id: 'chain_dasher', name: 'Chain Dasher', desc: '3 chain dashes in one run', icon: '→', category: 'mechanics', rarity: 'rare' },
+    { id: 'puzzle_solver', name: 'Puzzle Solver', desc: 'Complete all 5 puzzle levels', icon: '?', category: 'modes', rarity: 'epic' },
+    { id: 'speedrun_complete', name: 'Speed Demon II', desc: 'Complete a speedrun', icon: 'S', category: 'modes', rarity: 'rare' },
+    { id: 'gauntlet_clear', name: 'Gauntlet Champion', desc: 'Complete gauntlet mode', icon: 'G', category: 'modes', rarity: 'epic' },
+    { id: 'boss_rush_clear', name: 'Boss Slayer II', desc: 'Complete boss rush', icon: 'B', category: 'modes', rarity: 'epic' },
+    { id: 'zen_explorer', name: 'Zen Explorer', desc: 'Play 5 levels in zen mode', icon: 'Z', category: 'modes', rarity: 'common' },
+    { id: 'season_10', name: 'Season Veteran', desc: 'Reach season pass tier 10', icon: 'S', category: 'progression', rarity: 'uncommon' },
+    { id: 'season_50', name: 'Season Legend', desc: 'Reach season pass tier 50', icon: 'L', category: 'progression', rarity: 'legendary' },
+    { id: 'skill_tree_full', name: 'Fully Skilled', desc: 'Unlock all skill tree upgrades', icon: 'T', category: 'progression', rarity: 'legendary' },
+    { id: 'tokens_100', name: 'Token Collector', desc: 'Earn 100 challenge tokens', icon: '$', category: 'progression', rarity: 'rare' },
+    { id: 'ng_plus_clear', name: 'NG+ Victor', desc: 'Complete a level in NG+', icon: '+', category: 'modes', rarity: 'epic' },
+    { id: 'reverse_clear', name: 'Backwards Runner', desc: 'Complete reverse mode', icon: '←', category: 'modes', rarity: 'rare' },
+    { id: 'survival_clear', name: 'Survivor', desc: 'Complete survival mode', icon: '♥', category: 'modes', rarity: 'rare' },
+    { id: 'relay_complete', name: 'Team Player', desc: 'Complete relay mode', icon: '2', category: 'modes', rarity: 'rare' },
+    { id: 'animated_skin', name: 'Living Color', desc: 'Equip an animated skin', icon: '~', category: 'cosmetics', rarity: 'uncommon' },
+    { id: 'cape_equip', name: 'Caped Crusader', desc: 'Equip a cape', icon: 'C', category: 'cosmetics', rarity: 'common' },
+    { id: 'custom_color', name: 'Color Artist', desc: 'Customize skin colors', icon: 'P', category: 'cosmetics', rarity: 'common' },
+    // Secret achievements (Feature 99)
+    ...SECRET_ACHIEVEMENTS,
+    // Completionist Supreme (Feature 100)
+    { id: 'completionist_supreme', name: 'COMPLETIONIST SUPREME', desc: 'Unlock every other achievement', icon: '★', category: 'legendary', rarity: 'legendary' },
 ];
 let unlockedAchievements = {};
 let achievementPopup = null;
@@ -1305,6 +1329,251 @@ let deathPulseIntensity = 0;
 
 // --- Trail Particles ---
 let trailParticles = [];
+
+// ============================================
+// 100 NEW FEATURES - STATE VARIABLES
+// ============================================
+
+// --- Feature 93: Remappable Controls ---
+let keyBindings = {
+    moveLeft: ['KeyA', 'ArrowLeft'],
+    moveRight: ['KeyD', 'ArrowRight'],
+    jump: ['KeyW', 'ArrowUp', 'Space'],
+    dash: ['ShiftLeft', 'ShiftRight'],
+    slide: ['KeyS', 'ArrowDown'],
+    climb: ['KeyE'],
+    slowmo: ['KeyQ'],
+    grapple: ['KeyG'],
+    restart: ['KeyR'],
+    emote1: ['Digit1'], emote2: ['Digit2'], emote3: ['Digit3'], emote4: ['Digit4'],
+    pause: ['Escape'],
+    photoMode: ['F2'], screenshot: ['F3'], perfOverlay: ['F4'],
+    radialMenu: ['Tab']
+};
+let isRemapping = false;
+let remapAction = null;
+function isKeyBound(action) {
+    return keyBindings[action] && keyBindings[action].some(k => keys[k] || keys['touch' + action.charAt(0).toUpperCase() + action.slice(1)]);
+}
+function isKeyJustPressed(action) {
+    return keyBindings[action] && keyBindings[action].some(k => keys[k] && !prevKeys[k]);
+}
+
+// --- Feature 56: Skill Tree ---
+const SKILL_TREE = {
+    speed: [
+        { id: 'speed1', name: 'Quick Start', desc: '+10% run speed', cost: 1 },
+        { id: 'speed2', name: 'Momentum Master', desc: '+15% speed from slides', cost: 2 },
+        { id: 'speed3', name: 'Rush Hour', desc: '+20% dash speed', cost: 3 },
+        { id: 'speed4', name: 'Velocity Cap', desc: '+25% max speed', cost: 4 },
+    ],
+    air: [
+        { id: 'air1', name: 'Feather Fall', desc: '-10% gravity', cost: 1 },
+        { id: 'air2', name: 'Extended Glide', desc: '+50% glide duration', cost: 2 },
+        { id: 'air3', name: 'Triple Jump', desc: 'Third jump in air', cost: 3 },
+        { id: 'air4', name: 'Sky Walker', desc: '+30% wall run time', cost: 4 },
+    ],
+    defense: [
+        { id: 'def1', name: 'Iron Skin', desc: '+0.5s coyote time', cost: 1 },
+        { id: 'def2', name: 'Quick Recovery', desc: '-20% dash cooldown', cost: 2 },
+        { id: 'def3', name: 'Resilience', desc: 'Survive one hit per level', cost: 3 },
+        { id: 'def4', name: 'Immortal Rush', desc: '2s invuln after checkpoint', cost: 4 },
+    ]
+};
+let skillPoints = 0;
+let unlockedSkills = {};
+function hasSkill(id) { return !!unlockedSkills[id]; }
+function getSkillPointsAvailable() {
+    const spent = Object.keys(unlockedSkills).length;
+    return Math.max(0, Math.floor(getPlayerLevel() / 2) - spent + prestigeCount);
+}
+
+// --- Features 16-17: Pressure Plates + Gates ---
+let pressurePlates = [];
+let gateBlocks = [];
+
+// --- Features 18-30: New Block Arrays ---
+let acidPools = [];
+let rotatingPlatforms = [];
+let laserTurrets = [];
+let bubblePlatforms = [];
+let flameJets = [];
+let gravityOrbs = [];
+let shockwaveEmitters = [];
+let shadowPlatforms = [];
+let timedSwitchBlocks = [];
+let electrifiedRails = [];
+let phantomWalls = [];
+let pistonBlocks = [];
+let thornVines = [];
+
+// --- Features 1-15: Gameplay Mechanics State ---
+let grappleHook = { active: false, targetX: 0, targetY: 0, length: 0, angle: 0, swingVel: 0, cooldown: 0 };
+let wallClingTimer = 0;
+const WALL_CLING_MAX = 120; // 2s at 60fps
+let wallClingCooldown = 0;
+let chargedJumpTimer = 0;
+let chargedJumpReady = false;
+let airKickActive = false;
+let airKickTimer = 0;
+let chainDashReady = false;
+let ricochetDashActive = false;
+let ledgeHang = { active: false, platform: null, side: 'left' };
+let slideJumpActive = false;
+let gravityFlipActive = false;
+let gravityFlipTimer = 0;
+let gravityFlipCooldown = 0;
+let personalGravityDir = 1; // 1=normal, -1=flipped
+let bounceChainCount = 0;
+let afterimagePhaseActive = false;
+let afterimagePhaseTimer = 0;
+let afterimageTrail = [];
+let resilienceUsed = false; // Skill tree def3
+let invulnTimer = 0; // Skill tree def4
+
+// --- Features 47-55: Game Mode State ---
+let speedrunMode = false;
+let speedrunTimer = 0;
+let speedrunSplits = [];
+let speedrunLevel = 0;
+let relayMode = false;
+let relayPlayer = 1; // 1 or 2
+let relayTimes = [0, 0];
+let gauntletMode = false;
+let gauntletLevels = [];
+let gauntletModifiers = [];
+let gauntletScore = 0;
+let reverseMode = false;
+let survivalMode = false;
+let survivalHearts = 3;
+const SURVIVAL_MAX_HEARTS = 3;
+let bossRushMode = false;
+let bossRushTimer = 0;
+let bossRushLevel = 0;
+let zenMode = false;
+let ghostRaceMode = false;
+let ghostRaceDelta = 0;
+let puzzleMode = false;
+let puzzleLevelIndex = 0;
+let ngPlusMode = false;
+
+// --- Features 56-65: Progression State ---
+let seasonPassTier = 0;
+let seasonPassXP = 0;
+let seasonPassLastReset = '';
+const SEASON_PASS_TIERS = 50;
+const SEASON_PASS_XP_PER_TIER = 200;
+let challengeTokens = 0;
+let playerTitle = 'Rookie';
+let equippedTitle = 'Rookie';
+const TITLES = ['Rookie', 'Runner', 'Dasher', 'Climber', 'Speedster', 'Master', 'Champion', 'Legend', 'Myth', 'Supreme'];
+let milestoneBadges = {};
+let extendedStreak = 0;
+let extendedStreakDay = '';
+let orbMultiplierTimer = 0;
+let orbMultiplierValue = 1;
+
+// --- Features 66-75: Cosmetics State ---
+const ANIMATED_SKINS = [
+    { id: 'plasma', name: 'Plasma', cost: 80, type: 'animated', cycle: ['#ff00ff', '#ff44ff', '#ff88ff', '#ff44ff'] },
+    { id: 'fire_spirit', name: 'Fire Spirit', cost: 80, type: 'animated', cycle: ['#ff4400', '#ff6600', '#ff8800', '#ff6600'] },
+    { id: 'ocean_wave', name: 'Ocean Wave', cost: 80, type: 'animated', cycle: ['#0044ff', '#0066ff', '#0088ff', '#0066ff'] },
+    { id: 'void_pulse', name: 'Void Pulse', cost: 80, type: 'animated', cycle: ['#220044', '#440066', '#660088', '#440066'] },
+];
+let customSkinColors = { body: '#00e5ff', head: '#33eeff', arms: '#00ccdd', legs: '#00aabb' };
+let currentCape = 'none';
+let unlockedCapes = ['none'];
+const CAPES = [
+    { id: 'none', name: 'None', cost: 0 },
+    { id: 'hero', name: 'Hero', cost: 30, color: '#ff0000' },
+    { id: 'royal', name: 'Royal', cost: 40, color: '#4400aa' },
+    { id: 'ice_cape', name: 'Ice', cost: 35, color: '#88ddff' },
+    { id: 'flame_cape', name: 'Flame', cost: 45, color: '#ff6600' },
+];
+let capePhysics = [];
+let currentJumpEffect = 'dust';
+let unlockedJumpEffects = ['dust'];
+const JUMP_EFFECTS = [
+    { id: 'dust', name: 'Dust', cost: 0, color: '#888888' },
+    { id: 'star_burst', name: 'Star Burst', cost: 20, color: '#ffd700' },
+    { id: 'electric_spark', name: 'Electric', cost: 25, color: '#00e5ff' },
+    { id: 'leaf_scatter', name: 'Leaf', cost: 20, color: '#44aa22' },
+    { id: 'pixel_shatter', name: 'Pixel', cost: 30, color: '#ff4081' },
+];
+let currentLandEffect = 'dust';
+let unlockedLandEffects = ['dust'];
+const LAND_EFFECTS = [
+    { id: 'dust', name: 'Dust', cost: 0 },
+    { id: 'shockwave_ring', name: 'Shockwave', cost: 25 },
+    { id: 'crater_crack', name: 'Crater', cost: 30 },
+    { id: 'water_splash', name: 'Splash', cost: 20 },
+    { id: 'fire_stomp', name: 'Fire Stomp', cost: 35 },
+];
+let currentEyeStyle = 0;
+let playerBlinkTimer = 0;
+let footprintTrail = [];
+const EXTRA_CELEBRATIONS = ['moonwalk', 'breakdance', 'victory_lap', 'air_guitar', 'dab'];
+let currentNameplate = 'clean';
+let unlockedNameplates = ['clean'];
+
+// --- Features 76-85: UI/UX State ---
+let splitTimerData = { sectionStart: 0, pbSectionTime: 0 };
+let perfOverlayVisible = false;
+let radialMenuOpen = false;
+let radialMenuSelection = -1;
+const RADIAL_ITEMS = ['Restart', 'Quit', 'Practice', 'Ghost', 'Photo', 'Zen', 'Speed', 'Skip'];
+let notificationQueue = [];
+let hudToggles = { timer: true, deaths: true, dash: true, combo: true, speed: true, xp: true, distance: true, streak: true };
+let levelRatings = {};
+let contextHintsShown = {};
+
+// --- Features 86-92: Editor State ---
+let editorMultiSelect = { active: false, startX: 0, startY: 0, endX: 0, endY: 0, selected: [] };
+let editorGridSnap = 'full'; // 'full', 'half', 'free'
+let editorLevelMeta = { name: '', author: '', difficulty: 3, description: '' };
+let editorTestSpawn = null;
+let editorActiveLayer = 'main'; // 'background', 'main', 'foreground'
+let editorLayerVisibility = { background: true, main: true, foreground: true };
+
+// --- Features 93-97: QOL State ---
+let dyslexiaFontEnabled = false;
+let gameSpeedMultiplier = 1.0; // 0.5 to 1.5
+let autoCameraZoom = true;
+
+// --- Features 31-40: Visual Effects State ---
+let dynamicLights = [];
+let rainActive = false;
+let rainDrops = [];
+let rainIntensity = 0.5;
+let lightningTimer = 0;
+let comboAuraColor = null;
+let deathFreezeTimer = 0;
+let levelIntroPanActive = false;
+let levelIntroPanTimer = 0;
+let levelIntroPanPhase = 'toGoal'; // 'toGoal', 'toSpawn'
+
+// --- Features 41-46: Audio State ---
+let hazardProximityGain = null;
+let hazardProximityOsc = null;
+let comboMelodyNote = 0;
+let bossMusicActive = false;
+
+// --- Feature 98-100: Achievement Categories + Secret + Completionist ---
+const ACHIEVEMENT_RARITIES = { common: '#aaaaaa', uncommon: '#44aa44', rare: '#4488ff', epic: '#aa44ff', legendary: '#ffd700' };
+const SECRET_ACHIEVEMENTS = [
+    { id: 'secret_pacifist', name: 'Pacifist', desc: 'Complete a level touching only 3 platforms', icon: '☮', rarity: 'epic', secret: true },
+    { id: 'secret_ceiling', name: 'Ceiling Walker', desc: 'Spend 10s on ceilings in one level', icon: '⇅', rarity: 'rare', secret: true },
+    { id: 'secret_ricochet', name: 'Ricochet Master', desc: '5 ricochet dashes in one run', icon: '↗', rarity: 'epic', secret: true },
+    { id: 'secret_backwards', name: 'Backwards', desc: 'Reach goal moving left for 50%+ of level', icon: '←', rarity: 'rare', secret: true },
+    { id: 'secret_floor_lava', name: 'Floor is Lava', desc: 'Complete a level airborne 80%+ of time', icon: '🔥', rarity: 'legendary', secret: true },
+];
+let platformsTouched = 0;
+let ceilingWalkTime = 0;
+let ricochetCount = 0;
+let backwardsTime = 0;
+let forwardsTime = 0;
+let airborneTime = 0;
+let groundedTime = 0;
 
 // Editor state
 let editorTool = 'platform';
@@ -1779,6 +2048,189 @@ function playSound(type) {
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
                 source.connect(filter); filter.connect(gain); gain.connect(audioDest());
                 source.start(now); source.stop(now + 0.15);
+                break;
+            }
+            case 'grapple': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(600 * pitchVar, now + 0.08);
+                osc.frequency.exponentialRampToValueAtTime(400 * pitchVar, now + 0.2);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.start(now); osc.stop(now + 0.25);
+                break;
+            }
+            case 'shockwave': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(80 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.3);
+                gain.gain.setValueAtTime(0.07, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc.start(now); osc.stop(now + 0.35);
+                break;
+            }
+            case 'waterSplash': {
+                const bufSize = Math.floor(audioCtx.sampleRate * 0.25);
+                const buffer2 = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+                const d2 = buffer2.getChannelData(0);
+                for (let i = 0; i < bufSize; i++) d2[i] = Math.random() * 2 - 1;
+                const src2 = audioCtx.createBufferSource();
+                src2.buffer = buffer2;
+                const filt2 = audioCtx.createBiquadFilter();
+                filt2.type = 'bandpass';
+                filt2.frequency.setValueAtTime(600, now);
+                filt2.Q.setValueAtTime(1, now);
+                const g2 = audioCtx.createGain();
+                g2.gain.setValueAtTime(0.06, now);
+                g2.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                src2.connect(filt2); filt2.connect(g2); g2.connect(audioDest());
+                src2.start(now); src2.stop(now + 0.25);
+                break;
+            }
+            case 'laser': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(2000 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(800 * pitchVar, now + 0.1);
+                gain.gain.setValueAtTime(0.04, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+                break;
+            }
+            case 'flame': {
+                const bufSize = Math.floor(audioCtx.sampleRate * 0.2);
+                const bufF = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+                const dF = bufF.getChannelData(0);
+                for (let i = 0; i < bufSize; i++) dF[i] = Math.random() * 2 - 1;
+                const srcF = audioCtx.createBufferSource();
+                srcF.buffer = bufF;
+                const filtF = audioCtx.createBiquadFilter();
+                filtF.type = 'lowpass';
+                filtF.frequency.setValueAtTime(500, now);
+                const gF = audioCtx.createGain();
+                gF.gain.setValueAtTime(0.05, now);
+                gF.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                srcF.connect(filtF); filtF.connect(gF); gF.connect(audioDest());
+                srcF.start(now); srcF.stop(now + 0.2);
+                break;
+            }
+            case 'gravityFlip': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(800 * pitchVar, now + 0.15);
+                osc.frequency.exponentialRampToValueAtTime(400 * pitchVar, now + 0.3);
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc.start(now); osc.stop(now + 0.35);
+                break;
+            }
+            case 'piston': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(60 * pitchVar, now);
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.start(now); osc.stop(now + 0.12);
+                break;
+            }
+            case 'pressurePlate': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(660 * pitchVar, now + 0.1);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+                break;
+            }
+            case 'gate': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100 * pitchVar, now);
+                osc.frequency.linearRampToValueAtTime(80 * pitchVar, now + 0.3);
+                gain.gain.setValueAtTime(0.04, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+                break;
+            }
+            case 'electric': {
+                const bufSize = Math.floor(audioCtx.sampleRate * 0.1);
+                const bufE = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+                const dE = bufE.getChannelData(0);
+                for (let i = 0; i < bufSize; i++) dE[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+                const srcE = audioCtx.createBufferSource();
+                srcE.buffer = bufE;
+                const filtE = audioCtx.createBiquadFilter();
+                filtE.type = 'highpass';
+                filtE.frequency.setValueAtTime(2000, now);
+                const gE = audioCtx.createGain();
+                gE.gain.setValueAtTime(0.05, now);
+                gE.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                srcE.connect(filtE); filtE.connect(gE); gE.connect(audioDest());
+                srcE.start(now); srcE.stop(now + 0.1);
+                break;
+            }
+            case 'ricochet': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(1200 * pitchVar, now + 0.05);
+                osc.frequency.exponentialRampToValueAtTime(300 * pitchVar, now + 0.15);
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                osc.start(now); osc.stop(now + 0.18);
+                break;
+            }
+            case 'ledgeGrab': {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(350 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(500 * pitchVar, now + 0.08);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.start(now); osc.stop(now + 0.12);
+                break;
+            }
+            case 'chargedJump': {
+                const osc = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const gain2 = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioDest());
+                osc2.connect(gain2); gain2.connect(audioDest());
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300 * pitchVar, now);
+                osc.frequency.exponentialRampToValueAtTime(1000 * pitchVar, now + 0.15);
+                gain.gain.setValueAtTime(0.07, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(600 * pitchVar, now);
+                osc2.frequency.exponentialRampToValueAtTime(1500 * pitchVar, now + 0.12);
+                gain2.gain.setValueAtTime(0.03, now);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now); osc.stop(now + 0.2);
+                osc2.start(now); osc2.stop(now + 0.15);
                 break;
             }
         }
@@ -2749,6 +3201,27 @@ function checkAchievements() {
     if (currentStreak >= 10) unlockAchievement('streak_10');
     if (dailyLoginStreak >= 7) unlockAchievement('daily_7');
     if (gameState === 'complete' && currentLevel === 19 && deathCount === 0) unlockAchievement('level20_deathless');
+    // 100-feature achievements
+    if (seasonPassTier >= 10) unlockAchievement('season_10');
+    if (seasonPassTier >= 50) unlockAchievement('season_50');
+    if (Object.keys(unlockedSkills).length >= 12) unlockAchievement('skill_tree_full');
+    if (challengeTokens >= 100) unlockAchievement('tokens_100');
+    if (ngPlusMode && gameState === 'complete') unlockAchievement('ng_plus_clear');
+    if (reverseMode && gameState === 'complete') unlockAchievement('reverse_clear');
+    if (survivalMode && gameState === 'complete') unlockAchievement('survival_clear');
+    if (relayMode && gameState === 'complete') unlockAchievement('relay_complete');
+    if (speedrunMode && speedrunLevel >= LEVELS.length) unlockAchievement('speedrun_complete');
+    if (bossRushMode && bossRushLevel >= 3) unlockAchievement('boss_rush_clear');
+    // Secret achievements
+    if (platformsTouched <= 3 && gameState === 'complete') unlockAchievement('secret_pacifist');
+    if (ceilingWalkTime >= 600) unlockAchievement('secret_ceiling');
+    if (ricochetCount >= 5) unlockAchievement('secret_ricochet');
+    if (backwardsTime > forwardsTime && gameState === 'complete') unlockAchievement('secret_backwards');
+    if (airborneTime > groundedTime * 4 && gameState === 'complete') unlockAchievement('secret_floor_lava');
+    // Completionist supreme: check all others
+    const totalAch = ACHIEVEMENTS.length - 1; // exclude completionist itself
+    const unlockedCount = Object.keys(unlockedAchievements).length;
+    if (unlockedCount >= totalAch) unlockAchievement('completionist_supreme');
 }
 
 function populateAchievements() {
@@ -2758,9 +3231,13 @@ function populateAchievements() {
     for (const ach of ACHIEVEMENTS) {
         const card = document.createElement('div');
         const isUnlocked = unlockedAchievements[ach.id];
+        const isSecret = ach.secret && !isUnlocked;
+        const rarity = ach.rarity || 'common';
+        const rarityColor = ACHIEVEMENT_RARITIES[rarity] || '#aaa';
         card.className = 'achievement-card ' + (isUnlocked ? 'unlocked' : 'locked');
+        if (isUnlocked && rarity) card.style.borderColor = rarityColor;
         card.innerHTML =
-            '<div class="achievement-icon">' + ach.icon + '</div>' +
+            '<div class="achievement-icon" style="' + (isUnlocked ? 'border-color:' + rarityColor : '') + '">' + (isSecret ? '?' : ach.icon) + '</div>' +
             '<div class="achievement-info">' +
             '<div class="achievement-name">' + ach.name + '</div>' +
             '<div class="achievement-desc">' + ach.desc + '</div>' +
@@ -3001,6 +3478,14 @@ function generateEndlessSegment() {
     if (dist > 200 && rng() > 0.94) speedPads.push(speedPad(startX, y - 0.3, Math.min(w, 3), 10));
     if (dist > 450 && rng() > 0.95) lavaFloors.push(lavaFloor(startX, y + 2, w, 1, 0));
     if (dist > 300 && rng() > 0.95) magnetPlatforms.push(magnetPlat(startX, y - 3, w, 1, 4));
+    // 100-feature update: new blocks in endless
+    if (dist > 500 && rng() > 0.96) acidPools.push(acidPool(startX, y + 1, w, 2));
+    if (dist > 400 && rng() > 0.95) laserTurrets.push(laserTurret(startX, y - 3, rng() > 0.5 ? 1 : -1, 40, 60));
+    if (dist > 350 && rng() > 0.95) bubblePlatforms.push(bubblePlat(startX + Math.floor(w / 2), y - 4));
+    if (dist > 450 && rng() > 0.96) flameJets.push(flameJet(startX + 1, y, 'up', 40, 60));
+    if (dist > 500 && rng() > 0.97) shockwaveEmitters.push(shockwaveEmitter(startX + Math.floor(w / 2), y - 2, 120));
+    if (dist > 550 && rng() > 0.96) shadowPlatforms.push(shadowPlat(startX, y, w, 1, 4));
+    if (dist > 600 && rng() > 0.97) electrifiedRails.push(electrifiedRail(startX, y, w, 60, 90));
     endlessLastX = (startX + w) * TILE;
 }
 
@@ -3480,6 +3965,1386 @@ function portalBeam(tx, ty, tw, destTx, destTy) {
 
 function speedPad(tx, ty, tw, boost) {
     return { x: tx * TILE, y: ty * TILE, w: (tw || 2) * TILE, h: TILE * 0.3, boost: boost || 12, duration: 60, animOffset: 0 };
+}
+
+// ============================================
+// NEW BLOCK CONSTRUCTORS (Features 16-30)
+// ============================================
+
+function pressurePlate(tx, ty, tw, linkedIds) {
+    return { x: tx * TILE, y: ty * TILE, w: (tw || 2) * TILE, h: TILE * 0.3, linkedIds: linkedIds || [], activated: false, pressTimer: 0, requiredTime: 60 };
+}
+
+function gateBlock(tx, ty, tw, th, gateId) {
+    return { x: tx * TILE, y: ty * TILE, w: (tw || 1) * TILE, h: (th || 3) * TILE, gateId: gateId || 'A', open: false, openProgress: 0, origY: ty * TILE };
+}
+
+function acidPool(tx, ty, tw, th) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: (th || 2) * TILE, bubblePhase: Math.random() * Math.PI * 2 };
+}
+
+function rotatingPlat(tx, ty, tw, pivotTx, pivotTy, speed) {
+    const px = tx * TILE, py = ty * TILE;
+    const pvx = (pivotTx || tx) * TILE, pvy = (pivotTy || ty) * TILE;
+    const radius = Math.sqrt((px - pvx) ** 2 + (py - pvy) ** 2) || TILE * 3;
+    return { x: px, y: py, w: (tw || 3) * TILE, h: TILE, pivotX: pvx, pivotY: pvy, radius: radius, angle: Math.atan2(py - pvy, px - pvx), speed: speed || 0.02 };
+}
+
+function laserTurret(tx, ty, dir, onTime, offTime) {
+    return { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE, dir: dir || 1, warmUp: 30, onTime: onTime || 40, offTime: offTime || 60, timer: 0, phase: 'off', beamLength: 12 * TILE };
+}
+
+function bubblePlat(tx, ty) {
+    return { x: tx * TILE, y: ty * TILE, w: TILE * 1.5, h: TILE * 1.5, radius: TILE * 0.75, contactTimer: 0, popped: false, regenTimer: 0, driftSpeed: -0.3, origY: ty * TILE };
+}
+
+function flameJet(tx, ty, dir, onTime, offTime) {
+    return { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE, dir: dir || 'up', onTime: onTime || 40, offTime: offTime || 60, timer: 0, active: false, flameLength: 4 * TILE, warningTimer: 0 };
+}
+
+function gravityOrbPickup(tx, ty) {
+    return { x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, radius: 10, collected: false, respawnTimer: 0, bobPhase: Math.random() * Math.PI * 2 };
+}
+
+function shockwaveEmitter(tx, ty, interval) {
+    return { x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, interval: interval || 120, timer: 0, waveRadius: 0, waveActive: false, pushForce: 5 };
+}
+
+function shadowPlat(tx, ty, tw, th, revealRadius) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: (th || 1) * TILE, revealRadius: (revealRadius || 4) * TILE, visibility: 0 };
+}
+
+function timedSwitchBlock(tx, ty, tw, th, duration) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: (th || 1) * TILE, duration: duration || 120, timer: 0, solid: false };
+}
+
+function electrifiedRail(tx, ty, tw, onTime, offTime) {
+    return { x: tx * TILE, y: ty * TILE, w: tw * TILE, h: TILE * 0.4, onTime: onTime || 60, offTime: offTime || 90, timer: 0, electrified: false, sparkPhase: 0 };
+}
+
+function phantomWall(tx, ty, tw, th, passDir) {
+    return { x: tx * TILE, y: ty * TILE, w: (tw || 1) * TILE, h: (th || 3) * TILE, passableDir: passDir || 'right' };
+}
+
+function pistonBlock(tx, ty, tw, th, dir, extendDist, speed) {
+    return { x: tx * TILE, y: ty * TILE, w: (tw || 1) * TILE, h: (th || 1) * TILE, dir: dir || 'right', extendDist: (extendDist || 3) * TILE, speed: speed || 2, extended: 0, extending: true, origX: tx * TILE, origY: ty * TILE };
+}
+
+function thornVine(tx, ty, th, wallSide) {
+    const segs = [];
+    for (let i = 0; i < (th || 4); i++) segs.push({ x: tx * TILE, y: (ty + i) * TILE, phase: Math.random() * Math.PI * 2 });
+    return { x: tx * TILE, y: ty * TILE, h: (th || 4) * TILE, side: wallSide || 'left', segments: segs, growPhase: 0, grown: true, growTimer: 0, onTime: 120, offTime: 60 };
+}
+
+// ============================================
+// PUZZLE MODE LEVELS (Feature 55)
+// ============================================
+const PUZZLE_LEVELS = [
+    function() { // Puzzle 1: Pressure Plate Bridge
+        platforms.push(plat(0, 18, 8, 2)); platforms.push(plat(20, 18, 8, 2)); platforms.push(plat(40, 18, 8, 2));
+        pressurePlates.push(pressurePlate(3, 17.7, 2, ['bridgeA']));
+        gateBlocks.push(gateBlock(10, 15, 8, 1, 'bridgeA'));
+        pressurePlates.push(pressurePlate(23, 17.7, 2, ['bridgeB']));
+        gateBlocks.push(gateBlock(30, 15, 8, 1, 'bridgeB'));
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = { x: 44 * TILE, y: 16 * TILE, w: TILE * 2, h: TILE * 2 };
+    },
+    function() { // Puzzle 2: Gravity Orb Maze
+        platforms.push(plat(0, 18, 10, 2)); platforms.push(plat(0, 5, 10, 1));
+        platforms.push(plat(15, 18, 10, 2)); platforms.push(plat(15, 5, 10, 1));
+        platforms.push(plat(30, 18, 10, 2));
+        gravityOrbs.push(gravityOrbPickup(12, 16)); gravityOrbs.push(gravityOrbPickup(27, 7));
+        spikes.push(spike(10, 18, 5, 1));
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = { x: 34 * TILE, y: 16 * TILE, w: TILE * 2, h: TILE * 2 };
+    },
+    function() { // Puzzle 3: Piston Pathway
+        platforms.push(plat(0, 18, 6, 2)); platforms.push(plat(24, 18, 6, 2)); platforms.push(plat(48, 18, 6, 2));
+        pistonBlocks.push(pistonBlock(8, 17, 2, 1, 'right', 6, 1.5));
+        pistonBlocks.push(pistonBlock(18, 14, 2, 1, 'right', 6, 1.5));
+        pistonBlocks.push(pistonBlock(32, 17, 2, 1, 'right', 6, 1.5));
+        pistonBlocks.push(pistonBlock(42, 14, 2, 1, 'right', 6, 1.5));
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = { x: 50 * TILE, y: 16 * TILE, w: TILE * 2, h: TILE * 2 };
+    },
+    function() { // Puzzle 4: Shadow Platform Trust
+        platforms.push(plat(0, 18, 6, 2));
+        for (let i = 0; i < 8; i++) shadowPlatforms.push(shadowPlat(8 + i * 5, 16 - (i % 3) * 2, 3, 1, 3));
+        platforms.push(plat(50, 18, 6, 2));
+        spawnPoint = { x: 2 * TILE, y: 16 * TILE };
+        goalZone = { x: 52 * TILE, y: 16 * TILE, w: TILE * 2, h: TILE * 2 };
+    },
+    function() { // Puzzle 5: Timed Switch Race
+        platforms.push(plat(0, 18, 6, 2)); platforms.push(plat(15, 18, 4, 2)); platforms.push(plat(25, 18, 4, 2));
+        platforms.push(plat(35, 18, 4, 2)); platforms.push(plat(50, 18, 6, 2));
+        timedSwitchBlocks.push(timedSwitchBlock(10, 17, 4, 1, 180));
+        timedSwitchBlocks.push(timedSwitchBlock(20, 17, 4, 1, 150));
+        timedSwitchBlocks.push(timedSwitchBlock(30, 17, 4, 1, 120));
+        timedSwitchBlocks.push(timedSwitchBlock(40, 17, 4, 1, 100));
+        boostPads.push(boost(2, 17, 3, 1));
+        spawnPoint = { x: 1 * TILE, y: 16 * TILE };
+        goalZone = { x: 52 * TILE, y: 16 * TILE, w: TILE * 2, h: TILE * 2 };
+    },
+];
+
+// ============================================
+// NEW UPDATE FUNCTIONS (Features 16-30 blocks)
+// ============================================
+
+function updateNewBlocks3(dt) {
+    const p = player;
+    const s = dt;
+
+    // Pressure Plates (Feature 16)
+    for (const pp of pressurePlates) {
+        const footBox = { x: p.x, y: p.y + p.h - 2, w: p.w, h: 4 };
+        const ppBox = { x: pp.x, y: pp.y, w: pp.w, h: TILE };
+        if (aabb(footBox, ppBox) && p.onGround) {
+            pp.pressTimer += s;
+            if (pp.pressTimer >= pp.requiredTime && !pp.activated) {
+                pp.activated = true;
+                playSound('click');
+                spawnFloatingText('ACTIVATED!', pp.x + pp.w / 2, pp.y - 20, '#00ff88', 16);
+                for (const gate of gateBlocks) {
+                    if (pp.linkedIds.includes(gate.gateId)) gate.open = true;
+                }
+            }
+        } else {
+            pp.pressTimer = Math.max(0, pp.pressTimer - s * 0.5);
+        }
+    }
+
+    // Gate Blocks (Feature 17)
+    for (const gate of gateBlocks) {
+        if (gate.open && gate.openProgress < 1) {
+            gate.openProgress = Math.min(1, gate.openProgress + 0.02 * s);
+            gate.y = gate.origY + gate.h * gate.openProgress;
+        }
+    }
+
+    // Acid Pools (Feature 18) - kill on contact
+    for (const ap of acidPools) {
+        ap.bubblePhase += 0.05 * s;
+        const pBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+        if (aabb(pBox, ap)) killPlayer();
+    }
+
+    // Rotating Platforms (Feature 19)
+    for (const rp of rotatingPlatforms) {
+        rp.angle += rp.speed * s;
+        rp.x = rp.pivotX + Math.cos(rp.angle) * rp.radius;
+        rp.y = rp.pivotY + Math.sin(rp.angle) * rp.radius;
+    }
+
+    // Laser Turrets (Feature 20)
+    for (const lt of laserTurrets) {
+        lt.timer += s;
+        if (lt.phase === 'off' && lt.timer >= lt.offTime) { lt.phase = 'warmup'; lt.timer = 0; }
+        else if (lt.phase === 'warmup' && lt.timer >= lt.warmUp) { lt.phase = 'on'; lt.timer = 0; playSound('laser'); }
+        else if (lt.phase === 'on' && lt.timer >= lt.onTime) { lt.phase = 'off'; lt.timer = 0; }
+        if (lt.phase === 'on') {
+            let bx = lt.x, by = lt.y + TILE / 2, bw, bh = 4;
+            if (lt.dir === 1) { bx = lt.x + TILE; bw = lt.beamLength; }
+            else { bx = lt.x - lt.beamLength; bw = lt.beamLength; }
+            if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, { x: bx, y: by - 2, w: bw, h: bh })) killPlayer();
+        }
+    }
+
+    // Bubble Platforms (Feature 21)
+    for (const bp of bubblePlatforms) {
+        if (bp.popped) {
+            bp.regenTimer += s;
+            if (bp.regenTimer >= 300) { bp.popped = false; bp.regenTimer = 0; bp.y = bp.origY; bp.contactTimer = 0; }
+            continue;
+        }
+        bp.y += bp.driftSpeed * s * 0.1;
+        const footBox = { x: p.x, y: p.y + p.h, w: p.w, h: 4 };
+        if (aabb(footBox, { x: bp.x, y: bp.y, w: bp.w, h: bp.h })) {
+            bp.contactTimer += s;
+            if (bp.contactTimer >= 90) {
+                bp.popped = true;
+                spawnParticles(bp.x + bp.w / 2, bp.y + bp.h / 2, 8, '#aaddff', 4, 1);
+                playSound('waterSplash');
+            }
+        }
+    }
+
+    // Flame Jets (Feature 22)
+    for (const fj of flameJets) {
+        fj.timer += s;
+        if (!fj.active && fj.timer >= fj.offTime) {
+            fj.warningTimer = 30;
+            fj.timer = 0;
+            fj.active = true;
+        } else if (fj.active && fj.timer >= fj.onTime) {
+            fj.timer = 0;
+            fj.active = false;
+        }
+        if (fj.warningTimer > 0) fj.warningTimer -= s;
+        if (fj.active) {
+            let fx, fy, fw, fh;
+            if (fj.dir === 'up') { fx = fj.x; fy = fj.y - fj.flameLength; fw = TILE; fh = fj.flameLength; }
+            else if (fj.dir === 'down') { fx = fj.x; fy = fj.y + TILE; fw = TILE; fh = fj.flameLength; }
+            else if (fj.dir === 'left') { fx = fj.x - fj.flameLength; fy = fj.y; fw = fj.flameLength; fh = TILE; }
+            else { fx = fj.x + TILE; fy = fj.y; fw = fj.flameLength; fh = TILE; }
+            if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, { x: fx, y: fy, w: fw, h: fh })) killPlayer();
+        }
+    }
+
+    // Gravity Orbs (Feature 23)
+    for (const go of gravityOrbs) {
+        if (go.collected) { go.respawnTimer += s; if (go.respawnTimer >= 600) { go.collected = false; go.respawnTimer = 0; } continue; }
+        go.bobPhase += 0.05 * s;
+        const dx = (p.x + p.w / 2) - go.x;
+        const dy = (p.y + p.h / 2) - go.y;
+        if (Math.sqrt(dx * dx + dy * dy) < go.radius + 12) {
+            go.collected = true;
+            personalGravityDir *= -1;
+            gravityFlipActive = true;
+            gravityFlipTimer = 180;
+            playSound('boost');
+            spawnFloatingText('GRAVITY FLIP!', p.x + p.w / 2, p.y - 30, '#9933ff', 18);
+        }
+    }
+
+    // Shockwave Emitters (Feature 24)
+    for (const se of shockwaveEmitters) {
+        se.timer += s;
+        if (se.timer >= se.interval) {
+            se.timer = 0;
+            se.waveActive = true;
+            se.waveRadius = 0;
+            playSound('shockwave');
+        }
+        if (se.waveActive) {
+            se.waveRadius += 3 * s;
+            if (se.waveRadius > 6 * TILE) se.waveActive = false;
+            const dx = (p.x + p.w / 2) - se.x;
+            const dy = (p.y + p.h / 2) - se.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (Math.abs(dist - se.waveRadius) < 10) {
+                const nx = dx / dist, ny = dy / dist;
+                p.vx += nx * se.pushForce * s;
+                p.vy += ny * se.pushForce * s;
+            }
+        }
+    }
+
+    // Shadow Platforms (Feature 25)
+    for (const sp of shadowPlatforms) {
+        const dx = (p.x + p.w / 2) - (sp.x + sp.w / 2);
+        const dy = (p.y + p.h / 2) - (sp.y + sp.h / 2);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        sp.visibility = Math.max(0, 1 - dist / sp.revealRadius);
+    }
+
+    // Timed Switch Blocks (Feature 26)
+    for (const tsb of timedSwitchBlocks) {
+        if (tsb.solid) {
+            tsb.timer -= s;
+            if (tsb.timer <= 0) tsb.solid = false;
+        }
+    }
+
+    // Electrified Rails (Feature 27)
+    for (const er of electrifiedRails) {
+        er.timer += s;
+        er.sparkPhase += 0.1 * s;
+        const totalCycle = er.onTime + er.offTime;
+        const cyclePos = er.timer % totalCycle;
+        const wasElectrified = er.electrified;
+        er.electrified = cyclePos < er.onTime;
+        if (er.electrified && !wasElectrified) playSound('laser');
+        const footBox = { x: p.x, y: p.y + p.h, w: p.w, h: 4 };
+        if (aabb(footBox, er) && er.electrified) killPlayer();
+    }
+
+    // Phantom Walls (Feature 28)
+    // Collision handled in getAllSolids with direction check
+
+    // Piston Blocks (Feature 29)
+    for (const pb of pistonBlocks) {
+        if (pb.extending) {
+            pb.extended = Math.min(pb.extendDist, pb.extended + pb.speed * s);
+            if (pb.extended >= pb.extendDist) pb.extending = false;
+        } else {
+            pb.extended = Math.max(0, pb.extended - pb.speed * s);
+            if (pb.extended <= 0) pb.extending = true;
+        }
+        if (pb.dir === 'right') pb.x = pb.origX + pb.extended;
+        else if (pb.dir === 'left') pb.x = pb.origX - pb.extended;
+        else if (pb.dir === 'up') pb.y = pb.origY - pb.extended;
+        else pb.y = pb.origY + pb.extended;
+        // Push player
+        const pbBox = { x: pb.x, y: pb.y, w: pb.w, h: pb.h };
+        if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, pbBox)) {
+            if (pb.dir === 'right' && pb.extending) p.x = pb.x + pb.w;
+            else if (pb.dir === 'left' && pb.extending) p.x = pb.x - p.w;
+            else if (pb.dir === 'up' && pb.extending) p.y = pb.y - p.h;
+            else if (pb.dir === 'down' && pb.extending) p.y = pb.y + pb.h;
+        }
+    }
+
+    // Thorn Vines (Feature 30)
+    for (const tv of thornVines) {
+        tv.growPhase += 0.03 * s;
+        tv.growTimer += s;
+        const totalCycle = tv.onTime + tv.offTime;
+        const cyclePos = tv.growTimer % totalCycle;
+        tv.grown = cyclePos < tv.onTime;
+        if (tv.grown) {
+            for (const seg of tv.segments) {
+                const thorns = { x: seg.x - 4, y: seg.y, w: TILE + 8, h: TILE };
+                if (aabb({ x: p.x, y: p.y, w: p.w, h: p.h }, thorns)) killPlayer();
+            }
+        }
+    }
+
+    // Gravity flip timer
+    if (gravityFlipActive) {
+        gravityFlipTimer -= s;
+        if (gravityFlipTimer <= 0) { gravityFlipActive = false; personalGravityDir = 1; }
+    }
+
+    // Orb multiplier timer
+    if (orbMultiplierTimer > 0) { orbMultiplierTimer -= s; if (orbMultiplierTimer <= 0) orbMultiplierValue = 1; }
+
+    // Invulnerability timer (skill tree)
+    if (invulnTimer > 0) invulnTimer -= s;
+
+    // Bounce chain reset on ground
+    if (p.onGround) bounceChainCount = 0;
+
+    // Afterimage phase
+    if (afterimagePhaseActive) {
+        afterimagePhaseTimer -= s;
+        if (afterimagePhaseTimer <= 0) afterimagePhaseActive = false;
+        afterimageTrail.push({ x: p.x, y: p.y, w: p.w, h: p.h, alpha: 0.5 });
+        if (afterimageTrail.length > 8) afterimageTrail.shift();
+    } else {
+        afterimageTrail = [];
+    }
+
+    // Track secret achievements
+    if (!p.onGround) airborneTime += s; else groundedTime += s;
+    if (p.vx < -0.5) backwardsTime += s;
+    else if (p.vx > 0.5) forwardsTime += s;
+    if (personalGravityDir === -1) ceilingWalkTime += s;
+}
+
+// ============================================
+// NEW DRAW FUNCTIONS (Features 16-30 blocks)
+// ============================================
+
+function drawNewBlocks3() {
+    // Pressure Plates
+    for (const pp of pressurePlates) {
+        const sx = pp.x - camera.x, sy = pp.y - camera.y;
+        ctx.fillStyle = pp.activated ? '#00ff88' : '#887744';
+        ctx.fillRect(sx, sy, pp.w, TILE * 0.3);
+        if (pp.pressTimer > 0 && !pp.activated) {
+            ctx.fillStyle = '#00ff88';
+            ctx.fillRect(sx, sy, pp.w * (pp.pressTimer / pp.requiredTime), TILE * 0.3);
+        }
+    }
+
+    // Gate Blocks
+    for (const gate of gateBlocks) {
+        if (gate.openProgress >= 1) continue;
+        const sx = gate.x - camera.x, sy = gate.origY + gate.h * gate.openProgress - camera.y;
+        ctx.fillStyle = '#666688';
+        ctx.fillRect(sx, sy, gate.w, gate.h * (1 - gate.openProgress));
+        ctx.strokeStyle = '#8888aa';
+        ctx.strokeRect(sx, sy, gate.w, gate.h * (1 - gate.openProgress));
+    }
+
+    // Acid Pools
+    for (const ap of acidPools) {
+        const sx = ap.x - camera.x, sy = ap.y - camera.y;
+        ctx.fillStyle = '#33cc00';
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(sx, sy, ap.w, ap.h);
+        // Bubbles
+        ctx.fillStyle = '#66ff33';
+        for (let i = 0; i < 3; i++) {
+            const bx = sx + (ap.w * 0.2) + (i * ap.w * 0.3);
+            const by = sy + Math.sin(ap.bubblePhase + i * 2) * 4;
+            ctx.beginPath(); ctx.arc(bx, by, 3, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        // Glow
+        const grd = ctx.createLinearGradient(sx, sy - 10, sx, sy);
+        grd.addColorStop(0, 'rgba(51,204,0,0)'); grd.addColorStop(1, 'rgba(51,204,0,0.3)');
+        ctx.fillStyle = grd; ctx.fillRect(sx, sy - 10, ap.w, 10);
+    }
+
+    // Rotating Platforms
+    for (const rp of rotatingPlatforms) {
+        const sx = rp.x - camera.x, sy = rp.y - camera.y;
+        ctx.fillStyle = '#5566aa';
+        ctx.fillRect(sx, sy, rp.w, rp.h);
+        ctx.strokeStyle = '#7788cc'; ctx.strokeRect(sx, sy, rp.w, rp.h);
+    }
+
+    // Laser Turrets
+    for (const lt of laserTurrets) {
+        const sx = lt.x - camera.x, sy = lt.y - camera.y;
+        ctx.fillStyle = '#554444';
+        ctx.fillRect(sx, sy, TILE, TILE);
+        if (lt.phase === 'warmup') {
+            ctx.fillStyle = `rgba(255,0,0,${0.3 + 0.3 * Math.sin(lt.timer * 0.3)})`;
+            ctx.fillRect(sx, sy, TILE, TILE);
+        }
+        if (lt.phase === 'on') {
+            const bx = lt.dir === 1 ? sx + TILE : sx - lt.beamLength;
+            ctx.fillStyle = 'rgba(255,0,0,0.8)';
+            ctx.fillRect(bx, sy + TILE / 2 - 2, lt.beamLength, 4);
+            ctx.fillStyle = 'rgba(255,100,100,0.4)';
+            ctx.fillRect(bx, sy + TILE / 2 - 6, lt.beamLength, 12);
+        }
+    }
+
+    // Bubble Platforms
+    for (const bp of bubblePlatforms) {
+        if (bp.popped) continue;
+        const cx = bp.x + bp.w / 2 - camera.x, cy = bp.y + bp.h / 2 - camera.y;
+        ctx.beginPath(); ctx.arc(cx, cy, bp.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(150,200,255,0.25)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(200,230,255,0.6)'; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
+    }
+
+    // Flame Jets
+    for (const fj of flameJets) {
+        const sx = fj.x - camera.x, sy = fj.y - camera.y;
+        ctx.fillStyle = '#553322'; ctx.fillRect(sx, sy, TILE, TILE);
+        if (fj.active) {
+            let fx, fy, fw, fh;
+            if (fj.dir === 'up') { fx = sx + 4; fy = sy - fj.flameLength; fw = TILE - 8; fh = fj.flameLength; }
+            else if (fj.dir === 'down') { fx = sx + 4; fy = sy + TILE; fw = TILE - 8; fh = fj.flameLength; }
+            else if (fj.dir === 'left') { fx = sx - fj.flameLength; fy = sy + 4; fw = fj.flameLength; fh = TILE - 8; }
+            else { fx = sx + TILE; fy = sy + 4; fw = fj.flameLength; fh = TILE - 8; }
+            const grad = ctx.createLinearGradient(fx, fy, fx + fw, fy + fh);
+            grad.addColorStop(0, 'rgba(255,200,0,0.9)'); grad.addColorStop(0.5, 'rgba(255,80,0,0.7)'); grad.addColorStop(1, 'rgba(255,0,0,0.3)');
+            ctx.fillStyle = grad; ctx.fillRect(fx, fy, fw, fh);
+        }
+        if (fj.warningTimer > 0) {
+            ctx.fillStyle = `rgba(255,165,0,${0.3 * Math.sin(fj.warningTimer * 0.5)})`;
+            ctx.fillRect(sx, sy, TILE, TILE);
+        }
+    }
+
+    // Gravity Orbs
+    for (const go of gravityOrbs) {
+        if (go.collected) continue;
+        const gx = go.x - camera.x, gy = go.y + Math.sin(go.bobPhase) * 4 - camera.y;
+        ctx.beginPath(); ctx.arc(gx, gy, go.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#9933ff'; ctx.fill();
+        ctx.strokeStyle = '#cc66ff'; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(gx, gy, go.radius + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(153,51,255,0.3)'; ctx.stroke();
+    }
+
+    // Shockwave Emitters
+    for (const se of shockwaveEmitters) {
+        const sx = se.x - camera.x, sy = se.y - camera.y;
+        ctx.beginPath(); ctx.arc(sx, sy, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff8800'; ctx.fill();
+        if (se.waveActive) {
+            ctx.beginPath(); ctx.arc(sx, sy, se.waveRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255,136,0,${0.5 * (1 - se.waveRadius / (6 * TILE))})`;
+            ctx.lineWidth = 3; ctx.stroke(); ctx.lineWidth = 1;
+        }
+    }
+
+    // Shadow Platforms
+    for (const sp of shadowPlatforms) {
+        if (sp.visibility <= 0.02) continue;
+        const sx = sp.x - camera.x, sy = sp.y - camera.y;
+        ctx.globalAlpha = sp.visibility;
+        ctx.fillStyle = '#334455';
+        ctx.fillRect(sx, sy, sp.w, sp.h);
+        ctx.strokeStyle = '#5566aa';
+        ctx.strokeRect(sx, sy, sp.w, sp.h);
+        ctx.globalAlpha = 1;
+    }
+
+    // Timed Switch Blocks
+    for (const tsb of timedSwitchBlocks) {
+        const sx = tsb.x - camera.x, sy = tsb.y - camera.y;
+        ctx.globalAlpha = tsb.solid ? 1 : 0.2;
+        ctx.fillStyle = tsb.solid ? '#4488aa' : '#223344';
+        ctx.fillRect(sx, sy, tsb.w, tsb.h);
+        if (tsb.solid) {
+            ctx.fillStyle = '#66bbdd';
+            ctx.fillRect(sx, sy, tsb.w * (tsb.timer / tsb.duration), 3);
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Electrified Rails
+    for (const er of electrifiedRails) {
+        const sx = er.x - camera.x, sy = er.y - camera.y;
+        ctx.fillStyle = er.electrified ? '#ffff00' : '#666666';
+        ctx.fillRect(sx, sy, er.w, er.h);
+        if (er.electrified) {
+            ctx.strokeStyle = `rgba(255,255,0,${0.5 + 0.3 * Math.sin(er.sparkPhase)})`;
+            for (let i = 0; i < 3; i++) {
+                const lx = sx + Math.random() * er.w;
+                ctx.beginPath(); ctx.moveTo(lx, sy - 4); ctx.lineTo(lx + 3, sy + 2); ctx.lineTo(lx - 2, sy + er.h + 4); ctx.stroke();
+            }
+        }
+    }
+
+    // Phantom Walls
+    for (const pw of phantomWalls) {
+        const sx = pw.x - camera.x, sy = pw.y - camera.y;
+        ctx.fillStyle = 'rgba(100,100,120,0.6)';
+        ctx.fillRect(sx, sy, pw.w, pw.h);
+        // Shimmer on passable side
+        const shimmerX = pw.passableDir === 'right' ? sx + pw.w - 3 : sx;
+        ctx.fillStyle = `rgba(150,150,200,${0.3 + 0.2 * Math.sin(performance.now() * 0.003)})`;
+        ctx.fillRect(shimmerX, sy, 3, pw.h);
+    }
+
+    // Piston Blocks
+    for (const pb of pistonBlocks) {
+        const sx = pb.x - camera.x, sy = pb.y - camera.y;
+        ctx.fillStyle = '#776655';
+        ctx.fillRect(sx, sy, pb.w, pb.h);
+        ctx.strokeStyle = '#998877'; ctx.strokeRect(sx, sy, pb.w, pb.h);
+    }
+
+    // Thorn Vines
+    for (const tv of thornVines) {
+        if (!tv.grown) continue;
+        ctx.strokeStyle = '#228822';
+        ctx.lineWidth = 3;
+        for (let i = 0; i < tv.segments.length - 1; i++) {
+            const a = tv.segments[i], b = tv.segments[i + 1];
+            const ax = a.x + TILE / 2 - camera.x + Math.sin(a.phase + tv.growPhase) * 3;
+            const ay = a.y + TILE / 2 - camera.y;
+            const bx = b.x + TILE / 2 - camera.x + Math.sin(b.phase + tv.growPhase) * 3;
+            const by = b.y + TILE / 2 - camera.y;
+            ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+            // Thorns
+            ctx.fillStyle = '#cc2222';
+            ctx.beginPath(); ctx.arc(ax + 6, ay, 3, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.lineWidth = 1;
+    }
+}
+
+// ============================================
+// GAMEPLAY MECHANICS (Features 1-15)
+// ============================================
+
+function updateGameplayMechanics(dt) {
+    const p = player;
+    const s = dt;
+
+    // Feature 1: Grapple Hook (G key, Lv.9)
+    if (grappleHook.cooldown > 0) grappleHook.cooldown -= s;
+    if (getPlayerLevel() >= 9 && isKeyJustPressed('grapple') && !grappleHook.active && grappleHook.cooldown <= 0) {
+        // Find nearest surface
+        let nearestDist = 8 * TILE, nearestPoint = null;
+        const allSurfs = [...platforms, ...walls, ...icePlatforms];
+        for (const surf of allSurfs) {
+            const cx = surf.x + surf.w / 2, cy = surf.y;
+            const dx = cx - (p.x + p.w / 2), dy = cy - (p.y + p.h / 2);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < nearestDist && dy < 0) { nearestDist = dist; nearestPoint = { x: cx, y: cy }; }
+        }
+        if (nearestPoint) {
+            grappleHook.active = true;
+            grappleHook.targetX = nearestPoint.x;
+            grappleHook.targetY = nearestPoint.y;
+            grappleHook.length = nearestDist;
+            grappleHook.angle = Math.atan2(p.y - nearestPoint.y, p.x - nearestPoint.x);
+            grappleHook.swingVel = p.vx * 0.02;
+            playSound('grapple');
+        }
+    }
+    if (grappleHook.active) {
+        grappleHook.swingVel += Math.cos(grappleHook.angle) * 0.003 * s;
+        grappleHook.angle += grappleHook.swingVel * s;
+        p.x = grappleHook.targetX + Math.cos(grappleHook.angle) * grappleHook.length - p.w / 2;
+        p.y = grappleHook.targetY + Math.sin(grappleHook.angle) * grappleHook.length - p.h / 2;
+        p.vx = -Math.sin(grappleHook.angle) * grappleHook.swingVel * grappleHook.length;
+        p.vy = Math.cos(grappleHook.angle) * grappleHook.swingVel * grappleHook.length;
+        // Release on jump
+        if (isKeyJustPressed('jump')) {
+            grappleHook.active = false;
+            grappleHook.cooldown = 60;
+            p.vy = Math.min(-8, p.vy - 5);
+            triggerCombo();
+        }
+        // Auto-release after 3s
+        grappleHook.length -= 0.1 * s;
+        if (grappleHook.length < TILE) { grappleHook.active = false; grappleHook.cooldown = 60; }
+    }
+
+    // Feature 2: Wall Cling Timer (Shift on wall)
+    if ((p.onWallLeft || p.onWallRight) && (keys['ShiftLeft'] || keys['ShiftRight']) && wallClingCooldown <= 0) {
+        if (wallClingTimer < WALL_CLING_MAX) {
+            wallClingTimer += s;
+            p.vy = 0; // Hold position
+            p.vx = 0;
+        }
+    } else if (p.onGround) {
+        wallClingTimer = 0; wallClingCooldown = 0;
+    }
+    if (wallClingTimer >= WALL_CLING_MAX) wallClingCooldown = 60;
+    if (wallClingCooldown > 0) wallClingCooldown -= s;
+
+    // Feature 3: Momentum Preservation
+    if (p.wasOnGround && !p.onGround) {
+        // Takeoff — no change needed
+    } else if (!p.wasOnGround && p.onGround && Math.abs(p.vx) > getCheatRunSpeed() * 1.2) {
+        // Landing at speed: burst
+        const burst = Math.min(3, (Math.abs(p.vx) - getCheatRunSpeed()) * 0.4);
+        p.vx += burst * Math.sign(p.vx);
+        if (gameSettings.particles) spawnParticles(p.x + p.w / 2, p.y + p.h, 4, '#ffaa00', 3, 1);
+    }
+
+    // Feature 4: Charged Jump
+    if (p.onGround && (keys['KeyW'] || keys['ArrowUp'] || keys['Space'])) {
+        chargedJumpTimer += s;
+        if (chargedJumpTimer >= 30 && !chargedJumpReady) {
+            chargedJumpReady = true;
+            spawnParticles(p.x + p.w / 2, p.y + p.h, 3, '#ffdd00', 2, 0.5);
+        }
+    } else {
+        if (chargedJumpReady && (isKeyJustPressed('jump'))) {
+            // Applied in jump logic below
+        }
+        chargedJumpTimer = 0;
+        chargedJumpReady = false;
+    }
+
+    // Feature 5: Air Kick
+    if (!p.onGround && !p.isDashing && !airKickActive &&
+        (keys['ShiftLeft'] || keys['ShiftRight']) && (keys['KeyA'] || keys['KeyD'] || keys['ArrowLeft'] || keys['ArrowRight'])) {
+        // Only if dash is on cooldown (so it doesn't conflict)
+        if (p.dashCooldown > 0 && p.dashTimer <= 0) {
+            airKickActive = true;
+            airKickTimer = 12;
+            p.vx = p.facing * 8;
+            p.vy = 0;
+            triggerCombo();
+            playSound('dash');
+        }
+    }
+    if (airKickActive) {
+        airKickTimer -= s;
+        if (airKickTimer <= 0) { airKickActive = false; }
+    }
+    if (p.onGround) airKickActive = false;
+
+    // Feature 6: Chain Dash — destroying during dash resets cooldown
+    // (Checked in crumbling wall hit and drone deflect)
+
+    // Feature 8: Ricochet Dash
+    if (p.isDashing) {
+        const solids = getAllSolids();
+        for (const sol of solids) {
+            if (aabb({ x: p.x + p.vx, y: p.y, w: p.w, h: p.h }, sol)) {
+                if (Math.abs(p.vx) >= DASH_SPEED * 0.8) {
+                    p.vx = -p.vx * 0.7;
+                    p.vy = -6;
+                    p.facing = -p.facing;
+                    ricochetCount++;
+                    spawnFloatingText('RICOCHET!', p.x + p.w / 2, p.y - 20, '#ff4081', 16);
+                    triggerCombo();
+                    break;
+                }
+            }
+        }
+    }
+
+    // Feature 9: Ledge Hang
+    if (!p.onGround && p.vy > 0 && !ledgeHang.active && !p.isDashing) {
+        const solids = getAllSolids();
+        for (const sol of solids) {
+            // Check if player's top aligns with platform top
+            if (p.y + p.h > sol.y && p.y + p.h < sol.y + TILE * 0.5 &&
+                p.x + p.w > sol.x && p.x < sol.x + sol.w) {
+                // Check that above is clear
+                if (p.y < sol.y) {
+                    ledgeHang.active = true;
+                    ledgeHang.platform = sol;
+                    p.vy = 0; p.vx = 0;
+                    p.y = sol.y - p.h + 2;
+                    break;
+                }
+            }
+        }
+    }
+    if (ledgeHang.active) {
+        p.vy = 0; p.vx = 0;
+        if (keys['KeyW'] || keys['ArrowUp'] || keys['Space']) {
+            // Pull up
+            p.y = ledgeHang.platform.y - p.h;
+            p.vy = -3;
+            ledgeHang.active = false;
+            triggerCombo();
+        } else if (keys['KeyS'] || keys['ArrowDown']) {
+            // Drop
+            ledgeHang.active = false;
+            p.vy = 2;
+        } else if (keys['KeyA'] || keys['ArrowLeft']) {
+            p.x -= 1;
+        } else if (keys['KeyD'] || keys['ArrowRight']) {
+            p.x += 1;
+        }
+    }
+
+    // Feature 10: Slide Jump
+    if (p.isSliding && isKeyJustPressed('jump')) {
+        slideJumpActive = true;
+        p.vy = getCheatJumpForce() * 0.8;
+        p.vx = p.facing * getCheatRunSpeed() * 1.6;
+        p.isSliding = false;
+        triggerCombo();
+    }
+
+    // Feature 12: Gravity Flip Ability (G at Lv.10)
+    if (getPlayerLevel() >= 10 && isKeyJustPressed('grapple') && !grappleHook.active && gravityFlipCooldown <= 0 && !gravityFlipActive) {
+        gravityFlipActive = true;
+        gravityFlipTimer = 180;
+        gravityFlipCooldown = 720;
+        personalGravityDir *= -1;
+        playSound('boost');
+        spawnFloatingText('GRAVITY FLIP!', p.x + p.w / 2, p.y - 30, '#9933ff', 18);
+    }
+    if (gravityFlipCooldown > 0) gravityFlipCooldown -= s;
+
+    // Feature 13: Speed Vault
+    if (p.onGround && Math.abs(p.vx) >= getCheatRunSpeed() * 0.95) {
+        const ahead = { x: p.x + p.facing * p.w, y: p.y, w: TILE, h: TILE };
+        const above = { x: p.x + p.facing * p.w, y: p.y - TILE, w: TILE, h: TILE };
+        const solids = getAllSolids();
+        let obstacleBelow = false, clearAbove = true;
+        for (const sol of solids) {
+            if (aabb(ahead, sol) && sol.h <= TILE * 1.5) obstacleBelow = true;
+            if (aabb(above, sol)) clearAbove = false;
+        }
+        if (obstacleBelow && clearAbove) {
+            p.y -= TILE * 1.2;
+            p.vy = -3;
+            triggerCombo();
+            spawnFloatingText('VAULT!', p.x + p.w / 2, p.y - 20, '#00e5ff', 14);
+        }
+    }
+
+    // Feature 14: Bounce Chain Multiplier
+    // (Applied in bounce pad collision - bounceChainCount incremented there)
+
+    // Feature 15: Afterimage Phase (15+ combo)
+    if (comboCount >= 15 && !afterimagePhaseActive && afterimagePhaseTimer <= -300) {
+        afterimagePhaseActive = true;
+        afterimagePhaseTimer = 60;
+        spawnFloatingText('PHASE!', p.x + p.w / 2, p.y - 40, '#aa66ff', 18);
+    }
+
+    // Cape physics
+    if (currentCape !== 'none') {
+        capePhysics.push({ x: p.x + p.w / 2, y: p.y + 4 });
+        if (capePhysics.length > 8) capePhysics.shift();
+    }
+
+    // Footprint trails (Feature 72)
+    if (p.onGround && Math.abs(p.vx) > 1) {
+        if (Math.random() < 0.05) {
+            footprintTrail.push({ x: p.x + p.w / 2, y: p.y + p.h, life: 180, onIce: false });
+        }
+    }
+    footprintTrail = footprintTrail.filter(f => { f.life -= s; return f.life > 0; });
+
+    // Player blink (Feature 71)
+    playerBlinkTimer += s;
+    if (playerBlinkTimer > 200 + Math.random() * 100) playerBlinkTimer = -6;
+}
+
+function drawGameplayMechanics() {
+    const p = player;
+
+    // Grapple Hook line
+    if (grappleHook.active) {
+        ctx.strokeStyle = '#ffaa00';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(p.x + p.w / 2 - camera.x, p.y + p.h / 2 - camera.y);
+        ctx.lineTo(grappleHook.targetX - camera.x, grappleHook.targetY - camera.y);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        // Hook point
+        ctx.fillStyle = '#ffdd00';
+        ctx.beginPath();
+        ctx.arc(grappleHook.targetX - camera.x, grappleHook.targetY - camera.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Wall Cling Timer HUD ring
+    if (wallClingTimer > 0 && (p.onWallLeft || p.onWallRight)) {
+        const cx = p.x + p.w / 2 - camera.x, cy = p.y - 10 - camera.y;
+        const pct = wallClingTimer / WALL_CLING_MAX;
+        ctx.strokeStyle = pct > 0.7 ? '#ff4444' : '#44ff44';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+    }
+
+    // Charged Jump bar
+    if (chargedJumpTimer > 5 && p.onGround) {
+        const sx = p.x - camera.x, sy = p.y + p.h + 4 - camera.y;
+        const pct = Math.min(1, chargedJumpTimer / 30);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(sx - 2, sy, p.w + 4, 4);
+        ctx.fillStyle = pct >= 1 ? '#ffdd00' : '#888';
+        ctx.fillRect(sx - 2, sy, (p.w + 4) * pct, 4);
+    }
+
+    // Gravity flip indicator
+    if (gravityFlipActive) {
+        const cx = p.x + p.w / 2 - camera.x, cy = p.y + p.h / 2 - camera.y;
+        ctx.strokeStyle = `rgba(153,51,255,${0.4 + 0.2 * Math.sin(performance.now() * 0.005)})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI * 2); ctx.stroke();
+        ctx.lineWidth = 1;
+    }
+
+    // Afterimage trail
+    for (const ai of afterimageTrail) {
+        ctx.globalAlpha = ai.alpha * 0.3;
+        ctx.fillStyle = '#aa66ff';
+        ctx.fillRect(ai.x - camera.x, ai.y - camera.y, ai.w, ai.h);
+    }
+    ctx.globalAlpha = 1;
+
+    // Cape drawing (Feature 68)
+    if (currentCape !== 'none' && capePhysics.length > 1) {
+        const cape = CAPES.find(c => c.id === currentCape);
+        if (cape && cape.color) {
+            ctx.strokeStyle = cape.color;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(p.x + p.w / 2 - camera.x, p.y + 4 - camera.y);
+            for (let i = capePhysics.length - 1; i >= 0; i--) {
+                ctx.lineTo(capePhysics[i].x - camera.x - p.facing * 3, capePhysics[i].y - camera.y + (capePhysics.length - i) * 2);
+            }
+            ctx.stroke();
+            ctx.lineWidth = 1;
+        }
+    }
+
+    // Footprint trails (Feature 72)
+    for (const fp of footprintTrail) {
+        ctx.globalAlpha = fp.life / 180 * 0.3;
+        ctx.fillStyle = '#555';
+        ctx.fillRect(fp.x - 2 - camera.x, fp.y - 1 - camera.y, 4, 2);
+    }
+    ctx.globalAlpha = 1;
+
+    // Player eyes (Feature 71)
+    if (!deathAnim.active && gameState !== 'dead') {
+        const sx = p.x - camera.x, sy = p.y - camera.y;
+        const eyeY = sy + 6;
+        const eyeOffsetX = p.facing * 2;
+        const blinking = playerBlinkTimer < 0;
+        if (!blinking) {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(sx + p.w / 2 - 3 + eyeOffsetX, eyeY, 2, 2);
+            ctx.fillRect(sx + p.w / 2 + 1 + eyeOffsetX, eyeY, 2, 2);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(sx + p.w / 2 - 2 + eyeOffsetX + p.facing, eyeY, 1, 2);
+            ctx.fillRect(sx + p.w / 2 + 2 + eyeOffsetX + p.facing, eyeY, 1, 2);
+        } else {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(sx + p.w / 2 - 3 + eyeOffsetX, eyeY + 1, 2, 1);
+            ctx.fillRect(sx + p.w / 2 + 1 + eyeOffsetX, eyeY + 1, 2, 1);
+        }
+    }
+}
+
+// ============================================
+// GAME MODES (Features 47-55, 65)
+// ============================================
+
+function startSpeedrunMode() {
+    speedrunMode = true; speedrunTimer = 0; speedrunSplits = []; speedrunLevel = 0;
+    loadLevel(0); startCountdown(() => {}); gameState = 'playing';
+    showScreen('game');
+    spawnFloatingText('SPEEDRUN START!', player.x + player.w / 2, player.y - 40, '#ff4081', 20);
+}
+
+function startRelayMode() {
+    relayMode = true; relayPlayer = 1; relayTimes = [0, 0];
+    loadLevel(0); startCountdown(() => {}); gameState = 'playing';
+    showScreen('game');
+    spawnFloatingText('RELAY MODE - P1 GO!', player.x + player.w / 2, player.y - 40, '#00e5ff', 18);
+}
+
+function startGauntletMode() {
+    gauntletMode = true; gauntletScore = 0;
+    gauntletLevels = []; gauntletModifiers = [];
+    for (let i = 0; i < 5; i++) {
+        gauntletLevels.push(Math.floor(Math.random() * Math.min(LEVELS.length, 20)));
+        gauntletModifiers.push(['normal', 'noDash', 'doubleSpeed', 'tinyPlayer'][Math.floor(Math.random() * 4)]);
+    }
+    loadLevel(gauntletLevels[0]); startCountdown(() => {}); gameState = 'playing';
+    showScreen('game');
+}
+
+function startReverseMode(levelIdx) {
+    reverseMode = true;
+    loadLevel(levelIdx);
+    // Swap spawn and goal
+    const temp = { ...spawnPoint };
+    spawnPoint = { x: goalZone.x, y: goalZone.y };
+    goalZone = { x: temp.x, y: temp.y, w: TILE * 2, h: TILE * 2 };
+    // Flip boost/conveyor directions
+    for (const bp of boostPads) bp.dir *= -1;
+    for (const cb of conveyorBelts) cb.dir *= -1;
+    resetPlayer(); camera.x = player.x - canvasW / 2; camera.y = player.y - canvasH / 2;
+    startCountdown(() => {}); gameState = 'playing';
+    showScreen('game');
+}
+
+function startSurvivalMode(levelIdx) {
+    survivalMode = true; survivalHearts = SURVIVAL_MAX_HEARTS;
+    loadLevel(levelIdx); startCountdown(() => {}); gameState = 'playing';
+    showScreen('game');
+}
+
+function startBossRush() {
+    bossRushMode = true; bossRushTimer = 0; bossRushLevel = 0;
+    const bossLevels = [20, 21, 22]; // Boss levels
+    loadLevel(bossLevels[0]); startCountdown(() => {}); gameState = 'playing';
+    showScreen('game');
+}
+
+function startZenMode(levelIdx) {
+    zenMode = true;
+    loadLevel(levelIdx);
+    spikes = []; enemyDrones = []; laserBeams = []; sawblades = []; lavaFloors = [];
+    wallSpikes = []; acidPools = []; flameJets = []; laserTurrets = []; thornVines = [];
+    startCountdown(() => {}); gameState = 'playing';
+    showScreen('game');
+    spawnFloatingText('ZEN MODE', player.x + player.w / 2, player.y - 40, '#88ddff', 22);
+}
+
+function startGhostRace(levelIdx) {
+    ghostRaceMode = true; ghostRaceDelta = 0;
+    loadLevel(levelIdx); startCountdown(() => {}); gameState = 'playing';
+    showScreen('game');
+}
+
+function startPuzzleMode(puzzleIdx) {
+    puzzleMode = true; puzzleLevelIndex = puzzleIdx;
+    // Reset level arrays
+    platforms = []; spikes = []; movingPlatforms = []; fallingPlatforms = [];
+    boostPads = []; walls = []; goalZone = null; checkpoints = [];
+    pressurePlates = []; gateBlocks = []; gravityOrbs = []; pistonBlocks = [];
+    shadowPlatforms = []; timedSwitchBlocks = [];
+    particleCount = 0; orbs = [];
+    PUZZLE_LEVELS[puzzleIdx]();
+    resetPlayer(); levelTimer = 0; deathCount = 0; timerStarted = false;
+    camera.x = player.x - canvasW / 2; camera.y = player.y - canvasH / 2;
+    startCountdown(() => {}); gameState = 'playing';
+    showScreen('game');
+}
+
+function startNGPlus() {
+    ngPlusMode = true;
+    loadLevel(0);
+    // Double hazards: add extra spikes
+    const extraSpikes = spikes.map(s => ({ ...s, x: s.x + TILE, y: s.y }));
+    spikes.push(...extraSpikes);
+    startCountdown(() => {}); gameState = 'playing';
+    showScreen('game');
+}
+
+// ============================================
+// VISUAL EFFECTS (Features 31-40)
+// ============================================
+
+function updateVisualEffects(dt) {
+    const s = dt;
+    // Feature 33: Rain
+    if (rainActive) {
+        rainIntensity = Math.min(1, rainIntensity + 0.01 * s);
+        for (let i = rainDrops.length; i < 100 * rainIntensity; i++) {
+            rainDrops.push({ x: camera.x + Math.random() * canvasW, y: camera.y - 10, vy: 8 + Math.random() * 4, life: 1 });
+        }
+        for (let i = rainDrops.length - 1; i >= 0; i--) {
+            rainDrops[i].y += rainDrops[i].vy * s;
+            rainDrops[i].x += 1 * s;
+            if (rainDrops[i].y > camera.y + canvasH + 10) rainDrops.splice(i, 1);
+        }
+        lightningTimer -= s;
+        if (lightningTimer <= 0 && Math.random() < 0.002) {
+            lightningTimer = 30;
+            triggerScreenFlash('#ffffff', 0.15, 0.2);
+        }
+    }
+
+    // Feature 37: Combo Aura
+    if (comboCount >= 5) {
+        if (comboCount >= 20) comboAuraColor = 'rainbow';
+        else if (comboCount >= 15) comboAuraColor = '#ffd700';
+        else if (comboCount >= 10) comboAuraColor = '#aa44ff';
+        else comboAuraColor = '#4488ff';
+    } else { comboAuraColor = null; }
+
+    // Feature 38: Death Freeze
+    if (deathFreezeTimer > 0) deathFreezeTimer -= s;
+
+    // Feature 40: Level Intro Pan
+    if (levelIntroPanActive) {
+        levelIntroPanTimer -= s;
+        if (levelIntroPanPhase === 'toGoal') {
+            if (goalZone) {
+                camera.x += (goalZone.x - canvasW / 2 - camera.x) * 0.05;
+                camera.y += (goalZone.y - canvasH / 2 - camera.y) * 0.05;
+            }
+            if (levelIntroPanTimer <= 60) { levelIntroPanPhase = 'toSpawn'; }
+        } else {
+            camera.x += (player.x - canvasW / 2 - camera.x) * 0.08;
+            camera.y += (player.y - canvasH / 2 - camera.y) * 0.08;
+            if (levelIntroPanTimer <= 0) { levelIntroPanActive = false; }
+        }
+    }
+}
+
+function drawVisualEffects() {
+    const p = player;
+
+    // Feature 31: Dynamic Lighting
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    // Orb glow
+    for (const orb of orbs) {
+        if (orb.collected) continue;
+        const ox = orb.x - camera.x, oy = orb.y - camera.y;
+        const grad = ctx.createRadialGradient(ox, oy, 0, ox, oy, 40);
+        grad.addColorStop(0, 'rgba(255,215,0,0.15)'); grad.addColorStop(1, 'rgba(255,215,0,0)');
+        ctx.fillStyle = grad; ctx.fillRect(ox - 40, oy - 40, 80, 80);
+    }
+    // Goal glow
+    if (goalZone) {
+        const gx = goalZone.x + goalZone.w / 2 - camera.x, gy = goalZone.y + goalZone.h / 2 - camera.y;
+        const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, 80);
+        grad.addColorStop(0, 'rgba(255,64,129,0.15)'); grad.addColorStop(1, 'rgba(255,64,129,0)');
+        ctx.fillStyle = grad; ctx.fillRect(gx - 80, gy - 80, 160, 160);
+    }
+    // Lava glow
+    for (const lf of lavaFloors) {
+        const lx = lf.x + lf.w / 2 - camera.x, ly = lf.y - camera.y;
+        const grad = ctx.createRadialGradient(lx, ly, 0, lx, ly, lf.w);
+        grad.addColorStop(0, 'rgba(255,68,0,0.1)'); grad.addColorStop(1, 'rgba(255,68,0,0)');
+        ctx.fillStyle = grad; ctx.fillRect(lx - lf.w, ly - 30, lf.w * 2, 60);
+    }
+    ctx.restore();
+
+    // Feature 32: Heat Distortion (subtle sine displacement near lava)
+    // (Canvas limitation — using visual trick of wavy line above lava)
+    for (const lf of lavaFloors) {
+        const lx = lf.x - camera.x, ly = lf.y - camera.y;
+        ctx.strokeStyle = 'rgba(255,100,0,0.15)';
+        ctx.beginPath();
+        for (let x = 0; x < lf.w; x += 3) {
+            const wx = lx + x;
+            const wy = ly - 8 + Math.sin((x + performance.now() * 0.005) * 0.15) * 3;
+            if (x === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
+        }
+        ctx.stroke();
+    }
+
+    // Feature 33: Rain rendering
+    if (rainActive && rainDrops.length > 0) {
+        ctx.strokeStyle = 'rgba(150,180,255,0.4)';
+        ctx.lineWidth = 1;
+        for (const drop of rainDrops) {
+            const dx = drop.x - camera.x, dy = drop.y - camera.y;
+            ctx.beginPath(); ctx.moveTo(dx, dy); ctx.lineTo(dx + 1, dy + 6); ctx.stroke();
+        }
+        ctx.lineWidth = 1;
+    }
+
+    // Feature 34: Hazard Speedlines
+    const absVx = Math.abs(p.vx);
+    if (absVx > 7) {
+        for (const sp of spikes) {
+            const dx = sp.x - p.x, dy = sp.y - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 80 && dist > 10) {
+                ctx.strokeStyle = `rgba(255,68,68,${0.3 * (1 - dist / 80)})`;
+                const sx = sp.x + TILE / 2 - camera.x, sy = sp.y + TILE / 2 - camera.y;
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(sx - (dx / dist) * 20, sy - (dy / dist) * 20);
+                ctx.stroke();
+            }
+        }
+    }
+
+    // Feature 35: Chromatic Aberration near hazards
+    let chromatic = 0;
+    for (const sp of spikes) {
+        const dx = (p.x + p.w / 2) - (sp.x + TILE / 2);
+        const dy = (p.y + p.h / 2) - (sp.y + TILE / 2);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 30) chromatic = Math.max(chromatic, (30 - dist) / 10);
+    }
+    if (chromatic > 0.5) {
+        // Draw subtle red/blue offset rectangles around player
+        const sx = p.x - camera.x, sy = p.y - camera.y;
+        ctx.globalAlpha = 0.15 * chromatic;
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(sx - chromatic, sy, p.w, p.h);
+        ctx.fillStyle = '#0000ff';
+        ctx.fillRect(sx + chromatic, sy, p.w, p.h);
+        ctx.globalAlpha = 1;
+    }
+
+    // Feature 36: Parallax Foreground (dust motes)
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#aaaacc';
+    for (let i = 0; i < 5; i++) {
+        const fx = (performance.now() * 0.03 + i * 200) % canvasW;
+        const fy = (performance.now() * 0.01 + i * 150) % canvasH;
+        ctx.beginPath(); ctx.arc(fx, fy, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Feature 37: Combo Aura
+    if (comboAuraColor && !deathAnim.active) {
+        const cx = p.x + p.w / 2 - camera.x, cy = p.y + p.h / 2 - camera.y;
+        const radius = 18 + comboCount * 0.5;
+        if (comboAuraColor === 'rainbow') {
+            const hue = (performance.now() * 0.3) % 360;
+            ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.4)`;
+        } else {
+            ctx.strokeStyle = comboAuraColor + '66';
+        }
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, cy, radius + Math.sin(performance.now() * 0.008) * 3, 0, Math.PI * 2); ctx.stroke();
+        ctx.lineWidth = 1;
+    }
+
+    // Feature 39: Checkpoint Burst (drawn on activation — handled in checkpoint collision)
+}
+
+// ============================================
+// AUDIO FEATURES (Features 41-46)
+// ============================================
+
+function updateAudioFeatures() {
+    if (!audioCtx) return;
+
+    // Feature 41: Hazard Proximity Tone
+    let minHazardDist = Infinity;
+    for (const sp of spikes) {
+        const dx = (player.x + player.w / 2) - (sp.x + TILE / 2);
+        const dy = (player.y + player.h / 2) - (sp.y + TILE / 2);
+        minHazardDist = Math.min(minHazardDist, Math.sqrt(dx * dx + dy * dy));
+    }
+    if (minHazardDist < 60 && !hazardProximityOsc) {
+        try {
+            hazardProximityOsc = audioCtx.createOscillator();
+            hazardProximityGain = audioCtx.createGain();
+            hazardProximityOsc.type = 'sine';
+            hazardProximityOsc.connect(hazardProximityGain);
+            hazardProximityGain.connect(audioDest());
+            hazardProximityGain.gain.value = 0;
+            hazardProximityOsc.start();
+        } catch(e) {}
+    }
+    if (hazardProximityOsc && hazardProximityGain) {
+        if (minHazardDist < 60) {
+            const intensity = 1 - (minHazardDist / 60);
+            hazardProximityOsc.frequency.value = 400 + intensity * 600;
+            hazardProximityGain.gain.value = Math.min(0.05, intensity * 0.05) * (gameSettings.volume / 100);
+        } else {
+            hazardProximityGain.gain.value = 0;
+        }
+    }
+}
+
+function playComboMelody(comboNum) {
+    // Feature 42: Combo Melody Escalation
+    if (!audioCtx || !soundEnabled) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const octave = Math.floor(comboNum / 5);
+        const noteInScale = comboNum % 8;
+        const scale = [261, 293, 329, 349, 392, 440, 493, 523]; // C major
+        osc.frequency.value = scale[noteInScale] * Math.pow(2, octave);
+        osc.type = 'triangle';
+        gain.gain.value = 0.08 * (gameSettings.volume / 100);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+        osc.connect(gain); gain.connect(audioDest());
+        osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+    } catch(e) {}
+}
+
+function playAchievementJingle(rarity) {
+    // Feature 46: Achievement Jingle Variation
+    if (!audioCtx || !soundEnabled) return;
+    try {
+        const noteCount = rarity === 'legendary' ? 6 : rarity === 'epic' ? 5 : rarity === 'rare' ? 4 : rarity === 'uncommon' ? 3 : 2;
+        const baseFreq = 523;
+        for (let i = 0; i < noteCount; i++) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.value = baseFreq * (1 + i * 0.15);
+            osc.type = 'triangle';
+            gain.gain.value = 0.1 * (gameSettings.volume / 100);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1 * (i + 1) + 0.3);
+            osc.connect(gain); gain.connect(audioDest());
+            osc.start(audioCtx.currentTime + 0.1 * i);
+            osc.stop(audioCtx.currentTime + 0.1 * (i + 1) + 0.3);
+        }
+    } catch(e) {}
+}
+
+// ============================================
+// PROGRESSION FEATURES (Features 57-65)
+// ============================================
+
+function updateSeasonPass(xpGain) {
+    seasonPassXP += xpGain;
+    while (seasonPassXP >= SEASON_PASS_XP_PER_TIER && seasonPassTier < SEASON_PASS_TIERS) {
+        seasonPassXP -= SEASON_PASS_XP_PER_TIER;
+        seasonPassTier++;
+        spawnFloatingText('SEASON TIER ' + seasonPassTier + '!', player.x + player.w / 2, player.y - 60, '#ffd700', 18);
+        // Rewards every 10 tiers
+        if (seasonPassTier % 10 === 0) { totalOrbs += 20; }
+        else if (seasonPassTier % 5 === 0) { totalOrbs += 10; }
+        else { totalOrbs += 3; }
+    }
+}
+
+function checkMilestoneBadges() {
+    if (totalWallJumps >= 100 && !milestoneBadges.wallJumps100) { milestoneBadges.wallJumps100 = true; spawnFloatingText('BADGE: 100 Wall Jumps!', player.x + player.w / 2, player.y - 50, '#ffd700', 16); }
+    if (totalDashes >= 500 && !milestoneBadges.dashes500) { milestoneBadges.dashes500 = true; spawnFloatingText('BADGE: 500 Dashes!', player.x + player.w / 2, player.y - 50, '#ffd700', 16); }
+    if (totalCompletions >= 50 && !milestoneBadges.completions50) { milestoneBadges.completions50 = true; spawnFloatingText('BADGE: 50 Levels!', player.x + player.w / 2, player.y - 50, '#ffd700', 16); }
+}
+
+// Feature 76: Split Screen Timer
+function drawSplitScreenTimer() {
+    if (!timerStarted || !bestTimes[currentLevel]) return;
+    const delta = levelTimer - bestTimes[currentLevel];
+    const text = (delta > 0 ? '+' : '') + delta.toFixed(2) + 's';
+    const color = delta > 0 ? '#ff4444' : '#4caf50';
+    ctx.save();
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = color;
+    ctx.fillText(text, canvasW / 2, 48);
+    ctx.restore();
+}
+
+// Feature 78: Performance Overlay
+function drawPerformanceOverlay() {
+    if (!perfOverlayVisible) return;
+    ctx.save();
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#00ff00';
+    ctx.textAlign = 'left';
+    const fps = fpsHistory.length > 0 ? Math.round(fpsHistory.reduce((a, b) => a + b) / fpsHistory.length) : 0;
+    ctx.fillText('FPS: ' + fps, 10, canvasH - 80);
+    ctx.fillText('Particles: ' + particleCount, 10, canvasH - 66);
+    ctx.fillText('Platforms: ' + platforms.length, 10, canvasH - 52);
+    ctx.fillText('Spikes: ' + spikes.length, 10, canvasH - 38);
+    ctx.fillText('DT Scale: ' + dtScale.toFixed(2), 10, canvasH - 24);
+    ctx.fillText('Player: ' + Math.round(player.x) + ',' + Math.round(player.y), 10, canvasH - 10);
+    ctx.restore();
+}
+
+// Feature 79: Radial Quick Menu
+function drawRadialMenu() {
+    if (!radialMenuOpen) return;
+    ctx.save();
+    const cx = canvasW / 2, cy = canvasH / 2;
+    ctx.fillStyle = 'rgba(10,10,15,0.85)';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+    for (let i = 0; i < RADIAL_ITEMS.length; i++) {
+        const angle = (i / RADIAL_ITEMS.length) * Math.PI * 2 - Math.PI / 2;
+        const ix = cx + Math.cos(angle) * 100;
+        const iy = cy + Math.sin(angle) * 100;
+        const selected = i === radialMenuSelection;
+        ctx.beginPath(); ctx.arc(ix, iy, 30, 0, Math.PI * 2);
+        ctx.fillStyle = selected ? '#00e5ff33' : '#1a1a2e';
+        ctx.fill();
+        ctx.strokeStyle = selected ? '#00e5ff' : '#333';
+        ctx.lineWidth = 2; ctx.stroke();
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = selected ? '#00e5ff' : '#888';
+        ctx.fillText(RADIAL_ITEMS[i], ix, iy);
+    }
+    ctx.lineWidth = 1;
+    ctx.restore();
+}
+
+// Feature 80: Damage Numbers
+function spawnDamageNumber(text, x, y) {
+    spawnFloatingText(text, x, y, '#ffaa00', 14);
+}
+
+// Feature 82: Notification Queue
+function queueNotification(text, color) {
+    notificationQueue.push({ text, color: color || '#fff', life: 180 });
+    if (notificationQueue.length > 5) notificationQueue.shift();
+}
+
+function drawNotificationQueue() {
+    let y = 70;
+    for (let i = 0; i < notificationQueue.length; i++) {
+        const n = notificationQueue[i];
+        n.life--;
+        if (n.life <= 0) { notificationQueue.splice(i, 1); i--; continue; }
+        ctx.save();
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = Math.min(1, n.life / 30);
+        ctx.fillStyle = n.color;
+        ctx.fillText(n.text, canvasW / 2, y);
+        ctx.restore();
+        y += 18;
+    }
+}
+
+// ============================================
+// UPDATED getAllSolids with new blocks
+// ============================================
+function getAllSolids2() {
+    const solids = [];
+    // Rotating platforms
+    for (const rp of rotatingPlatforms) solids.push(rp);
+    // Bubble platforms (if not popped)
+    for (const bp of bubblePlatforms) { if (!bp.popped) solids.push({ x: bp.x, y: bp.y, w: bp.w, h: bp.h }); }
+    // Gate blocks (if not open)
+    for (const gate of gateBlocks) { if (gate.openProgress < 0.9) solids.push({ x: gate.x, y: gate.origY, w: gate.w, h: gate.h * (1 - gate.openProgress) }); }
+    // Shadow platforms (if visible enough)
+    for (const sp of shadowPlatforms) { if (sp.visibility > 0.3) solids.push(sp); }
+    // Timed switch blocks (if solid)
+    for (const tsb of timedSwitchBlocks) { if (tsb.solid) solids.push(tsb); }
+    // Electrified rails (always solid, just deadly when on)
+    for (const er of electrifiedRails) solids.push(er);
+    // Piston blocks
+    for (const pb of pistonBlocks) solids.push({ x: pb.x, y: pb.y, w: pb.w, h: pb.h });
+    // Phantom walls (solid from non-passable side)
+    for (const pw of phantomWalls) {
+        const px = player.x + player.w / 2;
+        if (pw.passableDir === 'right' && px < pw.x + pw.w / 2) solids.push(pw);
+        else if (pw.passableDir === 'left' && px > pw.x + pw.w / 2) solids.push(pw);
+    }
+    return solids;
 }
 
 // --- Update functions for new blocks ---
@@ -6213,6 +8078,29 @@ function loadLevel(index) {
     levelUpAnimState = null;
     playerInWater = false;
     deathPulseIntensity = 0;
+    // Reset new 100-feature arrays
+    pressurePlates = []; gateBlocks = []; acidPools = []; rotatingPlatforms = [];
+    laserTurrets = []; bubblePlatforms = []; flameJets = []; gravityOrbs = [];
+    shockwaveEmitters = []; shadowPlatforms = []; timedSwitchBlocks = [];
+    electrifiedRails = []; phantomWalls = []; pistonBlocks = []; thornVines = [];
+    // Reset gameplay mechanics state
+    grappleHook = { active: false, targetX: 0, targetY: 0, length: 0, angle: 0, swingVel: 0, cooldown: 0 };
+    wallClingTimer = 0; wallClingCooldown = 0; chargedJumpTimer = 0; chargedJumpReady = false;
+    airKickActive = false; airKickTimer = 0; ledgeHang = { active: false, platform: null, side: 'left' };
+    slideJumpActive = false; gravityFlipActive = false; gravityFlipTimer = 0;
+    personalGravityDir = 1; bounceChainCount = 0;
+    afterimagePhaseActive = false; afterimagePhaseTimer = -600; afterimageTrail = [];
+    resilienceUsed = false; invulnTimer = 0;
+    capePhysics = []; footprintTrail = []; playerBlinkTimer = 0;
+    rainDrops = []; lightningTimer = 0; comboAuraColor = null; deathFreezeTimer = 0;
+    levelIntroPanActive = false;
+    platformsTouched = 0; ceilingWalkTime = 0; ricochetCount = 0;
+    backwardsTime = 0; forwardsTime = 0; airborneTime = 0; groundedTime = 0;
+    orbMultiplierTimer = 0; orbMultiplierValue = 1;
+    notificationQueue = [];
+    // Mode-specific resets
+    if (survivalMode) survivalHearts = SURVIVAL_MAX_HEARTS;
+    if (zenMode) { rainActive = true; } else { rainActive = currentLevel >= 15; }
     // Reset abilities
     doubleJumpUsed = false;
     groundPoundActive = false;
@@ -6375,6 +8263,9 @@ function getAllSolids() {
     }
     // Spring walls are solid
     for (const sw of springWalls) solids.push(sw);
+    // New blocks from 100-feature update
+    const extra = getAllSolids2();
+    for (const s of extra) solids.push(s);
     return solids;
 }
 
@@ -6566,12 +8457,14 @@ function updatePlayer(dt) {
         p.climbTimer -= s;
     }
 
-    // ---- Gravity (difficulty + cheat scaled) ----
+    // ---- Gravity (difficulty + cheat scaled + gravity flip) ----
     const diff = getDiff();
-    const cGravity = getCheatGravity();
+    let cGravity = getCheatGravity() * personalGravityDir;
+    if (hasSkill('air1')) cGravity *= 0.9; // Skill tree: Feather Fall
     const cMaxFall = getCheatMaxFall();
     const cJumpForce = getCheatJumpForce();
-    const cCoyoteTime = getCheatCoyoteTime();
+    let cCoyoteTime = getCheatCoyoteTime();
+    if (hasSkill('def1')) cCoyoteTime += 30; // Skill tree: Iron Skin
     const cJumpBuffer = getCheatJumpBuffer();
     if (!p.isDashing) {
         p.vy += cGravity * s;
@@ -6928,6 +8821,8 @@ function triggerCombo() {
         }
         // Combo sound escalation
         playComboSound(comboCount);
+        // Feature 42: Combo melody escalation
+        playComboMelody(comboCount);
     }
 }
 
@@ -7700,6 +9595,31 @@ function saveProgression() {
         localStorage.setItem('parkour_leaderboard', JSON.stringify(localLeaderboard));
         localStorage.setItem('parkour_pb_splits', JSON.stringify(pbSplits));
         localStorage.setItem('parkour_one_hand', oneHandMode);
+        // 100-feature update saves
+        localStorage.setItem('parkour_skill_tree', JSON.stringify(unlockedSkills));
+        localStorage.setItem('parkour_key_bindings', JSON.stringify(keyBindings));
+        localStorage.setItem('parkour_season_tier', seasonPassTier);
+        localStorage.setItem('parkour_season_xp', seasonPassXP);
+        localStorage.setItem('parkour_season_reset', seasonPassLastReset);
+        localStorage.setItem('parkour_challenge_tokens', challengeTokens);
+        localStorage.setItem('parkour_title', equippedTitle);
+        localStorage.setItem('parkour_milestones', JSON.stringify(milestoneBadges));
+        localStorage.setItem('parkour_extended_streak', extendedStreak);
+        localStorage.setItem('parkour_extended_streak_day', extendedStreakDay);
+        localStorage.setItem('parkour_cape', currentCape);
+        localStorage.setItem('parkour_unlocked_capes', JSON.stringify(unlockedCapes));
+        localStorage.setItem('parkour_jump_effect', currentJumpEffect);
+        localStorage.setItem('parkour_unlocked_jump_effects', JSON.stringify(unlockedJumpEffects));
+        localStorage.setItem('parkour_land_effect', currentLandEffect);
+        localStorage.setItem('parkour_unlocked_land_effects', JSON.stringify(unlockedLandEffects));
+        localStorage.setItem('parkour_eye_style', currentEyeStyle);
+        localStorage.setItem('parkour_nameplate', currentNameplate);
+        localStorage.setItem('parkour_unlocked_nameplates', JSON.stringify(unlockedNameplates));
+        localStorage.setItem('parkour_custom_skin', JSON.stringify(customSkinColors));
+        localStorage.setItem('parkour_hud_toggles', JSON.stringify(hudToggles));
+        localStorage.setItem('parkour_level_ratings', JSON.stringify(levelRatings));
+        localStorage.setItem('parkour_dyslexia_font', dyslexiaFontEnabled);
+        localStorage.setItem('parkour_game_speed', gameSpeedMultiplier);
     } catch(e) {}
 }
 
@@ -7735,6 +9655,31 @@ function loadProgression() {
         const pbs = localStorage.getItem('parkour_pb_splits');
         if (pbs) pbSplits = JSON.parse(pbs);
         oneHandMode = localStorage.getItem('parkour_one_hand') === 'true';
+        // 100-feature update loads
+        const sk = localStorage.getItem('parkour_skill_tree'); if (sk) unlockedSkills = JSON.parse(sk);
+        const kb = localStorage.getItem('parkour_key_bindings'); if (kb) keyBindings = JSON.parse(kb);
+        seasonPassTier = parseInt(localStorage.getItem('parkour_season_tier') || '0');
+        seasonPassXP = parseInt(localStorage.getItem('parkour_season_xp') || '0');
+        seasonPassLastReset = localStorage.getItem('parkour_season_reset') || '';
+        challengeTokens = parseInt(localStorage.getItem('parkour_challenge_tokens') || '0');
+        equippedTitle = localStorage.getItem('parkour_title') || 'Rookie';
+        const ms = localStorage.getItem('parkour_milestones'); if (ms) milestoneBadges = JSON.parse(ms);
+        extendedStreak = parseInt(localStorage.getItem('parkour_extended_streak') || '0');
+        extendedStreakDay = localStorage.getItem('parkour_extended_streak_day') || '';
+        currentCape = localStorage.getItem('parkour_cape') || 'none';
+        const ucap = localStorage.getItem('parkour_unlocked_capes'); if (ucap) unlockedCapes = JSON.parse(ucap);
+        currentJumpEffect = localStorage.getItem('parkour_jump_effect') || 'dust';
+        const uje = localStorage.getItem('parkour_unlocked_jump_effects'); if (uje) unlockedJumpEffects = JSON.parse(uje);
+        currentLandEffect = localStorage.getItem('parkour_land_effect') || 'dust';
+        const ule = localStorage.getItem('parkour_unlocked_land_effects'); if (ule) unlockedLandEffects = JSON.parse(ule);
+        currentEyeStyle = parseInt(localStorage.getItem('parkour_eye_style') || '0');
+        currentNameplate = localStorage.getItem('parkour_nameplate') || 'clean';
+        const unp = localStorage.getItem('parkour_unlocked_nameplates'); if (unp) unlockedNameplates = JSON.parse(unp);
+        const csc = localStorage.getItem('parkour_custom_skin'); if (csc) customSkinColors = JSON.parse(csc);
+        const ht = localStorage.getItem('parkour_hud_toggles'); if (ht) hudToggles = JSON.parse(ht);
+        const lr = localStorage.getItem('parkour_level_ratings'); if (lr) levelRatings = JSON.parse(lr);
+        dyslexiaFontEnabled = localStorage.getItem('parkour_dyslexia_font') === 'true';
+        gameSpeedMultiplier = parseFloat(localStorage.getItem('parkour_game_speed') || '1');
     } catch(e) {}
     // Daily login streak
     checkDailyLogin();
@@ -8118,6 +10063,33 @@ function killPlayer() {
         player.vx = 3;
         return;
     }
+    // Feature 15: Afterimage phase invulnerability
+    if (afterimagePhaseActive) return;
+    // Skill tree def3: Resilience (survive one hit)
+    if (hasSkill('def3') && !resilienceUsed) {
+        resilienceUsed = true;
+        player.vy = -8;
+        invulnTimer = 60;
+        spawnFloatingText('RESILIENCE!', player.x + player.w / 2, player.y - 30, '#44ff44', 18);
+        return;
+    }
+    // Invulnerability timer
+    if (invulnTimer > 0) return;
+    // Survival mode: lose heart instead of dying
+    if (survivalMode && survivalHearts > 1) {
+        survivalHearts--;
+        player.vy = -8;
+        invulnTimer = 90;
+        spawnFloatingText('♥ ' + survivalHearts, player.x + player.w / 2, player.y - 30, '#ff4444', 20);
+        playSound('death');
+        spawnParticles(player.x + player.w / 2, player.y + player.h / 2, 10, '#ff4444', 4, 1);
+        return;
+    }
+    // Zen mode: no death
+    if (zenMode) {
+        player.vy = -8; player.x = spawnPoint.x; player.y = spawnPoint.y;
+        return;
+    }
     gameState = 'dead';
     deathCount++;
     totalDeaths++;
@@ -8422,11 +10394,56 @@ function completeLevel() {
     // Check achievements
     checkAchievements();
 
+    // Season pass XP (Feature 57)
+    updateSeasonPass(xpGain);
+    // Challenge tokens from challenge/weekly/gauntlet modes
+    if (challengeMode || weeklyChallenge || gauntletMode) {
+        const tokens = Math.floor(xpGain / 10);
+        challengeTokens += tokens;
+        spawnFloatingText('+' + tokens + ' Tokens', player.x + player.w / 2, player.y - 120, '#ff4081', 14);
+    }
+
     // Time Attack: auto-advance to next level
     if (timeAttackMode) {
         timeAttackTimer += time;
         timeAttackDeaths += deathCount;
         setTimeout(() => { timeAttackNextLevel(); }, 1000);
+    }
+    // Speedrun mode: advance to next level
+    if (speedrunMode) {
+        speedrunSplits.push(levelTimer);
+        speedrunTimer += levelTimer;
+        speedrunLevel++;
+        if (speedrunLevel < LEVELS.length) {
+            setTimeout(() => { loadLevel(speedrunLevel); gameState = 'playing'; }, 500);
+        } else {
+            spawnFloatingText('SPEEDRUN COMPLETE! ' + speedrunTimer.toFixed(2) + 's', player.x + player.w / 2, player.y - 60, '#ffd700', 22);
+            try { const pb = parseFloat(localStorage.getItem('parkour_speedrun_pb') || '999999'); if (speedrunTimer < pb) localStorage.setItem('parkour_speedrun_pb', speedrunTimer.toFixed(3)); } catch(e) {}
+            speedrunMode = false;
+        }
+    }
+    // Gauntlet mode
+    if (gauntletMode) {
+        gauntletScore += Math.max(0, 1000 - Math.floor(levelTimer * 10) - deathCount * 50);
+        const nextIdx = gauntletLevels.indexOf(currentLevel) + 1;
+        if (nextIdx < gauntletLevels.length) {
+            setTimeout(() => { loadLevel(gauntletLevels[nextIdx]); gameState = 'playing'; }, 500);
+        } else {
+            spawnFloatingText('GAUNTLET COMPLETE! Score: ' + gauntletScore, player.x + player.w / 2, player.y - 60, '#ffd700', 20);
+            gauntletMode = false;
+        }
+    }
+    // Boss Rush mode
+    if (bossRushMode) {
+        const bossLevels = [20, 21, 22];
+        bossRushTimer += levelTimer;
+        bossRushLevel++;
+        if (bossRushLevel < bossLevels.length) {
+            setTimeout(() => { loadLevel(bossLevels[bossRushLevel]); gameState = 'playing'; }, 500);
+        } else {
+            spawnFloatingText('BOSS RUSH COMPLETE! ' + bossRushTimer.toFixed(2) + 's', player.x + player.w / 2, player.y - 60, '#ffd700', 22);
+            bossRushMode = false;
+        }
     }
 
     document.getElementById('btn-next').style.display =
@@ -9674,6 +11691,8 @@ function gameLoop(timestamp) {
     if (dtScale > 3) dtScale = 3;
     // Feature 1: Slow-motion time scale
     if (slowMotionActive && gameState === 'playing') dtScale *= SLOWMO_SCALE;
+    // Feature 95: Game speed adjustment
+    if (gameSpeedMultiplier !== 1) dtScale *= gameSpeedMultiplier;
 
     // FPS tracking
     fpsHistory.push(1000 / Math.max(dt, 1));
@@ -9771,6 +11790,11 @@ function gameLoop(timestamp) {
         if (playerInWater) { player.vx *= 0.6; player.vy *= 0.8; }
         if (oneHandMode) updateOneHandMode();
         updateNewBlocks2(dtScale);
+        updateNewBlocks3(dtScale);
+        updateGameplayMechanics(dtScale);
+        updateVisualEffects(dtScale);
+        updateAudioFeatures();
+        checkMilestoneBadges();
 
         // Endless mode
         if (endlessMode) {
@@ -9993,6 +12017,7 @@ function gameLoop(timestamp) {
         drawWallSpikes();
         drawWaterPools();
         drawNewBlocks2();
+        drawNewBlocks3();
         drawCheckpointChallengeOrbs();
         drawOrbs();
         drawTrailEffect();
@@ -10020,6 +12045,8 @@ function gameLoop(timestamp) {
         drawPrestigeEffects();
         drawEmote();
         drawLevelUpAnim();
+        drawGameplayMechanics();
+        drawVisualEffects();
 
         ctx.restore();
 
@@ -10030,6 +12057,36 @@ function gameLoop(timestamp) {
         if (gameState === 'playing') {
             drawProgressBar();
             drawInputDisplay();
+            drawSplitScreenTimer();
+            drawPerformanceOverlay();
+            drawNotificationQueue();
+            drawRadialMenu();
+            // Survival hearts HUD
+            if (survivalMode) {
+                ctx.save(); ctx.font = 'bold 14px monospace'; ctx.fillStyle = '#ff4444'; ctx.textAlign = 'left';
+                let heartsStr = '';
+                for (let i = 0; i < SURVIVAL_MAX_HEARTS; i++) heartsStr += i < survivalHearts ? '♥' : '♡';
+                ctx.fillText(heartsStr, 20, canvasH - 20);
+                ctx.restore();
+            }
+            // Ghost Race delta
+            if (ghostRaceMode && ghostPlayback.length > 0 && ghostFrame < ghostPlayback.length) {
+                const gf = ghostPlayback[ghostFrame];
+                if (gf) {
+                    ghostRaceDelta = player.x - gf.x;
+                    ctx.save(); ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+                    ctx.fillStyle = ghostRaceDelta > 0 ? '#4caf50' : '#ff4444';
+                    ctx.fillText((ghostRaceDelta > 0 ? '+' : '') + Math.round(ghostRaceDelta) + 'px', canvasW / 2, 62);
+                    ctx.restore();
+                }
+            }
+            // Speedrun splits
+            if (speedrunMode) {
+                ctx.save(); ctx.font = 'bold 11px monospace'; ctx.fillStyle = '#ff4081'; ctx.textAlign = 'right';
+                ctx.fillText('SPEEDRUN Lv.' + (speedrunLevel + 1) + '/' + LEVELS.length, canvasW - 20, canvasH - 20);
+                ctx.fillText('Total: ' + speedrunTimer.toFixed(2) + 's', canvasW - 20, canvasH - 6);
+                ctx.restore();
+            }
         }
         if (gameState === 'photo') drawPhotoModeUI();
         // Feature 1: Slow-mo cooldown ring HUD
@@ -10648,7 +12705,23 @@ function editorRenderLoop() {
         springwall: '#22cc44',
         lavafloor: '#ff4400',
         portalbeam: '#ff00ff',
-        speedpad: '#00ff88'
+        speedpad: '#00ff88',
+        // 100-feature update
+        pressureplate: '#887744',
+        gate: '#666688',
+        acid: '#33cc00',
+        rotating: '#5566aa',
+        laserturret: '#554444',
+        bubble: '#88bbff',
+        flamejet: '#ff6600',
+        gravityorb: '#9933ff',
+        shockwave: '#ff8800',
+        shadow: '#334455',
+        timedswitch: '#4488aa',
+        erail: '#ffff00',
+        phantom: '#666688',
+        piston: '#776655',
+        thornvine: '#228822'
     };
 
     for (const obj of editorObjects) {
@@ -10817,6 +12890,53 @@ function buildEditorLevel() {
                 break;
             case 'speedpad':
                 speedPads.push({ x: px, y: py, w: pw, h: TILE * 0.3, boost: 12, duration: 60, animOffset: 0 });
+                break;
+            // 100-feature update editor blocks
+            case 'pressureplate':
+                pressurePlates.push({ x: px, y: py, w: pw, h: TILE * 0.3, linkedIds: ['A'], activated: false, pressTimer: 0, requiredTime: 60 });
+                break;
+            case 'gate':
+                gateBlocks.push({ x: px, y: py, w: pw, h: ph, gateId: 'A', open: false, openProgress: 0, origY: py });
+                break;
+            case 'acid':
+                acidPools.push({ x: px, y: py, w: pw, h: ph, bubblePhase: 0 });
+                break;
+            case 'rotating':
+                rotatingPlatforms.push({ x: px, y: py, w: pw, h: TILE, pivotX: px, pivotY: py - 3 * TILE, radius: 3 * TILE, angle: 0, speed: 0.02 });
+                break;
+            case 'laserturret':
+                laserTurrets.push({ x: px, y: py, w: TILE, h: TILE, dir: 1, warmUp: 30, onTime: 40, offTime: 60, timer: 0, phase: 'off', beamLength: 12 * TILE });
+                break;
+            case 'bubble':
+                bubblePlatforms.push({ x: px, y: py, w: TILE * 1.5, h: TILE * 1.5, radius: TILE * 0.75, contactTimer: 0, popped: false, regenTimer: 0, driftSpeed: -0.3, origY: py });
+                break;
+            case 'flamejet':
+                flameJets.push({ x: px, y: py, w: TILE, h: TILE, dir: 'up', onTime: 40, offTime: 60, timer: 0, active: false, flameLength: 4 * TILE, warningTimer: 0 });
+                break;
+            case 'gravityorb':
+                gravityOrbs.push({ x: px + TILE / 2, y: py + TILE / 2, radius: 10, collected: false, respawnTimer: 0, bobPhase: 0 });
+                break;
+            case 'shockwave':
+                shockwaveEmitters.push({ x: px + TILE / 2, y: py + TILE / 2, interval: 120, timer: 0, waveRadius: 0, waveActive: false, pushForce: 5 });
+                break;
+            case 'shadow':
+                shadowPlatforms.push({ x: px, y: py, w: pw, h: ph, revealRadius: 4 * TILE, visibility: 0 });
+                break;
+            case 'timedswitch':
+                timedSwitchBlocks.push({ x: px, y: py, w: pw, h: ph, duration: 120, timer: 0, solid: false });
+                break;
+            case 'erail':
+                electrifiedRails.push({ x: px, y: py, w: pw, h: TILE * 0.4, onTime: 60, offTime: 90, timer: 0, electrified: false, sparkPhase: 0 });
+                break;
+            case 'phantom':
+                phantomWalls.push({ x: px, y: py, w: pw, h: ph, passableDir: 'right' });
+                break;
+            case 'piston':
+                pistonBlocks.push({ x: px, y: py, w: pw, h: ph, dir: 'right', extendDist: 3 * TILE, speed: 2, extended: 0, extending: true, origX: px, origY: py });
+                break;
+            case 'thornvine':
+                const segs = []; for (let i = 0; i < Math.max(1, Math.floor(ph / TILE)); i++) segs.push({ x: px, y: py + i * TILE, phase: Math.random() * Math.PI * 2 });
+                thornVines.push({ x: px, y: py, h: ph, side: 'left', segments: segs, growPhase: 0, grown: true, growTimer: 0, onTime: 120, offTime: 60 });
                 break;
         }
     }
@@ -11607,6 +13727,314 @@ function initUI() {
             e.stopPropagation();
         });
         maxInput.addEventListener('keyup', (e) => e.stopPropagation());
+    }
+
+    // ============================================
+    // NEW FEATURE EVENT LISTENERS (100 Features)
+    // ============================================
+
+    // --- Game Mode Buttons ---
+    const modeBtn = (id, fn) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', () => { initAudio(); playSound('click'); fn(); });
+    };
+
+    modeBtn('btn-speedrun', () => { doScreenWipe(() => startSpeedrunMode(), 'SPEEDRUN'); });
+    modeBtn('btn-gauntlet', () => { doScreenWipe(() => startGauntletMode(), 'GAUNTLET'); });
+    modeBtn('btn-bossrush', () => { doScreenWipe(() => startBossRush(), 'BOSS RUSH'); });
+    modeBtn('btn-zen', () => { doScreenWipe(() => startZenMode(0), 'ZEN MODE'); });
+    modeBtn('btn-reverse', () => { doScreenWipe(() => startReverseMode(0), 'REVERSE'); });
+    modeBtn('btn-relay', () => { showScreen('relay'); });
+    modeBtn('btn-ghostrace', () => { doScreenWipe(() => startGhostRace(0), 'GHOST RACE'); });
+    modeBtn('btn-ngplus', () => { doScreenWipe(() => startNGPlus(), 'NEW GAME+'); });
+    modeBtn('btn-survival', () => { doScreenWipe(() => startSurvivalMode(0), 'SURVIVAL'); });
+
+    // Puzzle mode
+    const puzzleBtn = document.getElementById('btn-puzzle');
+    if (puzzleBtn) {
+        puzzleBtn.addEventListener('click', () => {
+            playSound('click');
+            populatePuzzleGrid();
+            showScreen('puzzle');
+        });
+    }
+    const backPuzzle = document.getElementById('btn-back-puzzle');
+    if (backPuzzle) backPuzzle.addEventListener('click', () => { playSound('click'); showScreen('menu'); });
+
+    // Relay start
+    const startRelayBtn = document.getElementById('btn-start-relay');
+    if (startRelayBtn) startRelayBtn.addEventListener('click', () => {
+        initAudio(); playSound('click');
+        doScreenWipe(() => startRelayMode(), 'RELAY');
+    });
+    const backRelay = document.getElementById('btn-back-relay');
+    if (backRelay) backRelay.addEventListener('click', () => { playSound('click'); showScreen('menu'); });
+
+    // --- Skill Tree Screen ---
+    const skillTreeBtn = document.getElementById('btn-skilltree');
+    if (skillTreeBtn) {
+        skillTreeBtn.addEventListener('click', () => {
+            playSound('click');
+            populateSkillTree();
+            showScreen('skilltree');
+        });
+    }
+    const backSkillTree = document.getElementById('btn-back-skilltree');
+    if (backSkillTree) backSkillTree.addEventListener('click', () => { playSound('click'); showScreen('menu'); });
+
+    // Skill node clicks
+    document.querySelectorAll('.skill-node').forEach(node => {
+        node.addEventListener('click', () => {
+            const skillId = node.dataset.skill;
+            if (!skillId) return;
+            if (unlockedSkills.includes(skillId)) return;
+            if (getSkillPointsAvailable() <= 0) {
+                spawnFloatingText('No skill points!', canvasW / 2, 80, '#ff4444', 14);
+                return;
+            }
+            // Check branch prerequisites
+            const branch = SKILL_TREE.find(b => b.skills.some(s => s.id === skillId));
+            if (branch) {
+                const idx = branch.skills.findIndex(s => s.id === skillId);
+                if (idx > 0 && !unlockedSkills.includes(branch.skills[idx - 1].id)) {
+                    spawnFloatingText('Unlock previous skill first!', canvasW / 2, 80, '#ffaa00', 14);
+                    return;
+                }
+            }
+            unlockedSkills.push(skillId);
+            playSound('checkpoint');
+            saveProgression();
+            populateSkillTree();
+        });
+    });
+
+    // --- Season Pass Screen ---
+    const seasonBtn = document.getElementById('btn-seasonpass');
+    if (seasonBtn) {
+        seasonBtn.addEventListener('click', () => {
+            playSound('click');
+            populateSeasonPass();
+            showScreen('seasonpass');
+        });
+    }
+    const backSeason = document.getElementById('btn-back-seasonpass');
+    if (backSeason) backSeason.addEventListener('click', () => { playSound('click'); showScreen('menu'); });
+
+    // --- Keybindings Screen ---
+    const keybindBtn = document.getElementById('btn-keybindings');
+    if (keybindBtn) {
+        keybindBtn.addEventListener('click', () => {
+            playSound('click');
+            populateKeybindings();
+            showScreen('keybindings');
+        });
+    }
+    const backKeybind = document.getElementById('btn-back-keybindings');
+    if (backKeybind) backKeybind.addEventListener('click', () => { playSound('click'); showScreen('menu'); });
+
+    const resetKeybind = document.getElementById('btn-reset-keybindings');
+    if (resetKeybind) {
+        resetKeybind.addEventListener('click', () => {
+            playSound('click');
+            // Reset to defaults
+            keyBindings.left = ['a', 'ArrowLeft'];
+            keyBindings.right = ['d', 'ArrowRight'];
+            keyBindings.jump = ['w', 'ArrowUp', ' '];
+            keyBindings.dash = ['Shift'];
+            keyBindings.slide = ['s', 'ArrowDown'];
+            keyBindings.climb = ['e'];
+            keyBindings.slowmo = ['q'];
+            keyBindings.grapple = ['g'];
+            keyBindings.gravityFlip = ['g'];
+            keyBindings.restart = ['r'];
+            keyBindings.pause = ['Escape'];
+            saveProgression();
+            populateKeybindings();
+        });
+    }
+
+    // --- New Settings Toggles ---
+    const dyslexiaBtn = document.getElementById('settings-dyslexia');
+    if (dyslexiaBtn) {
+        dyslexiaBtn.textContent = dyslexiaFontEnabled ? 'ON' : 'OFF';
+        dyslexiaBtn.addEventListener('click', () => {
+            playSound('click');
+            dyslexiaFontEnabled = !dyslexiaFontEnabled;
+            dyslexiaBtn.textContent = dyslexiaFontEnabled ? 'ON' : 'OFF';
+            document.body.classList.toggle('dyslexia-font', dyslexiaFontEnabled);
+            saveProgression();
+        });
+    }
+
+    const speedSlider = document.getElementById('settings-gamespeed');
+    const speedLabel = document.getElementById('gamespeed-label');
+    if (speedSlider) {
+        speedSlider.value = Math.round(gameSpeedMultiplier * 100);
+        if (speedLabel) speedLabel.textContent = Math.round(gameSpeedMultiplier * 100) + '%';
+        speedSlider.addEventListener('input', () => {
+            gameSpeedMultiplier = parseInt(speedSlider.value) / 100;
+            if (speedLabel) speedLabel.textContent = speedSlider.value + '%';
+            saveProgression();
+        });
+    }
+
+    const autozoomBtn = document.getElementById('settings-autozoom');
+    if (autozoomBtn) {
+        autozoomBtn.textContent = autoCameraZoom ? 'ON' : 'OFF';
+        autozoomBtn.addEventListener('click', () => {
+            playSound('click');
+            autoCameraZoom = !autoCameraZoom;
+            autozoomBtn.textContent = autoCameraZoom ? 'ON' : 'OFF';
+            saveProgression();
+        });
+    }
+
+    // HUD toggles
+    const hudToggleIds = ['timer', 'deaths', 'combo', 'dash'];
+    hudToggleIds.forEach(key => {
+        const btn = document.getElementById('hud-toggle-' + key);
+        if (btn) {
+            btn.textContent = hudToggles[key] !== false ? 'ON' : 'OFF';
+            btn.addEventListener('click', () => {
+                playSound('click');
+                hudToggles[key] = !hudToggles[key];
+                btn.textContent = hudToggles[key] ? 'ON' : 'OFF';
+                // Apply visibility
+                const el = document.getElementById('hud-' + key);
+                if (el) el.style.display = hudToggles[key] ? '' : 'none';
+                saveProgression();
+            });
+        }
+    });
+
+    // Custom skin screen
+    const customSkinBtn = document.getElementById('btn-customskin');
+    if (customSkinBtn) {
+        customSkinBtn.addEventListener('click', () => {
+            playSound('click');
+            showScreen('customskin');
+        });
+    }
+    const backCustomSkin = document.getElementById('btn-back-customskin');
+    if (backCustomSkin) backCustomSkin.addEventListener('click', () => { playSound('click'); showScreen('shop'); });
+
+    const saveCustomSkin = document.getElementById('btn-save-customskin');
+    if (saveCustomSkin) {
+        saveCustomSkin.addEventListener('click', () => {
+            playSound('checkpoint');
+            const bh = document.getElementById('skin-body-h');
+            const bs = document.getElementById('skin-body-s');
+            const bl = document.getElementById('skin-body-l');
+            const hh = document.getElementById('skin-head-h');
+            const hs = document.getElementById('skin-head-s');
+            const hl = document.getElementById('skin-head-l');
+            if (bh && bs && bl && hh && hs && hl) {
+                customSkinColors.body = `hsl(${bh.value},${bs.value}%,${bl.value}%)`;
+                customSkinColors.head = `hsl(${hh.value},${hs.value}%,${hl.value}%)`;
+                customSkinColors.arm = customSkinColors.body;
+                customSkinColors.leg = customSkinColors.body;
+            }
+            saveProgression();
+            showScreen('shop');
+        });
+    }
+}
+
+// ---------- POPULATE NEW SCREENS ----------
+function populateSkillTree() {
+    const ptDisplay = document.getElementById('skill-points-display');
+    if (ptDisplay) ptDisplay.textContent = 'Skill Points: ' + getSkillPointsAvailable();
+    document.querySelectorAll('.skill-node').forEach(node => {
+        const skillId = node.dataset.skill;
+        node.classList.remove('unlocked', 'locked');
+        if (unlockedSkills.includes(skillId)) {
+            node.classList.add('unlocked');
+        } else {
+            // Check if prereq is met
+            const branch = SKILL_TREE.find(b => b.skills.some(s => s.id === skillId));
+            if (branch) {
+                const idx = branch.skills.findIndex(s => s.id === skillId);
+                if (idx > 0 && !unlockedSkills.includes(branch.skills[idx - 1].id)) {
+                    node.classList.add('locked');
+                }
+            }
+        }
+    });
+}
+
+function populateSeasonPass() {
+    const display = document.getElementById('season-xp-display');
+    if (display) display.textContent = 'Season XP: ' + seasonPassXP + ' | Tier: ' + seasonPassTier + '/50';
+    const track = document.getElementById('season-track');
+    if (!track) return;
+    track.innerHTML = '';
+    const rewards = ['10 Orbs','Trail','20 Orbs','Hat','30 Orbs','Cape','40 Orbs','Jump FX','50 Orbs','Skin',
+                     '15 Orbs','Land FX','25 Orbs','Eye Style','35 Orbs','Nameplate','45 Orbs','Title','55 Orbs','Death FX',
+                     '20 Orbs','Trail','30 Orbs','Hat','40 Orbs','Cape','50 Orbs','Jump FX','60 Orbs','Skin',
+                     '25 Orbs','Land FX','35 Orbs','Eye Style','45 Orbs','Nameplate','55 Orbs','Title','65 Orbs','Death FX',
+                     '30 Orbs','Trail','40 Orbs','Hat','50 Orbs','Cape','60 Orbs','Jump FX','75 Orbs','LEGENDARY SKIN'];
+    for (let i = 0; i < 50; i++) {
+        const tier = document.createElement('div');
+        tier.className = 'season-tier';
+        if (i < seasonPassTier) tier.classList.add('claimed');
+        if (i === seasonPassTier) tier.classList.add('current');
+        tier.innerHTML = `<div class="season-tier-num">${i + 1}</div><div class="season-tier-reward">${rewards[i] || 'Reward'}</div>`;
+        track.appendChild(tier);
+    }
+}
+
+function populateKeybindings() {
+    const list = document.getElementById('keybindings-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const actions = Object.keys(keyBindings);
+    let listeningRow = null;
+    actions.forEach(action => {
+        const row = document.createElement('div');
+        row.className = 'keybind-row';
+        const label = document.createElement('span');
+        label.className = 'keybind-action';
+        label.textContent = action;
+        const keyEl = document.createElement('span');
+        keyEl.className = 'keybind-key';
+        keyEl.textContent = keyBindings[action].map(k => k === ' ' ? 'SPACE' : k.toUpperCase()).join(' / ');
+        keyEl.addEventListener('click', () => {
+            if (listeningRow) {
+                listeningRow.classList.remove('listening');
+            }
+            keyEl.classList.add('listening');
+            listeningRow = keyEl;
+            const handler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                keyBindings[action] = [e.key];
+                keyEl.textContent = e.key === ' ' ? 'SPACE' : e.key.toUpperCase();
+                keyEl.classList.remove('listening');
+                listeningRow = null;
+                document.removeEventListener('keydown', handler, true);
+                saveProgression();
+            };
+            document.addEventListener('keydown', handler, true);
+        });
+        row.appendChild(label);
+        row.appendChild(keyEl);
+        list.appendChild(row);
+    });
+}
+
+function populatePuzzleGrid() {
+    const grid = document.getElementById('puzzle-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (let i = 0; i < PUZZLE_LEVELS.length; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'level-btn';
+        btn.textContent = 'Puzzle ' + (i + 1);
+        btn.addEventListener('click', () => {
+            initAudio(); playSound('click');
+            doScreenWipe(() => startPuzzleMode(i), 'PUZZLE ' + (i + 1));
+        });
+        grid.appendChild(btn);
     }
 }
 
