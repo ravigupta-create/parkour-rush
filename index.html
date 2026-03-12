@@ -8,13 +8,13 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Password Protection Overlay -->
+    <!-- Access Gate -->
     <div id="password-overlay">
         <div class="password-box">
             <h2>PARKOUR RUSH</h2>
-            <p id="pw-message">Enter password to continue</p>
-            <input type="password" id="pw-input" placeholder="Password" maxlength="20" autocomplete="off">
-            <button id="pw-submit">ENTER</button>
+            <p id="pw-message">Enter access code to play</p>
+            <input type="text" id="pw-input" placeholder="Access code" maxlength="20" autocomplete="off" spellcheck="false">
+            <button id="pw-submit">PLAY</button>
             <p id="pw-attempts" class="pw-attempts"></p>
             <p id="pw-lockout" class="pw-lockout"></p>
         </div>
@@ -63,7 +63,7 @@
                     attempts = 0;
                     input.disabled = false;
                     submitBtn.disabled = false;
-                    msgEl.textContent = 'Enter password to continue';
+                    msgEl.textContent = 'Enter access code to play';
                     lockEl.textContent = '';
                     updateAttemptsDisplay();
                     input.focus();
@@ -103,7 +103,7 @@
                     localStorage.setItem('pr_pw_lockuntil', String(lockUntil));
                     startLockoutTimer();
                 } else {
-                    msgEl.textContent = 'Incorrect password';
+                    msgEl.textContent = 'Incorrect code';
                     updateAttemptsDisplay();
                     input.focus();
                 }
